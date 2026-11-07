@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* Fonte única da identidade visual. Trocar a marca = editar este bloco. */
+:root {
+  --brand-primary: #6d28d9;
+  --brand-accent: #8b5cf6;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --text: #111827;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --radius: 0.75rem;
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@theme inline {
+  --color-brand: var(--brand-primary);
+  --color-accent: var(--brand-accent);
+  --color-surface: var(--surface);
+  --color-muted: var(--surface-muted);
+  --color-ink: var(--text);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-family: var(--font-sans);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

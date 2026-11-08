@@ -1,4 +1,4 @@
-# Spec UI/UX — Requirements (execução faseada, NÃO iniciada além da base)
+# Spec UI/UX — Requirements (execução faseada; prévia visual local implementada, integração pendente)
 
 Ordem: 1 tokens/componentes → 2 home cliente → 3 scroll inteligente → 4 página da loja → 5 carrinho/checkout → 6 dashboard lojista → 7 painel entregador → 8 Master → 9 testes de responsividade/a11y/performance.
 

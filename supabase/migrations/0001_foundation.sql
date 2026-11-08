@@ -69,11 +69,11 @@ insert into public.permissions(code) values
  ('staff.manage'),('reports.view'),('settings.manage'),('delivery.manage_own');
 
 insert into public.role_permissions(member_role, permission)
-select 'owner', code from public.permissions
-union all select 'manager', c from unnest(array['store.customize','menu.manage','orders.view','orders.update_status','reports.view','delivery.manage_own']) c
-union all select 'attendant', c from unnest(array['orders.view','orders.update_status']) c
-union all select 'kitchen', c from unnest(array['orders.view','orders.update_status']) c
-union all select 'courier_own', 'orders.view';
+select 'owner'::public.member_role, code from public.permissions
+union all select 'manager'::public.member_role, c from unnest(array['store.customize','menu.manage','orders.view','orders.update_status','reports.view','delivery.manage_own']) c
+union all select 'attendant'::public.member_role, c from unnest(array['orders.view','orders.update_status']) c
+union all select 'kitchen'::public.member_role, c from unnest(array['orders.view','orders.update_status']) c
+union all select 'courier_own'::public.member_role, 'orders.view';
 
 -- ---------- auditoria ----------
 create table public.audit_logs (
@@ -138,6 +138,9 @@ begin
     raise exception 'forbidden' using errcode = '42501';
   end if;
   if _role = 'customer' then raise exception 'customer role is permanent'; end if;
+  if _role = 'platform_master' and (select count(*) from public.user_roles where role = 'platform_master') <= 1 then
+    raise exception 'cannot revoke the last platform_master';
+  end if;
   delete from public.user_roles where user_id = _user and role = _role;
   insert into public.audit_logs(actor_id, action, entity, entity_id, details)
   values (auth.uid(), 'revoke_role', 'user_roles', _user::text, jsonb_build_object('role', _role));
@@ -195,7 +198,11 @@ create policy audit_select on public.audit_logs for select to authenticated
   using (public.has_role('platform_master'));
 
 -- Privilégios mínimos de tabela (defesa em profundidade além da RLS).
-revoke all on all tables in schema public from anon, authenticated;
+revoke all on public.profiles, public.user_roles, public.businesses, public.business_members,
+  public.permissions, public.role_permissions, public.audit_logs from anon, authenticated;
+-- funções internas/trigger não devem ser chamáveis pela API
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+revoke all on function public.set_updated_at() from public, anon, authenticated;
 grant select on public.businesses to anon;
 grant select on public.businesses, public.profiles, public.user_roles, public.business_members,
   public.permissions, public.role_permissions, public.audit_logs to authenticated;

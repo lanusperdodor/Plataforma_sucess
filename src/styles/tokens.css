@@ -2,27 +2,59 @@
 
 /* Fonte única da identidade visual. Trocar a marca = editar este bloco. */
 :root {
-  --brand-primary: #6d28d9;
-  --brand-accent: #8b5cf6;
+  --brand-primary: #17191b; /* carvão fosco Tucaí */
+  --brand-accent: #c2410c; /* laranja escuro: texto/hover sobre branco (AA) */
   --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --text: #111827;
+  --surface-muted: #f6f6f5;
+  --text: #17191b;
+  /* Laranja Tucaí: preenchimentos, selos e destaques; texto sobre ele em carvão (5,5:1). */
+  --brand-orange: #ff5500;
   --success: #16a34a;
   --danger: #dc2626;
   --radius: 0.75rem;
   --motion-fast: 150ms;
   --motion-base: 250ms;
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Acentos quentes: somente selos, promoções e destaques pontuais. */
+  --accent-warm: #c2410c;
+  --accent-warm-soft: #fff1ea;
+  --text-muted: #4b5563;
+  --border-subtle: rgb(23 25 27 / 0.1);
+  --radius-lg: 1rem;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgb(23 25 27 / 0.06);
+  --motion-slow: 350ms;
+
+  /* Layout */
+  --header-h-expanded: 7rem;
+  --header-h-compact: 3.5rem;
+  --bottom-nav-h: 3.5rem;
+  --sidenav-w: 15rem;
+  --sidenav-w-rail: 4.5rem;
+  --content-max: 80rem;
+
+  /* Camadas */
+  --z-header: 30;
+  --z-nav: 40;
+  --z-sheet: 50;
+  --z-toast: 60;
 }
 
 @theme inline {
   --color-brand: var(--brand-primary);
   --color-accent: var(--brand-accent);
+  --color-orange: var(--brand-orange);
   --color-surface: var(--surface);
   --color-muted: var(--surface-muted);
   --color-ink: var(--text);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-warm: var(--accent-warm);
+  --color-warm-soft: var(--accent-warm-soft);
+  --color-ink-muted: var(--text-muted);
+  --color-line: var(--border-subtle);
+  --radius-card: var(--radius-lg);
   --font-sans: var(--font-sans);
 }
 
@@ -31,12 +63,93 @@ body {
   background: var(--surface-muted);
   color: var(--text);
   font-family: var(--font-sans);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 :focus-visible {
   outline: 2px solid var(--brand-accent);
   outline-offset: 2px;
+}
+
+/* Utilitários de interação: apenas transform/opacity, 150-350 ms. */
+.pressable {
+  transition:
+    transform var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out;
+}
+.pressable:active {
+  transform: scale(0.98);
+}
+
+.hover-lift {
+  transition:
+    transform var(--motion-base) ease-out,
+    opacity var(--motion-base) ease-out;
+}
+.hover-lift:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  .pressable:hover {
+    opacity: 0.92;
+  }
+}
+
+/* Shimmer de skeleton: somente opacity. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton-shimmer {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+/* Overlays (Dialog/Sheet): somente transform/opacity, 150-250 ms. */
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes overlay-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes overlay-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes overlay-slide {
+  from {
+    transform: translateX(100%);
+  }
+}
+.overlay-backdrop {
+  animation: overlay-fade var(--motion-fast) ease-out;
+}
+.overlay-panel-center {
+  animation: overlay-pop var(--motion-fast) ease-out;
+}
+.overlay-panel-bottom {
+  animation: overlay-rise var(--motion-base) ease-out;
+}
+.overlay-panel-right {
+  animation: overlay-slide var(--motion-base) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -46,5 +159,40 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Tuca, o apresentador: flutuação discreta (só transform), desligada com movimento reduzido. */
+@keyframes tuca-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.tuca-float {
+  animation: tuca-float 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes tuca-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tuca-bubble {
+  animation: tuca-bubble-in var(--motion-slow) ease-out both;
+  transform-origin: bottom right;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tuca-float,
+  .tuca-bubble {
+    animation: none !important;
   }
 }

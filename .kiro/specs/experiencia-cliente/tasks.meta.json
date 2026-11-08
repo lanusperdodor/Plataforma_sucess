@@ -1,0 +1,1029 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Instalar `fast-check` e criar o cliente Supabase simulado": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675462
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095691596
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095854232
+      }
+    ],
+    "1.2 Criar `src/lib/money.ts` e `src/lib/errors.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675584
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095692797
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095854663
+      }
+    ],
+    "1.4 Criar `src/lib/time.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675646
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095693618
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095855909
+      }
+    ],
+    "1.7 Criar utilitários `storage.ts`, `url-state.ts`, `a11y.ts` e `color.ts` em `src/lib`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675699
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095694703
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095856630
+      }
+    ],
+    "1.8 Estender `src/styles/tokens.css` com os tokens do design": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675752
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095862092
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096075992
+      }
+    ],
+    "1.10 Configurar regras ESLint de fronteira": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675816
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095862931
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096076305
+      }
+    ],
+    "2.1 Criar `src/components/shell/destinations.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675943
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095864031
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096077108
+      }
+    ],
+    "2.3 Criar `useBreakpoint`, `useCompactHeader` e `nextCompactState`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095675997
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095864689
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096078153
+      }
+    ],
+    "2.5 Criar componentes de feedback em `src/components/feedback`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676069
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096082538
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096221017
+      }
+    ],
+    "2.6 Criar `ToastProvider` e `useToast`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676127
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096083691
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096221879
+      }
+    ],
+    "2.7 Criar `Dialog` e `Sheet` em `src/components/overlays`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676184
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096084506
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096222849
+      }
+    ],
+    "2.8 Criar `TopBar`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676243
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096227143
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096442047
+      }
+    ],
+    "2.9 Criar `BottomNav`, `SideNav` e `CartFab`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676296
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096228310
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096443178
+      }
+    ],
+    "2.10 Criar `AppShell`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676347
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096449886
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096556425
+      }
+    ],
+    "2.11 Criar rotas lazy, `RouteBoundary` e atualizar `App.tsx`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676405
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096560755
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096891817
+      }
+    ],
+    "2.12 Ajustar `RequireAuth`, `safeRedirect` e criar `SessionCacheGuard`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676465
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096229550
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096443891
+      }
+    ],
+    "2.14 Criar `useScrollRestoration`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676603
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096230250
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096445106
+      }
+    ],
+    "2.15 Configurar divisão de código e `scripts/check-bundle.mjs`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676665
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096231161
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096445891
+      }
+    ],
+    "2.16 Escrever testes de componente da navegação e do shell": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676732
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096896324
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096967525
+      }
+    ],
+    "3. Checkpoint - Navegação e shell": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676782
+      }
+    ],
+    "4.1 Criar `scripts/test-sql.mjs` e `supabase/tests/supabase_default_privileges.sql`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676846
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096982131
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794097479712
+      }
+    ],
+    "4.2 Criar `supabase/migrations/0002_catalog_core.sql`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676898
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794097490866
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098009370
+      }
+    ],
+    "4.3 Criar `supabase/tests/rls_experiencia.sql` (base)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676947
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098017713
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098248885
+      }
+    ],
+    "4.4 Criar `supabase/seed/demo_itau_de_minas.sql` (parte 1)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095676999
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098018777
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098249036
+      }
+    ],
+    "4.5 Adicionar verificações do seed ao `rls_experiencia.sql`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677060
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098254388
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098533795
+      }
+    ],
+    "5.1 Criar `src/features/catalog` (schemas, keys, repositório) e `src/lib/pagination.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677115
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098019840
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098249589
+      }
+    ],
+    "5.4 Criar `src/features/catalog/filters.ts` e `src/test/applySpec.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677167
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098255753
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098534509
+      }
+    ],
+    "5.7 Criar hooks do catálogo, `cityStore` e `LocationPicker`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677230
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098541345
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099293351
+      }
+    ],
+    "5.8 Criar `BusinessCard`, `Section` e `CategoryRail`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677283
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098256955
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098535699
+      }
+    ],
+    "5.10 Criar `recentStore` de últimos vistos": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677334
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098257902
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098536608
+      }
+    ],
+    "5.12 Implementar `HomePage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677395
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099297972
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099550451
+      }
+    ],
+    "5.13 Escrever testes de componente da Home": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677449
+      },
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099555345
+      },
+      {
+        "executionId": "b80aa47b-6115-4252-9c9c-4a9891a6224a",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099689818
+      }
+    ],
+    "6. Checkpoint - Banco de catálogo e Home": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677499
+      }
+    ],
+    "7.1 Criar `supabase/migrations/0003_community_jobs.sql`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677564
+      }
+    ],
+    "7.2 Estender o seed com posts e vagas": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677632
+      }
+    ],
+    "7.3 Estender `rls_experiencia.sql` para comunidade e vagas": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677697
+      }
+    ],
+    "7.4 Criar `src/features/community` (schemas e repositório)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677750
+      }
+    ],
+    "7.5 Criar `interactions.ts` com `applyInteraction` e `commentSchema`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677816
+      }
+    ],
+    "7.7 Criar ação pendente e `LoginPrompt`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677879
+      }
+    ],
+    "7.9 Criar hooks da comunidade": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677934
+      }
+    ],
+    "7.10 Criar `PostCard` e variantes": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095677998
+      }
+    ],
+    "7.12 Implementar `CommunityPage` e `PostPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678067
+      }
+    ],
+    "7.13 Integrar \"Novidades da comunidade\" à Home": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678145
+      }
+    ],
+    "7.14 Escrever testes de componente da Comunidade": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678213
+      }
+    ],
+    "8.1 Implementar `RestaurantsPage` e `FilterBar`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678328
+      }
+    ],
+    "8.3 Escrever testes de componente das listagens": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678382
+      }
+    ],
+    "9.1 Estender repositório e hooks do catálogo para o restaurante": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678442
+      }
+    ],
+    "9.2 Criar `src/features/catalog/options.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678500
+      }
+    ],
+    "9.4 Criar `src/features/cart/cart.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678564
+      }
+    ],
+    "9.10 Criar `cartStore` e ligar `TopBar` e `CartFab`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678618
+      }
+    ],
+    "9.11 Criar `StickyCategoryBar`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678682
+      }
+    ],
+    "9.12 Criar `ProductCard` e `ProductModal`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678733
+      }
+    ],
+    "9.13 Criar `CartSheet` e diálogo de troca de restaurante": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678796
+      }
+    ],
+    "9.14 Implementar `RestaurantPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678850
+      }
+    ],
+    "9.15 Escrever testes de componente do restaurante e da Sacola": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678907
+      }
+    ],
+    "10. Checkpoint - Comunidade, Restaurantes e Sacola": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095678966
+      }
+    ],
+    "11.1 Criar `supabase/migrations/0004_customer_data.sql` e testes de RLS": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679026
+      }
+    ],
+    "11.2 Criar `supabase/migrations/0005_orders.sql` e testes de RLS": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679085
+      }
+    ],
+    "11.4 Criar `src/features/orders` (schemas, repositório e hooks de leitura)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679146
+      }
+    ],
+    "11.6 Adicionar `reorderToCart` a `cart.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679199
+      }
+    ],
+    "11.8 Criar `OrderCard`, `OrderTimeline` e `OrdersPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679265
+      }
+    ],
+    "11.9 Implementar `OrderPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679330
+      }
+    ],
+    "11.10 Escrever testes de componente de Pedidos": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679382
+      }
+    ],
+    "12.1 Criar `src/features/profile` (schemas, repositório e hooks)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679447
+      }
+    ],
+    "12.3 Estender o seed com cupons": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679518
+      }
+    ],
+    "12.4 Implementar `ProfilePage` e subrotas": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679585
+      }
+    ],
+    "12.5 Adicionar botão de favoritar nos cartões de comércio": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679647
+      }
+    ],
+    "12.6 Escrever testes de componente do Perfil": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679704
+      }
+    ],
+    "13.1 Criar `src/features/jobs` (schemas, repositório e hooks)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679771
+      }
+    ],
+    "13.3 Implementar `JobCard`, `JobsPage` e `JobPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679834
+      }
+    ],
+    "13.4 Integrar \"Vagas próximas\" à Home": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679897
+      }
+    ],
+    "13.5 Escrever testes de componente de Vagas": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095679952
+      }
+    ],
+    "14. Checkpoint - Pedidos, Perfil e Vagas": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680017
+      }
+    ],
+    "15.1 Estender o repositório do catálogo para lojas e serviços": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680098
+      }
+    ],
+    "15.2 Implementar `ServiceCard`, `StoresPage`, `StorePage` e `ServicesPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680234
+      }
+    ],
+    "15.3 Implementar `ExplorePage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680299
+      }
+    ],
+    "15.4 Integrar \"Empresas da região\" e \"Serviços populares\" à Home": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680364
+      }
+    ],
+    "15.5 Escrever testes de componente de Explorar, Lojas e Serviços": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680424
+      }
+    ],
+    "16.1 Criar `supabase/migrations/0006_order_functions.sql` (busca e notificações)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680482
+      }
+    ],
+    "16.2 Criar `src/features/search` (schemas, repositório e funções puras)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680545
+      }
+    ],
+    "16.5 Implementar `SmartSearch` e `SearchPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680598
+      }
+    ],
+    "16.6 Escrever testes de componente da busca": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680666
+      }
+    ],
+    "17.1 Criar `src/features/notifications` (schemas, repositório, hooks)": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680730
+      }
+    ],
+    "17.3 Implementar `NotificationsPage` e ligar o sino do `TopBar`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680796
+      }
+    ],
+    "17.4 Escrever testes de componente de Notificações": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680850
+      }
+    ],
+    "18.1 Completar `0006_order_functions.sql` com preços e pedido": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680915
+      }
+    ],
+    "18.2 Estender `rls_experiencia.sql` com as seções de pedido": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095680980
+      }
+    ],
+    "18.8 Criar `src/features/pricing/pricing-parity.test.ts`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681033
+      }
+    ],
+    "18.9 Estender o repositório de pedidos com cotação e criação": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681101
+      }
+    ],
+    "18.10 Implementar `CheckoutPage`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681165
+      }
+    ],
+    "18.11 Escrever testes de componente do Checkout": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681233
+      }
+    ],
+    "19. Checkpoint - Explorar, Busca, Notificações e Checkout": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681304
+      }
+    ],
+    "20.1 Remover `src/features/preview`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681369
+      }
+    ],
+    "20.3 Executar a verificação completa e registrar o resultado": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681433
+      }
+    ],
+    "20.4 Atualizar `PROGRESSO.md` e `PROXIMOS_PASSOS.md`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681500
+      }
+    ],
+    "20.5 Registrar decisões em `ARQUITETURA.md` e atualizar o steering": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681565
+      }
+    ],
+    "20.6 Atualizar `.kiro/specs/roteiro-mvp/requirements.md`": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681616
+      }
+    ],
+    "21. Checkpoint final": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794095681680
+      }
+    ],
+    "1. Fundação: utilitários, testes e tokens": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096076383
+      }
+    ],
+    "2. Navegação geral e experiência de app": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794096967878
+      }
+    ],
+    "4. Banco: executor SQL e catálogo": [
+      {
+        "executionId": "a6d3be55-fc9c-48e4-83cb-1094902e6d04",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794098533925
+      }
+    ],
+    "5. Camada de catálogo e Home": [
+      {
+        "executionId": "b80aa47b-6115-4252-9c9c-4a9891a6224a",
+        "chatSessionId": "sess_009383ce-539d-42c9-9fdd-7cc959622a9e",
+        "timestamp": 1794099689926
+      }
+    ]
+  }
+}

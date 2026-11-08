@@ -3,11 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#6D28D9" />
-    <title>Plataforma Regional</title>
+    <meta name="theme-color" content="#17191B" />
+    <meta name="description" content="Tucaí — Tudo junto. Tudo aí. Comida, lojas, serviços, vagas e comunidade da sua cidade." />
+    <meta name="application-name" content="Tucaí" />
+    <meta property="og:title" content="Tucaí — Tudo junto. Tudo aí." />
+    <meta property="og:site_name" content="Tucaí" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/brand/icone-1024.png" />
+    <link rel="preload" as="image" href="/brand/tuca-apresentador-600.png" fetchpriority="high" />
+    <title>Tucaí — Tudo junto. Tudo aí.</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Conteúdo inicial substituído pelo React. Se o app não iniciar, o aviso abaixo aparece em vez de uma tela branca. -->
+    <div id="root">
+      <div id="boot" style="min-height:100dvh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#17191b;background:#fff">
+        <div style="text-align:center;padding:24px">
+          <img src="/brand/icone.svg" alt="" width="56" height="56" style="border-radius:14px" />
+          <p id="boot-msg" style="margin:12px 0 0;font-size:15px">Carregando o Tucaí…</p>
+          <button id="boot-retry" type="button" hidden style="margin-top:12px;min-height:44px;padding:0 20px;border:0;border-radius:999px;background:#ff5500;color:#17191b;font-weight:600;cursor:pointer">Recarregar</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Vigia de inicialização: se um módulo falhar (rede, cache do Vite desatualizado), avisa e oferece recarregar.
+      ;(function () {
+        function fail(reason) {
+          var msg = document.getElementById('boot-msg')
+          var btn = document.getElementById('boot-retry')
+          if (!msg || !btn) return // React já montou
+          msg.textContent = 'Não foi possível carregar o Tucaí. Verifique a conexão e tente de novo.'
+          btn.hidden = false
+          btn.onclick = function () { location.reload() }
+          if (reason) console.error('[boot] falha ao iniciar o app:', reason)
+        }
+        window.addEventListener('vite:preloadError', function (e) { fail(e && e.payload) })
+        window.addEventListener('error', function (e) {
+          var t = e && e.target
+          if (t && t.tagName === 'SCRIPT') fail('script ' + t.src)
+        }, true)
+        setTimeout(function () { if (document.getElementById('boot')) fail('timeout de 12 s') }, 12000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

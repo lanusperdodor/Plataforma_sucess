@@ -1,4 +1,4 @@
-# Plataforma Regional (nome provisório)
+# Tucaí — Tudo junto. Tudo aí.
 
 Delivery regional (Itaú de Minas/MG → Brasil). React + TypeScript + Vite + Tailwind + Supabase.
 
@@ -18,3 +18,6 @@ Migrations em `supabase/migrations`. Aplicar com Supabase CLI (`supabase link` +
 
 ## Deploy
 Cloudflare Pages (free): build `npm run build`, saída `dist`. Não feito; requer sua autorização e conta.
+
+## Visualizar com F5 no Kiro
+Com esta pasta aberta e confiável, pressione F5 e escolha Projeto Milhão — abrir no navegador, se solicitado. O Vite inicia em http://127.0.0.1:5173 e o navegador padrão abre automaticamente. Alterações aparecem automaticamente. Shift+F5 encerra o servidor. Sem configuração do Supabase, a interface abre, mas cadastro e login ficam indisponíveis. Se a porta 5173 estiver ocupada, encerre a execução anterior antes de iniciar outra.

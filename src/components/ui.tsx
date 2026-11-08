@@ -42,10 +42,11 @@ export const Field = forwardRef<
   )
 })
 
-export function Card({ children, title }: { children: ReactNode; title?: string }) {
+export function Card({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
-    <section className="mx-auto w-full max-w-md rounded-2xl border border-ink/10 bg-surface p-6">
-      {title && <h1 className="mb-4 text-xl font-semibold">{title}</h1>}
+    <section className="mx-auto w-full max-w-md rounded-2xl border border-ink/10 bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8">
+      {title && <h1 className={`text-2xl font-bold text-ink ${subtitle ? 'mb-1' : 'mb-4'}`}>{title}</h1>}
+      {subtitle && <p className="mb-5 text-sm text-ink-muted">{subtitle}</p>}
       {children}
     </section>
   )

@@ -9,7 +9,7 @@
 -- NUNCA salve a senha neste arquivo no GitHub.
 --
 -- Depois: no primeiro acesso o painel pede para cadastrar o autenticador (MFA) em Segurança.
--- Pré-requisito: banco atualizado (supabase/admin/apply_all_migrations.sql, até a 0016).
+-- Pré-requisito: migration 0015 aplicada (supabase/admin/apply_all_migrations.sql).
 -- =====================================================================================
 do $$
 declare
@@ -33,7 +33,11 @@ begin
      where id = uid;
     raise notice 'Senha da conta % atualizada.', admin_email;
   end if;
-  update public.profiles set username = 'admin' where id = uid;  -- entra digitando admin, ADMIN ou Admin
+  -- entra digitando admin, ADMIN ou Admin (o nome de usuário exige a migration 0016; sem ela, o login
+  -- por "admin" funciona do mesmo jeito pelo e-mail admin@tucai.example.com)
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'username') then
+    execute 'update public.profiles set username = ''admin'' where id = $1' using uid;
+  end if;
   insert into public.user_roles(user_id, role) values (uid, 'platform_master') on conflict do nothing;
   insert into public.audit_logs(actor_id, action, entity, entity_id, details)
   values (null, 'bootstrap_master', 'user_roles', uid::text, jsonb_build_object('method', 'create_admin_login.sql'));

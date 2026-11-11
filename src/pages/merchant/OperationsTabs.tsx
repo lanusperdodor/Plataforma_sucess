@@ -40,6 +40,9 @@ import {
   type OrderStatus,
 } from '../../features/orders/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
+import { useSearchParams } from 'react-router-dom'
+import { getMyPlan } from '../../features/merchant/repository.ts'
+import { createPaymentLink } from '../../features/payments/repository.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 import { dateTime } from '../OrdersPage.tsx'
 
@@ -360,6 +363,69 @@ export function JobsTab({ businessId, active }: { businessId: string; active: bo
             )
           })}
         </ul>
+      )}
+    </div>
+  )
+}
+
+// ---------- Plano e pagamentos ----------
+export function PlanTab({ businessId }: { businessId: string }) {
+  const toast = useToast()
+  const [params] = useSearchParams()
+  const q = useQuery({ queryKey: ['merchant', 'plan', businessId], queryFn: () => getMyPlan(businessId) })
+  const pay = useMutation({
+    mutationFn: createPaymentLink,
+    onSuccess: (url) => window.location.assign(url),
+    onError: (e) => toast.error(msg(e)),
+  })
+  const result = params.get('pagamento')
+  const dateBr = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/')
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+  const s = q.data?.subscription
+  const open = (q.data?.charges ?? []).filter((c) => c.status === 'aberta')
+  const history = (q.data?.charges ?? []).filter((c) => c.status !== 'aberta')
+  return (
+    <div className="flex flex-col gap-3">
+      {result === 'aprovado' && <p role="status" className="rounded-card border border-success bg-surface p-3 text-sm text-ink">Pagamento aprovado. A confirmação chega em instantes e o plano é renovado automaticamente.</p>}
+      {result === 'pendente' && <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm text-ink">Pagamento em processamento (Pix ou boleto). Assim que o Mercado Pago confirmar, a cobrança é baixada sozinha.</p>}
+      {result === 'recusado' && <p role="alert" className="rounded-card border border-danger bg-surface p-3 text-sm text-ink">O pagamento não foi concluído. Você pode tentar de novo.</p>}
+      <section className={box}>
+        <h3 className="mb-1 text-base font-semibold text-ink">Seu plano</h3>
+        {!q.data ? (
+          <p className="text-sm text-ink-muted">Carregando…</p>
+        ) : s ? (
+          <p className="text-sm text-ink">
+            <strong>{s.planName}</strong> · {formatBRL(s.priceCents)}/mês · desde {dateBr(s.startedOn)} · <strong>vence em {dateBr(s.periodEnd)}</strong>
+          </p>
+        ) : (
+          <p className="text-sm text-ink-muted">Nenhum plano ativo. A Tucaí entra em contato para combinar o plano do seu estabelecimento.</p>
+        )}
+      </section>
+      <section className={box}>
+        <h3 className="mb-2 text-base font-semibold text-ink">Cobranças em aberto</h3>
+        {open.length === 0 ? (
+          <p className="text-sm text-ink-muted">{q.data ? 'Nenhuma cobrança em aberto.' : 'Carregando…'}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {open.map((c) => (
+              <li key={c.id} className="flex flex-col gap-2 rounded-xl border border-line p-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm text-ink">{c.description} · <strong>{formatBRL(c.amountCents)}</strong> · vence {dateBr(c.dueOn)}</span>
+                <button type="button" disabled={pay.isPending} onClick={() => pay.mutate(c.id)} className={primary}>{pay.isPending ? 'Abrindo…' : 'Pagar com Mercado Pago'}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-ink-muted">Pix, cartão ou boleto pelo Mercado Pago. A Tucaí não vê os dados do seu cartão.</p>
+      </section>
+      {history.length > 0 && (
+        <section className={box}>
+          <h3 className="mb-2 text-base font-semibold text-ink">Histórico</h3>
+          <ul className="divide-y divide-line text-sm">
+            {history.map((c) => (
+              <li key={c.id} className="flex justify-between gap-2 py-2"><span>{c.description}</span><span>{formatBRL(c.amountCents)} · {c.status === 'paga' ? `pago em ${c.paidAt ? dateBr(c.paidAt) : ''}` : 'cancelada'}</span></li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   )

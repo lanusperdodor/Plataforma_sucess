@@ -13,8 +13,9 @@ import { DEFAULT_SITE_URL, OG_IMAGE, robotsTxt, sitemapXml, type PageMeta, type 
 import { ldScript } from '../seo/structured'
 import { validGa4, validPixel } from '../features/tracking/config'
 import { SECURITY_HEADERS } from './securityHeaders'
+import { handlePayments, type PaymentsEnv } from './payments'
 
-export interface Env {
+export interface Env extends PaymentsEnv {
   ASSETS: { fetch(input: Request | string): Promise<Response> }
   /** Domínio canônico, sem barra final. Ex.: https://www.tucai.com.br */
   SITE_URL?: string
@@ -133,6 +134,8 @@ export default {
     const indexingAllowed = env.ALLOW_INDEXING === 'true' && url.host === new URL(siteUrl).host
     const path = url.pathname
 
+    const api = await handlePayments(request, env, siteUrl)
+    if (api) return api
     if (path === '/robots.txt') {
       return withHeaders(new Response(robotsTxt(siteUrl, indexingAllowed), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }), {
         'Cache-Control': 'public, max-age=3600',

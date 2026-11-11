@@ -431,3 +431,26 @@ export async function setMyName(userId: string, name: string): Promise<void> {
   if (error) throw mapPostgrestError(error)
   if (!data || data.length !== 1) throw new RepositoryError('forbidden', 'Não foi possível salvar o nome.')
 }
+
+// ---------- gateway de pagamento (0019) ----------
+const gatewaySchema = z
+  .object({
+    provider: z.string(), mode: z.string().nullable(), public_key: z.string().nullable(), token_last4: z.string().nullable(), token_set: z.boolean(),
+    webhook_secret_set: z.boolean(), integration_key_set: z.boolean(), enabled: z.boolean(), updated_at: z.string().nullable(),
+  })
+  .transform((r) => ({
+    mode: r.mode, publicKey: r.public_key, tokenLast4: r.token_last4, tokenSet: r.token_set, webhookSecretSet: r.webhook_secret_set,
+    integrationKeySet: r.integration_key_set, enabled: r.enabled, updatedAt: r.updated_at,
+  }))
+export type GatewaySettings = z.output<typeof gatewaySchema>
+
+export async function getGateway(): Promise<GatewaySettings> {
+  const rows = await rpc('admin_payment_gateway_get', undefined, z.array(gatewaySchema))
+  return rows[0]!
+}
+export function saveGateway(v: { publicKey: string; accessToken: string; webhookSecret: string; enabled: boolean }): Promise<void> {
+  return rpc('admin_payment_gateway_set', { _public_key: v.publicKey || null, _access_token: v.accessToken || null, _webhook_secret: v.webhookSecret || null, _enabled: v.enabled }, z.any()).then(() => undefined)
+}
+export function generateIntegrationKey(): Promise<string> {
+  return rpc('admin_generate_integration_key', undefined, z.string())
+}

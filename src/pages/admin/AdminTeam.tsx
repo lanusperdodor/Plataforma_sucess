@@ -22,6 +22,7 @@ export const PERMISSION_LABEL: Record<(typeof PLATFORM_PERMISSION_CODES)[number]
   'businesses.review': 'Analisar estabelecimentos',
   'cities.manage': 'Gerenciar cidades',
   'audit.view': 'Ver auditoria',
+  'privacy.manage': 'Privacidade (LGPD)',
   'couriers.review': 'Analisar entregadores',
   'orders.view': 'Consultar pedidos',
   'finance.view': 'Consultar financeiro',

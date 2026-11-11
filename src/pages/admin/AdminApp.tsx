@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ClipboardList, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { Building2, ClipboardList, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -10,6 +10,7 @@ import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { AdminAudit } from './AdminAudit.tsx'
 import { AdminBusinesses } from './AdminBusinesses.tsx'
 import { AdminCities } from './AdminCities.tsx'
+import { AdminPrivacy } from './AdminPrivacy.tsx'
 import { AdminDashboard } from './AdminDashboard.tsx'
 import { AdminSecurity } from './AdminSecurity.tsx'
 import { AdminTeam } from './AdminTeam.tsx'
@@ -31,6 +32,7 @@ const NAV: NavItem[] = [
   { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
   { to: '/admin/equipe', label: 'Equipe', icon: Users, permission: 'master' },
   { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, permission: 'audit.view' },
+  { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, permission: 'privacy.manage' },
   { to: '/admin/seguranca', label: 'Segurança', icon: ShieldCheck },
 ]
 
@@ -167,6 +169,7 @@ export function AdminApp() {
           <Route path="cidades" element={<Guard access={data} item={item('/admin/cidades')}><AdminCities /></Guard>} />
           <Route path="equipe" element={<Guard access={data} item={item('/admin/equipe')}><AdminTeam /></Guard>} />
           <Route path="auditoria" element={<Guard access={data} item={item('/admin/auditoria')}><AdminAudit /></Guard>} />
+          <Route path="privacidade" element={<Guard access={data} item={item('/admin/privacidade')}><AdminPrivacy /></Guard>} />
           <Route path="seguranca" element={<AdminSecurity />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>

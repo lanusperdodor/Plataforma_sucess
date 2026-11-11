@@ -19,7 +19,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="w-full">{children}</div>
       </main>
       <footer className="pb-6 text-center text-xs text-ink-muted">
-        {BRAND.name} · {BRAND.slogan}
+        {BRAND.name} · {BRAND.slogan} ·{' '}
+        <Link to="/privacidade" className="underline">Privacidade</Link> ·{' '}
+        <Link to="/termos" className="underline">Termos</Link>
       </footer>
     </div>
   )

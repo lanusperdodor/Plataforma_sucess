@@ -39,6 +39,8 @@ create function tst.affected(stmt text) returns int language plpgsql as $$
 declare n int; begin execute stmt; get diagnostics n = row_count; return n; end $$;
 
 -- ---------- dados (como superusuário) ----------
+-- MFA obrigatório (0006) é testado em rls_security.sql; aqui as sessões são aal1.
+update public.platform_settings set value = 'false' where key = 'require_admin_mfa';
 insert into auth.users(id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'a@teste.invalid'),   -- cliente
   ('00000000-0000-0000-0000-0000000000b1', 'b@teste.invalid'),   -- cliente

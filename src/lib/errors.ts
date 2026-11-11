@@ -6,6 +6,7 @@ export type RepositoryErrorCode =
   | 'conflict'
   | 'business_rule'
   | 'unavailable'
+  | 'rate_limited'
   | 'unknown'
 
 export class RepositoryError extends Error {
@@ -42,6 +43,13 @@ export function mapPostgrestError(e: { code?: string; message: string; details?:
       return new RepositoryError('not_found', 'Não encontrado.', undefined, opts)
     case '23505':
       return new RepositoryError('conflict', 'Este registro já existe ou foi alterado.', undefined, opts)
+    case 'PT429':
+      return new RepositoryError(
+        'rate_limited',
+        e.message?.trim() || 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.',
+        undefined,
+        opts,
+      )
     case 'P0001':
       return new RepositoryError(
         'business_rule',

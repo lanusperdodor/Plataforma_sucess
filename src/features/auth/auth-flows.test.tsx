@@ -180,6 +180,9 @@ describe('login e cadastro', () => {
     expect(safeRedirect('https://evil.example')).toBe('/conta')
     expect(safeRedirect('/\\evil.example')).toBe('/conta')
     expect(safeRedirect(42)).toBe('/conta')
+    expect(safeRedirect('/\t/evil.example')).toBe('/conta')
+    expect(safeRedirect('/\n/evil.example')).toBe('/conta')
+    expect(safeRedirect('javascript:alert(1)')).toBe('/conta')
     expect(safeRedirect('/conta?aba=a#topo')).toBe('/conta?aba=a#topo')
   })
 

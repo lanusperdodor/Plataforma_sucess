@@ -53,6 +53,9 @@ insert into public.user_roles(user_id, role) values
 insert into public.platform_staff_permissions(user_id, permission) values
   ('88880000-0000-0000-0000-0000000000a3', 'businesses.review'),
   ('88880000-0000-0000-0000-0000000000a3', 'cities.manage');
+-- 0006 liga o MFA obrigatório por padrão; estes testes começam com ele desligado e o
+-- religam na seção 10 (o teste de padrão está em rls_security.sql).
+update public.platform_settings set value = 'false' where key = 'require_admin_mfa';
 insert into public.cities(id, name, state, slug, is_active) values
   ('88889000-0000-0000-0000-000000000001', 'Cidade Tsta', 'TA', 'tsta-cidade', true),
   ('88889000-0000-0000-0000-000000000002', 'Cidade Tsta Off', 'TA', 'tsta-off', false);
@@ -238,6 +241,8 @@ begin
   perform tsta.denied($q$select public.admin_set_setting('max_pending_business_applications', '0')$q$, 'limite fora da faixa', array['P0001']);
   perform tsta.su();
   perform tsta.ok(tsta.count($q$select 1 from public.audit_logs where action = 'setting.update'$q$) = 2, 'configurações auditadas');
+  perform tsta.ok(not exists (select 1 from public.audit_logs where action = 'business.submit' and details ? 'name'),
+                  'auditoria do envio não guarda texto livre do usuário (0006)');
 
   -- 11. funções internas fora da API
   perform tsta.login(m, 'aal2');

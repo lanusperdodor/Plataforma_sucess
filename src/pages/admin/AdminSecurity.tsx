@@ -155,7 +155,7 @@ function SettingsPanel() {
         />
         <span>
           <span className="font-semibold">Exigir MFA de toda a equipe administrativa</span>
-          <span className="block text-ink-muted">Obrigatório antes da operação em produção. Para ativar, verifique primeiro o seu próprio MFA.</span>
+          <span className="block text-ink-muted">Ligado por padrão. Para religar depois de desligado, verifique primeiro o seu próprio MFA. Toda mudança fica na auditoria.</span>
         </span>
       </label>
       <form

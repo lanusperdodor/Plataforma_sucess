@@ -141,7 +141,9 @@ begin
                            'profiles', 'user_roles', 'businesses', 'business_members',
                            'permissions', 'role_permissions', 'audit_logs',
                            -- tabelas globais da plataforma (0005)
-                           'platform_settings', 'platform_permissions', 'platform_staff_permissions')
+                           'platform_settings', 'platform_permissions', 'platform_staff_permissions',
+                           -- solicitações LGPD são do titular, não de uma empresa (0006)
+                           'privacy_requests')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

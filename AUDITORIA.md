@@ -63,6 +63,18 @@ Nada aqui foi testado em produção.
 
 Cadastro de estabelecimento pelo comerciante (`/cadastrar-negocio`): **FUNCIONAL (local)** — envio, limite anti-spam, acompanhamento do status e motivo da recusa.
 
+## 4b. Módulos 22–26 (adicionados em 11/11/2026)
+
+| # | Módulo | Estado | Observação |
+|---|---|---|---|
+| 22 | Precificação comparativa (efeito chamariz) | NÃO INICIADO | Depende do catálogo real e do motor de preços no backend (Sprints 3–4). Regras de transparência já nos termos. |
+| 23 | Segurança da aplicação | PARCIAL (etapa 1 concluída) | Ver `docs/SEGURANCA.md`. |
+| 24 | Privacidade e LGPD | PARCIAL | Direitos do titular FUNCIONAL (local); políticas em minuta; dados institucionais pendentes. `docs/LGPD.md`. |
+| 25 | Transparência comercial | PARCIAL | Termos em minuta; transparência de preço depende do checkout. |
+| 26 | Segurança operacional | PARCIAL | CI, Dependabot, procedimentos; backups e monitoramento dependem do plano/fornecedor. `docs/OPERACAO.md`. |
+
+Checklist classificado: `docs/CONFORMIDADE.md`.
+
 ## 5. Limitações conhecidas
 
 - Bundle inicial 575 kB (meta 450 kB; Supabase no carregamento inicial) — Sprint 12.

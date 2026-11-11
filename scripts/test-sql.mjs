@@ -84,6 +84,7 @@ async function main() {
       ...one('supabase/tests/rls_foundation.sql'),
       ...one('supabase/tests/rls_experiencia.sql'),
       ...one('supabase/tests/rls_admin.sql'),
+      ...one('supabase/tests/rls_security.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

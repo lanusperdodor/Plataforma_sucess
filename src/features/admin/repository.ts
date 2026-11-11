@@ -18,6 +18,7 @@ export const PLATFORM_PERMISSION_CODES = [
   'businesses.review',
   'cities.manage',
   'audit.view',
+  'privacy.manage',
   'couriers.review',
   'orders.view',
   'finance.view',

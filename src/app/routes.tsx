@@ -19,6 +19,10 @@ const ConectaPage = lazyNamed(pageLoaders['/conecta'], 'ConectaPage')
 const PostPage = lazyNamed(pageLoaders['/conecta/:postId'], 'PostPage')
 const CouriersPage = lazyNamed(pageLoaders['/entregadores'], 'CouriersPage')
 const BusinessApplicationPage = lazyNamed(pageLoaders['/cadastrar-negocio'], 'BusinessApplicationPage')
+const PrivacyPolicyPage = lazyNamed(pageLoaders['/privacidade'], 'PrivacyPolicyPage')
+const TermsPage = lazyNamed(pageLoaders['/privacidade'], 'TermsPage')
+const StoragePolicyPage = lazyNamed(pageLoaders['/privacidade'], 'StoragePolicyPage')
+const PrivacyCenterPage = lazyNamed(pageLoaders['/perfil/privacidade'], 'PrivacyCenterPage')
 const SearchPage = lazyNamed(pageLoaders['/busca'], 'SearchPage')
 const CartPage = lazyNamed(pageLoaders['/sacola'], 'CartPage')
 const CheckoutPage = lazyNamed(pageLoaders['/sacola/checkout'], 'CheckoutPage')
@@ -95,6 +99,9 @@ export function AppRoutes() {
         <Route path="comunidade" element={<Navigate to="/conecta" replace />} />
         <Route path="comunidade/:postId" element={<LegacyPostRedirect />} />
         <Route path="entregadores" element={<CouriersPage />} />
+        <Route path="privacidade" element={<PrivacyPolicyPage />} />
+        <Route path="termos" element={<TermsPage />} />
+        <Route path="armazenamento" element={<StoragePolicyPage />} />
         <Route path="busca" element={<SearchPage />} />
         <Route path="sacola" element={<CartPage />} />
         {/* Pedidos, Perfil e Notificações abrem para visitantes com convite de login;
@@ -102,6 +109,7 @@ export function AppRoutes() {
         <Route path="pedidos" element={<OrdersPage />} />
         <Route path="perfil">
           <Route index element={<ProfilePage />} />
+          <Route path="privacidade" element={<RequireAuth><PrivacyCenterPage /></RequireAuth>} />
           {PROFILE_SECTIONS.map((section) => (
             <Route key={section} path={section} element={<ProfilePage />} />
           ))}

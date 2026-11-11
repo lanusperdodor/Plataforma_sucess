@@ -20,6 +20,11 @@ const ACTION_LABEL: Record<string, string> = {
   'staff_permission.grant': 'Permissão concedida',
   'staff_permission.revoke': 'Permissão revogada',
   'setting.update': 'Configuração alterada',
+  'privacy.request': 'Solicitação de privacidade',
+  'privacy.in_progress': 'Privacidade: em atendimento',
+  'privacy.completed': 'Privacidade: concluída',
+  'privacy.rejected': 'Privacidade: não atendida',
+  bootstrap_master: 'Primeiro Master criado',
 }
 
 /** Logs de auditoria (somente leitura; o banco impede alteração e exclusão). */

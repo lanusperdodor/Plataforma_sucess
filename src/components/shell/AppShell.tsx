@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { prefetchRoute } from '../../app/lazy.ts'
 import { useScrollRestoration } from '../../app/useScrollRestoration.ts'
 import { AnnounceContext } from './announceContext.ts'
@@ -58,6 +58,11 @@ export function AppShell({ children }: AppShellProps) {
             ) : (
               children
             )}
+            <footer className="mx-auto flex max-w-5xl flex-wrap gap-x-4 gap-y-1 px-4 pb-6 pt-2 text-xs text-ink-muted md:px-6">
+              <Link to="/privacidade" className="underline">Privacidade</Link>
+              <Link to="/termos" className="underline">Termos de uso</Link>
+              <Link to="/armazenamento" className="underline">Armazenamento local</Link>
+            </footer>
           </main>
         </div>
         {mobile ? (

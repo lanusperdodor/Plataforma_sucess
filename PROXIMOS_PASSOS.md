@@ -13,7 +13,15 @@ Estado completo em `AUDITORIA.md`. Roteiro técnico: Sprints 1–12 do briefing.
 4. **Auth → URL Configuration**: incluir as URLs do site publicado e de `localhost:5173` (`/entrar`, `/nova-senha`).
 5. **Decisões comerciais**: provedor de pagamento (Pix + cartão, webhooks, split/repasse); serviço de rotas/mapa para distância e tempo reais.
 
+6. **Dados institucionais** para as páginas legais (`src/config/legal.ts`): razão social, CNPJ, endereço, encarregado (DPO), e-mail de privacidade.
+7. **Supabase Auth** (painel): itens de `docs/SEGURANCA.md` §3 (rate limits, senha, CAPTCHA, MFA, redirects). **Plano de backup**: confirmar o que o plano atual oferece.
+8. **GitHub**: acesso para push; depois ativar branch protection exigindo o CI e os alertas de segurança do Dependabot.
+9. **Deploy**: confirmar que a hospedagem aplica `public/_headers` (Cloudflare Workers Static Assets/Pages aplicam).
+
 ## Próxima execução (independente de credenciais)
+
+- Segurança etapa 2: Storage com políticas de upload (tipo/tamanho) antes de qualquer envio de imagem/documento; validar `NOT VALID` das URLs após conferir dados remotos.
+- Módulo 22 (efeito chamariz) só depois do catálogo real e do motor de preços no backend.
 
 - Sprint 2 (restante): coordenadas e raio por cidade no painel; consulta de usuários; notificação ao comerciante sobre a análise.
 - Sprint 3: painel do restaurante (cardápio, categorias, adicionais, horários, personalização com contraste validado) e página pública da loja.

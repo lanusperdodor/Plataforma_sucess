@@ -53,3 +53,10 @@ Limitações: interações da Comunidade/Vagas/Pedidos são só visuais; carrega
 - Painel Master `/admin`: painel geral, estabelecimentos, cidades, equipe/permissões, auditoria, segurança/MFA. Cadastro de negócio em `/cadastrar-negocio`.
 - Verificado: typecheck, lint, 235 testes Vitest, build; testes SQL (foundation, experiência, admin) em PostgreSQL 16 local; controle negativo; bootstrap do primeiro Master.
 - Não verificado: Supabase real (nenhuma migration aplicada remotamente), MFA com GoTrue real, navegador. Bundle inicial 575 kB (> meta 450 kB).
+
+## Segurança, privacidade e conformidade — etapa 1 — 11/11/2026
+- Migration 0006: MFA admin obrigatório por padrão, rate limiting no servidor (HTTP 429), URLs de imagem só https, solicitações LGPD, exportação de dados, anonimização auditada.
+- CSP estrita e cabeçalhos (`public/_headers`), script inline removido; validado em navegador real sem violações.
+- Central de privacidade (`/perfil/privacidade`), atendimento no Painel (`/admin/privacidade`), páginas `/privacidade`, `/termos`, `/armazenamento` (minutas; dados institucionais pendentes).
+- CI (`.github/workflows/ci.yml`), Dependabot, `npm run check-secrets`; `npm audit` 0.
+- Verificado: 247 testes Vitest, build, testes SQL foundation/experiência/admin/security em PostgreSQL 16 local, controles negativos. Não verificado: Supabase/Cloudflare reais.

@@ -1,0 +1,49 @@
+# Verificações obrigatórias antes do merge. Não publica nada e não acessa o Supabase remoto.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, feat/fundacao-fase-1]
+  schedule:
+    - cron: '17 9 * * 1' # auditoria semanal de dependências (segunda, 06:17 BRT)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+      - name: Segredos no código e no build
+        run: npm run check-secrets
+      - name: Auditoria de vulnerabilidades
+        run: npm audit --audit-level=moderate
+
+  database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Migrations e testes de RLS/segurança em PostgreSQL descartável
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-16 >/dev/null
+          PG_BIN=/usr/lib/postgresql/16/bin node scripts/test-sql.mjs

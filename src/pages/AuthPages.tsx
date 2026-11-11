@@ -31,6 +31,8 @@ function ConfigWarning() {
 /** Aceita só caminhos internos (evita redirecionamento aberto via state manipulado). */
 export function safeRedirect(from: unknown, fallback = '/conta'): string {
   if (typeof from !== 'string') return fallback
+  // eslint-disable-next-line no-control-regex -- recusa tab/quebra de linha (o navegador os remove e /\t/x vira //x)
+  if (/[\u0000-\u001f\u007f]/.test(from)) return fallback
   if (!from.startsWith('/') || from.startsWith('//') || from.includes('\\')) return fallback
   return from
 }

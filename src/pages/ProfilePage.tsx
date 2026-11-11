@@ -23,6 +23,7 @@ const ITEMS: Item[] = [
   { slug: 'salvos', to: '/perfil/salvos', label: 'Publicações salvas', text: 'Promoções e eventos guardados', icon: Bookmark },
   { slug: 'cupons', to: '/perfil/cupons', label: 'Cupons', text: 'Descontos oferecidos pelos comércios', icon: Ticket },
   { slug: 'notificacoes', to: '/notificacoes', label: 'Notificações', text: 'Avisos de pedidos e novidades', icon: Bell },
+  { slug: 'privacidade', to: '/perfil/privacidade', label: 'Privacidade e dados', text: 'Baixar dados, solicitações LGPD e sessões', icon: ShieldCheck },
   { slug: 'configuracoes', to: '/perfil/configuracoes', label: 'Configurações', text: 'Privacidade, notificações e conta', icon: Settings },
 ]
 

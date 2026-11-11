@@ -26,7 +26,7 @@ describe('AdminLoginPage', () => {
     auth.value = { ...base, session: null, authz: null }
     view()
     expect(screen.getByRole('heading', { name: 'Entrar na administração' })).toBeInTheDocument()
-    expect(screen.getByLabelText('E-mail corporativo')).toBeInTheDocument()
+    expect(screen.getByLabelText('Usuário ou e-mail')).toBeInTheDocument()
   })
   it('cliente comum logado NÃO recebe acesso administrativo', () => {
     auth.value = { ...base, session: { user: { id: 'a' } }, authz: { userId: 'a', roles: ['customer'], memberships: [] } }

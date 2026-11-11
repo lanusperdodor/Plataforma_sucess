@@ -24,8 +24,13 @@ export class RepositoryError extends Error {
 /** Tabela/visão/função inexistente: migrations ainda não aplicadas no projeto Supabase. */
 const MISSING_SCHEMA_CODES = new Set(['PGRST205', 'PGRST202', '42P01', '42883'])
 
+export const PREVIEW_MESSAGE =
+  'Esta é a prévia: ela não se conecta ao banco de dados. No site publicado esta área mostra os dados reais.'
+
 export const UNAVAILABLE_MESSAGE =
-  'Não foi possível acessar este recurso no banco de dados da Tucaí agora. Tente novamente em instantes.'
+  import.meta.env.VITE_STATIC_PREVIEW === '1'
+    ? PREVIEW_MESSAGE
+    : 'Não foi possível acessar este recurso no banco de dados da Tucaí agora. Tente novamente em instantes.'
 
 export function backendUnavailable(cause?: unknown): RepositoryError {
   return new RepositoryError('unavailable', UNAVAILABLE_MESSAGE, undefined, { cause })

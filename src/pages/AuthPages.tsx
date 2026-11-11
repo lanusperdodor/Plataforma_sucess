@@ -17,13 +17,17 @@ import {
 } from '../features/auth/schemas.ts'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
-export const OFFLINE_MESSAGE = 'Entrar e criar conta estão indisponíveis nesta prévia: o Supabase não está configurado.'
+export const OFFLINE_MESSAGE = 'Entrar e criar conta não funcionam nesta prévia, que não se conecta ao banco. Use o site publicado.'
 
 function ConfigWarning() {
   if (isSupabaseConfigured) return null
   return (
     <Notice kind="info">
-      Supabase não configurado. Copie <code>.env.example</code> para <code>.env.local</code> e preencha.
+      {import.meta.env.VITE_STATIC_PREVIEW === '1' ? (
+        'Esta é a prévia: entrar e criar conta só funcionam no site publicado.'
+      ) : (
+        <>Supabase não configurado. Copie <code>.env.example</code> para <code>.env.local</code> e preencha.</>
+      )}
     </Notice>
   )
 }

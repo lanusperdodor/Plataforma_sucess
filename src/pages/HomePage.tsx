@@ -1,8 +1,9 @@
-import { Briefcase, Rocket, Search, Store, Users, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react'
+import { Briefcase, Search, Store, Users, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TucaPresenter } from '../components/brand/TucaPresenter.tsx'
 import { BusinessCard } from '../components/cards/BusinessCard.tsx'
+import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { Img } from '../components/feedback/Img.tsx'
 import { Skeleton, SkeletonCard } from '../components/feedback/Skeleton.tsx'
@@ -11,7 +12,6 @@ import { Section } from '../components/nav/Section.tsx'
 import { BRAND } from '../config/brand.ts'
 import { useCategories, useFeatured, useRestaurants } from '../features/catalog/hooks.ts'
 import type { BusinessSummary, Category } from '../features/catalog/schemas.ts'
-import { DEMO_POSTS, POST_TYPE_LABEL, relativeTime } from '../features/demo/preview-data.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
 import { useRecent, type RecentItem } from '../features/recent/recentStore.ts'
 
@@ -23,8 +23,8 @@ const PURPOSE_SUBTITLE = 'Peça, descubra, acompanhe e conecte-se com o comérci
 
 const CTAS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/restaurantes', label: 'Restaurantes', icon: UtensilsCrossed },
-  { to: '/comunidade', label: 'Comunidade', icon: Users },
-  { to: '/lojas', label: 'Comércios', icon: Store },
+  { to: '/lojas', label: 'Lojas', icon: Store },
+  { to: '/servicos', label: 'Serviços', icon: Wrench },
 ]
 
 export function categoryHref(c: Pick<Category, 'kind' | 'slug'>): string {
@@ -52,7 +52,7 @@ function recentHref(r: RecentItem): string {
     case 'vaga':
       return `/vagas/${r.id}`
     default:
-      return `/comunidade/${r.id}`
+      return `/conecta/${r.id}`
   }
 }
 
@@ -121,7 +121,7 @@ function SearchEntry() {
         type="search"
         value={term}
         onChange={(e) => setTerm(e.target.value)}
-        placeholder="Busque restaurantes, lojas, vagas, serviços…"
+        placeholder="Busque restaurantes, lojas e serviços…"
         autoComplete="off"
         className="min-h-14 w-full rounded-full border border-line bg-surface pl-13 pr-28 text-base text-ink placeholder:text-ink-muted"
       />
@@ -139,12 +139,13 @@ interface BusinessSectionProps {
   businesses: BusinessSummary[]
   loading: boolean
   error: boolean
+  errorCause?: unknown
   onRetry: () => void
   categoryLabels: Map<string, string>
 }
 
 /** Seção de estabelecimentos: skeleton, erro com retry, oculta se vazia. */
-function BusinessSection({ title, subtitle, moreTo, businesses, loading, error, onRetry, categoryLabels }: BusinessSectionProps) {
+function BusinessSection({ title, subtitle, moreTo, businesses, loading, error, errorCause, onRetry, categoryLabels }: BusinessSectionProps) {
   if (loading) {
     return (
       <Section title={title} subtitle={subtitle} variant="carousel">
@@ -158,7 +159,7 @@ function BusinessSection({ title, subtitle, moreTo, businesses, loading, error, 
     return (
       <Section title={title} subtitle={subtitle}>
         <div className={SPAN_ALL}>
-          <ErrorState onRetry={onRetry} />
+          <ErrorState error={errorCause} onRetry={onRetry} />
         </div>
       </Section>
     )
@@ -167,31 +168,6 @@ function BusinessSection({ title, subtitle, moreTo, businesses, loading, error, 
     <Section title={title} subtitle={subtitle} moreTo={moreTo} variant="carousel" empty={businesses.length === 0} hideWhenEmpty>
       {businesses.map((b) => (
         <BusinessCard key={b.id} business={b} categoryLabel={b.categoryId ? categoryLabels.get(b.categoryId) : undefined} />
-      ))}
-    </Section>
-  )
-}
-
-/** Prévia curta da Comunidade: 3 publicações, turbinadas primeiro. */
-function CommunityPreview() {
-  const posts = [...DEMO_POSTS].sort((a, b) => Number(!!b.sponsored) - Number(!!a.sponsored)).slice(0, 3)
-  return (
-    <Section title="Na comunidade" subtitle="Novidades dos comércios da cidade" moreTo="/comunidade" variant="carousel">
-      {posts.map((p) => (
-        <Link key={p.id} to="/comunidade" className="hover-lift pressable flex min-h-32 flex-col gap-2 rounded-card border border-line bg-surface p-4">
-          <span className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
-            <span className="rounded-full bg-muted px-2 py-0.5 text-ink">{POST_TYPE_LABEL[p.type]}</span>
-            {p.sponsored && (
-              <span className="inline-flex items-center gap-0.5 text-warm">
-                <Rocket aria-hidden="true" className="size-3" />
-                Patrocinado
-              </span>
-            )}
-            <span className="ml-auto font-normal">{relativeTime(p.minutesAgo)}</span>
-          </span>
-          <span className="line-clamp-2 text-sm text-ink">{p.text}</span>
-          <span className="mt-auto truncate text-xs font-semibold text-ink">{p.businessName}</span>
-        </Link>
       ))}
     </Section>
   )
@@ -210,7 +186,6 @@ function RecentSection({ items }: { items: readonly RecentItem[] }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">{r.name}</p>
-              {r.isDemo && <p className="text-xs text-ink-muted">Demonstração</p>}
             </div>
           </Link>
         )
@@ -220,17 +195,18 @@ function RecentSection({ items }: { items: readonly RecentItem[] }) {
 }
 
 export function HomePage() {
-  const { city, isLoading: cityLoading, isError: cityError, refetch: refetchCity } = useCurrentCity()
+  const { city, isLoading: cityLoading, isError: cityError, error: cityErrorCause, refetch: refetchCity } = useCurrentCity()
   const cityId = city?.id
   const categories = useCategories()
-  const nearby = useRestaurants(cityId, { sort: 'proximity' })
   const popular = useRestaurants(cityId, { sort: 'popularity' })
   const featured = useFeatured(cityId)
   const recent = useRecent()
 
   const categoryLabels = useMemo(() => new Map((categories.data ?? []).map((c) => [c.id, c.label] as const)), [categories.data])
-  const firstPage = (q: typeof nearby): BusinessSummary[] => (q.data?.pages[0]?.items ?? []).slice(0, SECTION_LIMIT)
+  const firstPage = (q: typeof popular): BusinessSummary[] => (q.data?.pages[0]?.items ?? []).slice(0, SECTION_LIMIT)
   const loadingOf = (q: { isLoading: boolean }) => cityLoading || q.isLoading
+  const noBusinesses =
+    !!cityId && popular.isSuccess && featured.isSuccess && firstPage(popular).length === 0 && (featured.data ?? []).length === 0
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-8 p-4 md:p-6">
@@ -239,7 +215,11 @@ export function HomePage() {
         <SearchEntry />
       </div>
 
-      {cityError && <ErrorState onRetry={refetchCity} />}
+      {cityError && <ErrorState error={cityErrorCause} onRetry={refetchCity} />}
+
+      {!cityLoading && !cityError && !city && (
+        <EmptyState icon={Store} title="Nenhuma cidade disponível ainda" description="A Tucaí está preparando a chegada à sua região. Volte em breve." />
+      )}
 
       {categories.isLoading ? (
         <div aria-hidden="true" className="flex gap-2 overflow-hidden">
@@ -247,31 +227,21 @@ export function HomePage() {
             <Skeleton key={i} className="h-20 w-24 shrink-0" />
           ))}
         </div>
-      ) : categories.isError ? (
-        <ErrorState onRetry={() => void categories.refetch()} />
+      ) : categories.isError && !cityError ? (
+        <ErrorState error={categories.error} onRetry={() => void categories.refetch()} />
       ) : (categories.data ?? []).length > 0 ? (
         <CategoryRail categories={categories.data ?? []} hrefFor={categoryHref} />
       ) : null}
 
-      {/* "Promoções do dia" só entra com campanhas reais (migration 0004). */}
+      {/* Ofertas só entram com campanhas reais (Sprint 7); nada é exibido antes disso. */}
       <BusinessSection
-        title="Perto de você"
-        subtitle="Distância estimada ao centro da cidade"
-        moreTo="/restaurantes?sort=proximity"
-        businesses={firstPage(nearby)}
-        loading={loadingOf(nearby)}
-        error={nearby.isError}
-        onRetry={() => void nearby.refetch()}
-        categoryLabels={categoryLabels}
-      />
-      <CommunityPreview />
-      <BusinessSection
-        title="Mais pedidos"
-        subtitle="Os preferidos da cidade"
+        title={city ? `Restaurantes em ${city.name}` : 'Restaurantes'}
+        subtitle="Estabelecimentos aprovados na sua cidade"
         moreTo="/restaurantes"
         businesses={firstPage(popular)}
         loading={loadingOf(popular)}
         error={popular.isError}
+        errorCause={popular.error}
         onRetry={() => void popular.refetch()}
         categoryLabels={categoryLabels}
       />
@@ -282,9 +252,22 @@ export function HomePage() {
         businesses={(featured.data ?? []).slice(0, SECTION_LIMIT)}
         loading={loadingOf(featured)}
         error={featured.isError}
+        errorCause={featured.error}
         onRetry={() => void featured.refetch()}
         categoryLabels={categoryLabels}
       />
+      {noBusinesses && (
+        <EmptyState
+          icon={Store}
+          title={city ? `Ainda não há estabelecimentos em ${city.name}` : 'Ainda não há estabelecimentos'}
+          description="A Tucaí está chegando. Assim que os primeiros negócios forem aprovados, eles aparecem aqui."
+          action={
+            <Link to="/cadastrar-negocio" className="pressable inline-flex min-h-11 items-center rounded-full bg-orange px-5 text-sm font-semibold text-ink">
+              Cadastrar meu negócio
+            </Link>
+          }
+        />
+      )}
       <RecentSection items={recent} />
     </div>
   )

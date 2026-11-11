@@ -41,7 +41,6 @@ function businessRow(i: number, over: Record<string, unknown> = {}) {
     rating_count: 10,
     popularity_score: 5,
     is_featured: false,
-    is_demo: true,
     is_open: true,
     ...over,
   }
@@ -53,11 +52,10 @@ beforeEach(() => {
 })
 
 describe('schemas', () => {
-  it('mapeia snake_case para camelCase expondo isDemo e distanceEstimateKm', () => {
+  it('mapeia snake_case para camelCase expondo distanceEstimateKm', () => {
     const b = businessRowSchema.parse(businessRow(1))
     expect(b).toMatchObject({
       businessType: 'restaurante',
-      isDemo: true,
       distanceEstimateKm: 1.5,
       acceptsPickup: true,
       deliveryOffer: 'partner',
@@ -91,7 +89,7 @@ describe('repository', () => {
     expect(page.items).toHaveLength(12)
     expect(page.hasMore).toBe(true)
     expect(page.nextPage).toBe(2)
-    expect(page.items[0]!.isDemo).toBe(true)
+    expect(page.items[0]).not.toHaveProperty('isDemo')
   })
 
   it('listFeatured usa a visão e is_featured', async () => {

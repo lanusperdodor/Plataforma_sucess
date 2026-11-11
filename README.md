@@ -8,13 +8,14 @@ npm install
 cp .env.example .env.local   # preencha URL e chave anon do SEU projeto Supabase
 npm run dev
 ```
-Scripts: `typecheck`, `lint`, `test -- --run`, `build`.
+Scripts: `typecheck`, `lint`, `test -- --run`, `build`, `test:sql` (PostgreSQL local descartável; ver PROXIMOS_PASSOS.md).
 
 ## Banco
 Migrations em `supabase/migrations`. Aplicar com Supabase CLI (`supabase link` + `supabase db push`). Nunca use `service_role` no frontend.
+Primeiro administrador: `supabase/admin/bootstrap_first_master.sql` (manual, uma vez). Painel Master em `/admin`.
 
 ## Documentos
-`ARQUITETURA.md` · `REGRAS_COMERCIAIS.md` · `PROGRESSO.md` · `PROXIMOS_PASSOS.md` · `.kiro/steering` · `.kiro/specs`
+`AUDITORIA.md` (estado real dos módulos) · `ARQUITETURA.md` · `REGRAS_COMERCIAIS.md` · `PROGRESSO.md` · `PROXIMOS_PASSOS.md` · `.kiro/steering` · `.kiro/specs`
 
 ## Deploy
 Cloudflare Pages (free): build `npm run build`, saída `dist`. Não feito; requer sua autorização e conta.

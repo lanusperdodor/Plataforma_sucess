@@ -1,4 +1,4 @@
-import { Bike, CircleCheck, CircleX, Clock, FlaskConical, Flame, Star, Store, Utensils } from 'lucide-react'
+import { Bike, CircleCheck, CircleX, Clock, Flame, Star, Store, Utensils } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Img } from '../feedback/Img'
 import { formatBRL } from '../../lib/money'
@@ -78,12 +78,6 @@ export function BusinessCard({ business: b, categoryLabel, promotion, layout = '
       >
         {cover}
         <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-          {b.isDemo && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-surface">
-              <FlaskConical aria-hidden="true" className="size-3" />
-              Demonstração
-            </span>
-          )}
           {promotion && (
             <span className="inline-flex items-center gap-1 rounded-full bg-warm-soft px-2 py-0.5 text-xs font-semibold text-warm">
               <Flame aria-hidden="true" className="size-3" />

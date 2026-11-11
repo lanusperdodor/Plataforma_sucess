@@ -1,11 +1,10 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { prefetchRoute } from '../../app/lazy.ts'
 import { useScrollRestoration } from '../../app/useScrollRestoration.ts'
 import { AnnounceContext } from './announceContext.ts'
 import { BottomNav } from './BottomNav.tsx'
 import { CartFab } from './CartFab.tsx'
-import { DemoBanner } from './DemoBanner.tsx'
 import { LocationPicker } from './LocationPicker.tsx'
 import { SideNav } from './SideNav.tsx'
 import { TopBar } from './TopBar.tsx'
@@ -54,12 +53,16 @@ export function AppShell({ children }: AppShellProps) {
                 : undefined
             }
           >
-            <DemoBanner />
             {desktop ? (
               <div className="mx-auto w-full min-w-0 max-w-[var(--content-max)]">{children}</div>
             ) : (
               children
             )}
+            <footer className="mx-auto flex max-w-5xl flex-wrap gap-x-4 gap-y-1 px-4 pb-6 pt-2 text-xs text-ink-muted md:px-6">
+              <Link to="/privacidade" className="underline">Privacidade</Link>
+              <Link to="/termos" className="underline">Termos de uso</Link>
+              <Link to="/armazenamento" className="underline">Armazenamento local</Link>
+            </footer>
           </main>
         </div>
         {mobile ? (

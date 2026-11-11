@@ -39,6 +39,8 @@ create function tst.affected(stmt text) returns int language plpgsql as $$
 declare n int; begin execute stmt; get diagnostics n = row_count; return n; end $$;
 
 -- ---------- dados (como superusuário) ----------
+-- MFA obrigatório (0006) é testado em rls_security.sql; aqui as sessões são aal1.
+update public.platform_settings set value = 'false' where key = 'require_admin_mfa';
 insert into auth.users(id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'a@teste.invalid'),   -- cliente
   ('00000000-0000-0000-0000-0000000000b1', 'b@teste.invalid'),   -- cliente
@@ -153,7 +155,8 @@ begin
   perform tst.login(at1);
   perform tst.ok(tst.affected('update public.businesses set name = ''Atendente'' where id = ' || quote_literal(biz1)) = 0, 'atendente não edita loja (sem settings.manage)');
   perform tst.login(mg1);
-  perform tst.ok(tst.affected('update public.businesses set name = ''Gerente'' where id = ' || quote_literal(biz1)) = 0, 'gerente não edita configurações (sem settings.manage)');
+  -- 0007: gerente edita a loja (store.customize), mas o nome exige settings.manage
+  perform tst.denied('update public.businesses set name = ''Gerente'' where id = ' || quote_literal(biz1), 'gerente renomeia o negócio (sem settings.manage)');
 
   -- 8. equipe por cargo
   perform tst.login(at1);
@@ -192,11 +195,15 @@ begin
   perform tst.denied($q$update public.audit_logs set action = 'x'$q$, 'master altera auditoria');
   perform tst.denied($q$delete from public.audit_logs$q$, 'master apaga auditoria');
 
-  -- 11. operador lê perfis mas não concede papéis
+  -- 11. operador só lê perfis com a permissão users.view (0005) e não concede papéis
   perform tst.su();
   insert into public.user_roles(user_id, role) values (b, 'platform_operator');
   perform tst.login(b);
-  perform tst.ok(tst.count('select 1 from public.profiles') >= 8, 'operador lê perfis');
+  perform tst.ok(tst.count('select 1 from public.profiles') = 1, 'operador sem permissão lê só o próprio perfil');
+  perform tst.su();
+  insert into public.platform_staff_permissions(user_id, permission) values (b, 'users.view');
+  perform tst.login(b);
+  perform tst.ok(tst.count('select 1 from public.profiles') >= 8, 'operador com users.view lê perfis');
   perform tst.denied($q$select public.grant_role('00000000-0000-0000-0000-0000000000b1','platform_master')$q$, 'operador concede master');
   perform tst.ok(tst.count('select 1 from public.audit_logs') = 0, 'operador não lê auditoria');
 

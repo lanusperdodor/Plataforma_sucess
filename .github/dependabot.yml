@@ -1,0 +1,20 @@
+# Atualizações semanais revisadas por PR (o CI precisa passar antes do merge).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      patch-e-minor:
+        update-types: [patch, minor]
+    ignore:
+      # Saltos de versão maior exigem migração planejada e testes (React 19, TS 7, ESLint 10...).
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

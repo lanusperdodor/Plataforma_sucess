@@ -18,7 +18,7 @@ vi.mock('../features/location/cityStore.ts', () => ({
 vi.mock('../features/catalog/hooks.ts', () => ({
   useCategories: () => ({
     ...empty,
-    data: [{ id: 'k1', slug: 'pizza', label: 'Pizza', kind: 'restaurante', icon: 'Pizza', sortOrder: 1, isDemo: false }],
+    data: [{ id: 'k1', slug: 'pizza', label: 'Pizza', kind: 'restaurante', icon: 'Pizza', sortOrder: 1 }],
   }),
   useRestaurants: () => ({ ...empty, data: { pages: [{ items: [], nextPage: null }] } }),
   useFeatured: () => ({ ...empty, data: [] }),
@@ -38,9 +38,10 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Da sua cidade. Do seu jeito.' })).toBeInTheDocument()
     expect(screen.getByText('Peça, descubra, acompanhe e conecte-se com o comércio local.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Restaurantes' })).toHaveAttribute('href', '/restaurantes')
-    expect(screen.getByRole('link', { name: 'Comunidade' })).toHaveAttribute('href', '/comunidade')
-    expect(screen.getByRole('link', { name: 'Comércios' })).toHaveAttribute('href', '/lojas')
-    expect(screen.getByPlaceholderText('Busque restaurantes, lojas, vagas, serviços…')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Lojas' })).toHaveAttribute('href', '/lojas')
+    expect(screen.getByRole('link', { name: 'Serviços' })).toHaveAttribute('href', '/servicos')
+    expect(screen.queryByRole('link', { name: /Comunidade|Conecta/ })).toBeNull()
+    expect(screen.getByPlaceholderText('Busque restaurantes, lojas e serviços…')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /^Pizza$/ })).toHaveAttribute('href', '/restaurantes?categoria=pizza')
   })
 

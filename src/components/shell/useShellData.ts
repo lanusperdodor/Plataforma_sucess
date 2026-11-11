@@ -1,4 +1,8 @@
-/** Hooks provisórios do shell; serão ligados à sacola e às notificações reais depois. */
+import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { countUnread } from '../../features/conecta/repository.ts'
+
+/** Hooks do shell. A sacola será ligada quando o módulo de pedidos existir. */
 
 export interface CartSummary {
   count: number
@@ -11,8 +15,12 @@ export function useCartSummary(): CartSummary {
   return EMPTY_CART
 }
 
+/** Notificações não lidas do Conecta (0 sem sessão). Atualiza a cada minuto. */
 export function useUnreadCount(): number {
-  return 0
+  const { session } = useAuth()
+  const me = session?.user.id
+  const q = useQuery({ queryKey: ['me', 'unread', me ?? ''], queryFn: () => countUnread(me!), enabled: !!me, refetchInterval: 60_000, staleTime: 30_000 })
+  return me ? q.data ?? 0 : 0
 }
 
 /** Contador de selo: 0 oculto (string vazia), 1–9 literal, acima disso "9+". */

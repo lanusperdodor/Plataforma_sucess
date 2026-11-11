@@ -139,7 +139,14 @@ begin
    where n.nspname = 'public' and c.relkind in ('r', 'p')
      and c.relname not in ('cities', 'categories', 'pricing_configs',
                            'profiles', 'user_roles', 'businesses', 'business_members',
-                           'permissions', 'role_permissions', 'audit_logs')
+                           'permissions', 'role_permissions', 'audit_logs',
+                           -- tabelas globais da plataforma (0005)
+                           'platform_settings', 'platform_permissions', 'platform_staff_permissions',
+                           -- solicitações LGPD são do titular, não de uma empresa (0006)
+                           'privacy_requests',
+                           -- Conecta (0008): conteúdo de pessoas; business_id é opcional em posts
+                           'social_profiles', 'follows', 'user_blocks', 'post_comments', 'post_likes', 'post_saves',
+                           'notifications', 'content_reports', 'moderation_appeals')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));
@@ -232,7 +239,12 @@ begin
 
     -- sem escrita no catálogo pela API
     perform tstx.denied($q$insert into public.products(business_id, category_id, name, price_cents) values ('77771000-0000-0000-0000-000000000001','77773000-0000-0000-0000-000000000001','x',1)$q$, r || ' insere produto');
-    perform tstx.denied($q$update public.products set price_cents = 1$q$, r || ' altera produto');
+    -- 0007: authenticated tem grant de coluna para o painel; sem vínculo a RLS filtra tudo (0 linhas)
+    if r = 'anon' then
+      perform tstx.denied($q$update public.products set price_cents = 1$q$, r || ' altera produto');
+    else
+      perform tstx.ok(tstx.affected($q$update public.products set price_cents = 1$q$) = 0, r || ' altera produto');
+    end if;
     perform tstx.denied($q$delete from public.services$q$, r || ' apaga serviço');
     perform tstx.denied($q$insert into public.reviews(business_id, rating) values ('77771000-0000-0000-0000-000000000001', 5)$q$, r || ' insere avaliação');
     perform tstx.denied($q$insert into public.business_hours(business_id, weekday, opens, closes) values ('77771000-0000-0000-0000-000000000001', 2, '08:00', '09:00')$q$, r || ' insere horário');
@@ -244,7 +256,8 @@ begin
   perform tstx.ok(tstx.count('select 1 from public.businesses where id = any(tstx.fx())') = 1, 'dono vê só o próprio comércio (pendente) na tabela');
   perform tstx.ok(tstx.count('select 1 from public.public_businesses where id = any(tstx.fx())') = 1, 'visão pública continua só com o ativo para o dono do pendente');
   perform tstx.ok(tstx.count('select 1 from public.public_businesses where id = ''' || pen || '''') = 0, 'pendente fora da visão pública mesmo para o dono');
-  perform tstx.ok(tstx.count('select 1 from public.products where business_id = ''' || pen || '''') = 0, 'produtos do pendente invisíveis ao dono pela API pública');
+  -- 0007: o dono vê o próprio cardápio para prepará-lo antes da aprovação (o público continua sem ver)
+  perform tstx.ok(tstx.count('select 1 from public.products where business_id = ''' || pen || '''') = 1, 'dono do pendente vê o próprio cardápio');
 
   -- mudança de status altera a visibilidade (pendente -> ativo aparece; ativo -> suspenso some)
   perform tstx.su();
@@ -338,52 +351,33 @@ begin
 end $$;
 
 -- ======================================================================
--- 4. Seed de demonstração (supabase/seed/demo_itau_de_minas.sql) (14.12, 14.14)
---    Pulado com NOTICE quando a cidade demo não existe (seed não carregado).
--- ======================================================================
+-- 4. Dados is_demo nunca aparecem na experiência pública (0003)
 do $$
-declare
-  city constant uuid := 'de0de0' || substr(md5('demo-itau:city:itau-de-minas'), 7);
-  bad text;
 begin
   perform tstx.su();
-  if not exists (select 1 from public.cities where id = city and is_demo) then
-    raise notice 'Seed demo não carregado: seção de verificação do seed ignorada';
-    return;
-  end if;
+  insert into public.cities(id, name, state, slug, is_active, is_demo)
+  values ('77779000-0000-0000-0000-0000000000d1', 'Cidade Demo Tstx', 'TX', 'tstx-demo', true, true);
+  insert into public.categories(id, slug, label, kind, is_demo)
+  values ('77778000-0000-0000-0000-0000000000d1', 'tstx-demo-cat', 'Demo', 'restaurante', true);
+  insert into public.businesses(id, name, slug, owner_id, status, city_id, is_demo)
+  values ('77771000-0000-0000-0000-0000000000d1', 'Tstx Demo', 'tstx-demo-b', '77770000-0000-0000-0000-0000000000c1',
+          'active', '77779000-0000-0000-0000-000000000001', true);
+  insert into public.menu_categories(id, business_id, name)
+  values ('77772000-0000-0000-0000-0000000000d1', '77771000-0000-0000-0000-0000000000d1', 'Demo');
+  insert into public.products(business_id, category_id, name, price_cents)
+  values ('77771000-0000-0000-0000-0000000000d1', '77772000-0000-0000-0000-0000000000d1', 'Demo', 100);
 
-  -- contagens do seed
-  perform tstx.ok(tstx.count('select 1 from public.cities where is_demo') = 1, 'seed: 1 cidade demo');
-  perform tstx.ok(tstx.count('select 1 from public.categories where is_demo') = 10, 'seed: 10 categorias demo');
-  perform tstx.ok(tstx.count($q$select 1 from public.businesses where is_demo and business_type = 'restaurante'$q$) = 6, 'seed: 6 restaurantes demo');
-  perform tstx.ok(tstx.count($q$select 1 from public.businesses where is_demo and business_type = 'loja'$q$) = 3, 'seed: 3 lojas demo');
-  perform tstx.ok(tstx.count($q$select 1 from public.businesses where is_demo and business_type = 'servico'$q$) = 3, 'seed: 3 prestadores demo');
-  perform tstx.ok(tstx.count('select 1 from public.services where is_demo') = 3, 'seed: 3 serviços demo');
-
-  -- toda linha do seed (UUID de0de0...) com coluna is_demo está com is_demo = true
-  select string_agg(t || ':' || n, ', ') into bad from (
-    select 'cities' t, count(*) n from public.cities where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'categories', count(*) from public.categories where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'businesses', count(*) from public.businesses where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'menu_categories', count(*) from public.menu_categories where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'products', count(*) from public.products where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'services', count(*) from public.services where id::text like 'de0de0%' and not is_demo having count(*) > 0
-    union all select 'reviews', count(*) from public.reviews where id::text like 'de0de0%' and not is_demo having count(*) > 0
-  ) x;
-  perform tstx.ok(bad is null, 'linhas do seed sem is_demo = true: ' || coalesce(bad, ''));
-
-  -- nomes de estabelecimentos demo contêm "(demo)"
-  perform tstx.ok(tstx.count($q$select 1 from public.businesses where is_demo and name not like '%(demo)%'$q$) = 0,
-                  'estabelecimento demo sem "(demo)" no nome');
-
-  -- anon vê os estabelecimentos demo pela visão pública, com is_demo = true (a UI rotula)
   perform tstx.anon();
-  perform tstx.ok(tstx.count($q$select 1 from public.public_businesses where id::text like 'de0de0%'$q$) = 12,
-                  'anon vê os 12 estabelecimentos demo na visão pública');
-  perform tstx.ok(tstx.count($q$select 1 from public.public_businesses where id::text like 'de0de0%' and is_demo is not true$q$) = 0,
-                  'estabelecimentos demo na visão pública com is_demo = true');
+  perform tstx.ok(tstx.count($q$select 1 from public.cities where id = '77779000-0000-0000-0000-0000000000d1'$q$) = 0, 'anon vê cidade demo');
+  perform tstx.ok(tstx.count($q$select 1 from public.categories where id = '77778000-0000-0000-0000-0000000000d1'$q$) = 0, 'anon vê categoria demo');
+  perform tstx.ok(tstx.count($q$select 1 from public.public_businesses where id = '77771000-0000-0000-0000-0000000000d1'$q$) = 0, 'anon vê estabelecimento demo');
+  perform tstx.ok(tstx.count($q$select 1 from public.products where business_id = '77771000-0000-0000-0000-0000000000d1'$q$) = 0, 'anon vê produto demo');
+  perform tstx.ok(not exists (select 1 from pg_attribute where attrelid = 'public.public_businesses'::regclass
+                               and attname = 'is_demo' and not attisdropped), 'public_businesses expõe is_demo');
+  perform tstx.login('77770000-0000-0000-0000-0000000000b1');
+  perform tstx.ok(tstx.count($q$select 1 from public.public_businesses where id = '77771000-0000-0000-0000-0000000000d1'$q$) = 0, 'cliente vê estabelecimento demo');
   perform tstx.su();
+  raise notice 'RLS_EXPERIENCIA_OK';
 end $$;
 
-do $$ begin raise notice 'RLS_EXPERIENCIA_OK'; end $$;
 rollback;

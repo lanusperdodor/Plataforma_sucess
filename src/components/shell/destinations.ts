@@ -9,10 +9,12 @@ import {
   Users,
   Wrench,
   ShoppingBag,
+  Bike,
+  Store,
   type LucideIcon,
 } from 'lucide-react'
 
-export type DestinationId = 'inicio' | 'explorar' | 'comunidade' | 'pedidos' | 'perfil'
+export type DestinationId = 'inicio' | 'explorar' | 'conecta' | 'pedidos' | 'perfil'
 
 export type NavDestination = {
   id: DestinationId
@@ -39,7 +41,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = [
     icon: Compass,
     prefixes: ['/explorar', '/restaurantes', '/lojas', '/servicos', '/vagas', '/busca'],
   },
-  { id: 'comunidade', label: 'Comunidade', to: '/comunidade', icon: Users, prefixes: ['/comunidade'] },
+  { id: 'conecta', label: 'Conecta', to: '/conecta', icon: Users, prefixes: ['/conecta'] },
   { id: 'pedidos', label: 'Pedidos', to: '/pedidos', icon: Receipt, prefixes: ['/pedidos'] },
   {
     id: 'perfil',
@@ -56,6 +58,12 @@ export const SECONDARY_DESTINATIONS: readonly SecondaryDestination[] = [
   { id: 'servicos', label: 'Serviços', to: '/servicos', icon: Wrench },
   { id: 'vagas', label: 'Vagas', to: '/vagas', icon: Briefcase },
   { id: 'notificacoes', label: 'Notificações', to: '/notificacoes', icon: Bell },
+]
+
+/** Áreas de parceiros: entrada clara no desktop (menu lateral) e no mobile (menu do topo/Explorar). */
+export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = [
+  { id: 'entregadores', label: 'Entregadores', to: '/entregadores', icon: Bike },
+  { id: 'negocio', label: 'Cadastrar negócio', to: '/cadastrar-negocio', icon: Store },
 ]
 
 function matchesPrefix(pathname: string, prefix: string): boolean {

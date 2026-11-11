@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { AppShell } from '../components/shell/AppShell.tsx'
 import { RequireAuth } from '../features/auth/RequireAuth.tsx'
 import { AuthShell } from './AuthShell.tsx'
@@ -9,14 +9,20 @@ import { RouteBoundary } from './RouteBoundary.tsx'
 const HomePage = lazyNamed(pageLoaders['/'], 'HomePage')
 const ExplorePage = lazyNamed(pageLoaders['/explorar'], 'ExplorePage')
 const RestaurantsPage = lazyNamed(pageLoaders['/restaurantes'], 'RestaurantsPage')
-const RestaurantPage = lazyNamed(pageLoaders['/restaurantes/:slug'], 'RestaurantPage')
+const BusinessPage = lazyNamed(pageLoaders['/restaurantes/:slug'], 'BusinessPage')
 const StoresPage = lazyNamed(pageLoaders['/lojas'], 'StoresPage')
-const StorePage = lazyNamed(pageLoaders['/lojas/:slug'], 'StorePage')
 const ServicesPage = lazyNamed(pageLoaders['/servicos'], 'ServicesPage')
 const JobsPage = lazyNamed(pageLoaders['/vagas'], 'JobsPage')
 const JobPage = lazyNamed(pageLoaders['/vagas/:id'], 'JobPage')
-const CommunityPage = lazyNamed(pageLoaders['/comunidade'], 'CommunityPage')
-const PostPage = lazyNamed(pageLoaders['/comunidade/:postId'], 'PostPage')
+const ConectaPage = lazyNamed(pageLoaders['/conecta'], 'ConectaPage')
+const PostPage = lazyNamed(pageLoaders['/conecta/:postId'], 'PostPage')
+const ConectaProfilePage = lazyNamed(pageLoaders['/conecta/u/:handle'], 'ConectaProfilePage')
+const CouriersPage = lazyNamed(pageLoaders['/entregadores'], 'CouriersPage')
+const BusinessApplicationPage = lazyNamed(pageLoaders['/cadastrar-negocio'], 'BusinessApplicationPage')
+const PrivacyPolicyPage = lazyNamed(pageLoaders['/privacidade'], 'PrivacyPolicyPage')
+const TermsPage = lazyNamed(pageLoaders['/privacidade'], 'TermsPage')
+const StoragePolicyPage = lazyNamed(pageLoaders['/privacidade'], 'StoragePolicyPage')
+const PrivacyCenterPage = lazyNamed(pageLoaders['/perfil/privacidade'], 'PrivacyCenterPage')
 const SearchPage = lazyNamed(pageLoaders['/busca'], 'SearchPage')
 const CartPage = lazyNamed(pageLoaders['/sacola'], 'CartPage')
 const CheckoutPage = lazyNamed(pageLoaders['/sacola/checkout'], 'CheckoutPage')
@@ -32,7 +38,8 @@ const ResetPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'Res
 const NewPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'NewPasswordPage')
 const AdminLoginPage = lazyNamed(() => import('../pages/AdminLoginPage.tsx'), 'AdminLoginPage')
 const AccountPage = lazyNamed(() => import('../pages/AccountPage.tsx'), 'AccountPage')
-const VisualPreview = lazyNamed(() => import('../features/preview/VisualPreview.tsx'), 'VisualPreview')
+const MerchantPanel = lazyNamed(() => import('../pages/merchant/MerchantPanel.tsx'), 'MerchantPanel')
+const AdminApp = lazyNamed(() => import('../pages/admin/AdminApp.tsx'), 'AdminApp')
 
 const PROFILE_SECTIONS = ['dados', 'enderecos', 'pagamentos', 'favoritos', 'seguidas', 'salvos', 'cupons', 'configuracoes']
 
@@ -44,6 +51,11 @@ function ShellLayout() {
       </RouteBoundary>
     </AppShell>
   )
+}
+
+function LegacyPostRedirect() {
+  const { postId } = useParams()
+  return <Navigate to={`/conecta/${postId ?? ''}`} replace />
 }
 
 function PrivateLayout() {
@@ -71,22 +83,28 @@ export function AppRoutes() {
       <Route path="/recuperar-senha" element={<Auth><ResetPasswordPage /></Auth>} />
       <Route path="/nova-senha" element={<Auth><NewPasswordPage /></Auth>} />
       <Route path="/conta" element={<Auth><RequireAuth><AccountPage /></RequireAuth></Auth>} />
-      <Route
-        path="/previa/*"
-        element={<RouteBoundary><VisualPreview /></RouteBoundary>}
-      />
+      <Route path="/admin/*" element={<RouteBoundary><AdminApp /></RouteBoundary>} />
       <Route element={<ShellLayout />}>
         <Route index element={<HomePage />} />
         <Route path="explorar" element={<ExplorePage />} />
         <Route path="restaurantes" element={<RestaurantsPage />} />
-        <Route path="restaurantes/:slug" element={<RestaurantPage />} />
+        <Route path="restaurantes/:slug" element={<BusinessPage />} />
         <Route path="lojas" element={<StoresPage />} />
-        <Route path="lojas/:slug" element={<StorePage />} />
+        <Route path="lojas/:slug" element={<BusinessPage />} />
         <Route path="servicos" element={<ServicesPage />} />
+        <Route path="servicos/:slug" element={<BusinessPage />} />
         <Route path="vagas" element={<JobsPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
-        <Route path="comunidade" element={<CommunityPage />} />
-        <Route path="comunidade/:postId" element={<PostPage />} />
+        <Route path="conecta" element={<ConectaPage />} />
+        <Route path="conecta/u/:handle" element={<ConectaProfilePage />} />
+        <Route path="conecta/:postId" element={<PostPage />} />
+        {/* Antiga Comunidade: links salvos continuam funcionando. */}
+        <Route path="comunidade" element={<Navigate to="/conecta" replace />} />
+        <Route path="comunidade/:postId" element={<LegacyPostRedirect />} />
+        <Route path="entregadores" element={<CouriersPage />} />
+        <Route path="privacidade" element={<PrivacyPolicyPage />} />
+        <Route path="termos" element={<TermsPage />} />
+        <Route path="armazenamento" element={<StoragePolicyPage />} />
         <Route path="busca" element={<SearchPage />} />
         <Route path="sacola" element={<CartPage />} />
         {/* Pedidos, Perfil e Notificações abrem para visitantes com convite de login;
@@ -94,6 +112,7 @@ export function AppRoutes() {
         <Route path="pedidos" element={<OrdersPage />} />
         <Route path="perfil">
           <Route index element={<ProfilePage />} />
+          <Route path="privacidade" element={<RequireAuth><PrivacyCenterPage /></RequireAuth>} />
           {PROFILE_SECTIONS.map((section) => (
             <Route key={section} path={section} element={<ProfilePage />} />
           ))}
@@ -102,6 +121,8 @@ export function AppRoutes() {
         <Route element={<PrivateLayout />}>
           <Route path="sacola/checkout" element={<CheckoutPage />} />
           <Route path="pedidos/:id" element={<OrderPage />} />
+          <Route path="cadastrar-negocio" element={<BusinessApplicationPage />} />
+          <Route path="painel/*" element={<MerchantPanel />} />
 
         </Route>
         <Route path="*" element={<NotFoundPage />} />

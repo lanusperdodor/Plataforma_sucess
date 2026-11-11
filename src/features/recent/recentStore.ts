@@ -13,7 +13,6 @@ export const recentItemSchema = z.object({
   slug: z.string().optional(),
   name: z.string(),
   imageUrl: z.string().optional(),
-  isDemo: z.boolean(),
   viewedAt: z.string(),
 })
 

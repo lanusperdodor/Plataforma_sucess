@@ -10,7 +10,7 @@ export function CartPage() {
       <EmptyState
         icon={ShoppingBag}
         title="Sua sacola está vazia"
-        description="Escolha um restaurante e adicione itens. Pedidos desta prévia são apenas de teste, sem cobrança."
+        description="Escolha um restaurante e adicione itens. Os pedidos online estão em implementação; nenhuma cobrança é feita."
         action={<Link to="/restaurantes" className="pressable inline-flex min-h-11 items-center rounded-full bg-orange px-5 text-sm font-semibold text-ink">Ver restaurantes</Link>}
       />
     </Page>

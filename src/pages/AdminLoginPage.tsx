@@ -2,7 +2,7 @@ import { ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { loginSchema, type LoginValues } from '../features/auth/schemas.ts'
@@ -14,7 +14,8 @@ const ADMIN_ROLES = ['platform_master', 'platform_operator'] as const
 /**
  * Login da administração. Usa o MESMO Supabase Auth do cliente: não existe senha administrativa
  * nem atalho. O acesso só é reconhecido se o banco devolver o papel master/operador (RLS decide).
- * O painel administrativo ainda não existe; MFA será exigido antes de produção.
+ * Reconhecido o papel, segue para o Painel Master (/admin), que valida tudo de novo no servidor,
+ * inclusive MFA quando exigido.
  */
 export function AdminLoginPage() {
   const { session, authz, loading, authzError, signOut } = useAuth()
@@ -43,9 +44,7 @@ export function AdminLoginPage() {
         {authzError ? (
           <Notice kind="error">Não foi possível verificar suas permissões. Tente novamente.</Notice>
         ) : isAdmin ? (
-          <Notice kind="success">
-            Acesso administrativo reconhecido. O painel da administração ainda não foi implementado nesta prévia.
-          </Notice>
+          <Navigate to="/admin" replace />
         ) : (
           <Notice kind="error">Esta conta não tem permissão de administração.</Notice>
         )}
@@ -57,7 +56,7 @@ export function AdminLoginPage() {
   }
 
   return (
-    <Card title="Entrar na administração" subtitle="Acesso exclusivo da equipe Tucaí. Tentativas são registradas.">
+    <Card title="Entrar na administração" subtitle="Acesso exclusivo da equipe Tucaí. Ações administrativas são registradas em auditoria.">
       {header}
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="E-mail corporativo" type="email" autoComplete="username" error={f.formState.errors.email?.message} {...f.register('email')} />
@@ -68,7 +67,7 @@ export function AdminLoginPage() {
       </form>
       {error && <Notice kind="error">{error}</Notice>}
       <p className="mt-4 text-xs text-ink-muted">
-        A verificação em duas etapas (MFA) será obrigatória antes da publicação.
+        A verificação em duas etapas (MFA) é configurada no painel, em Segurança.
       </p>
       <p className="mt-4 flex justify-between text-sm">
         <Link className="text-brand" to="/recuperar-senha">Esqueci a senha</Link>

@@ -35,7 +35,6 @@ const city: City = {
   slug: "itau-de-minas",
   centerLat: null,
   centerLng: null,
-  isDemo: false,
 };
 const category: Category = {
   id: "k1",
@@ -44,7 +43,6 @@ const category: Category = {
   kind: "restaurante",
   icon: null,
   sortOrder: 1,
-  isDemo: false,
 };
 
 function business(over: Partial<BusinessSummary> = {}): BusinessSummary {
@@ -76,7 +74,6 @@ function business(over: Partial<BusinessSummary> = {}): BusinessSummary {
     ratingCount: 0,
     popularityScore: 0,
     isFeatured: false,
-    isDemo: false,
     isOpen: true,
     ...over,
   };
@@ -121,11 +118,11 @@ describe("HomePage com repositório simulado", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Perto de você" }),
+      screen.getByRole("heading", { level: 2, name: "Restaurantes" }),
     ).toBeInTheDocument();
   });
 
-  it("oculta seções vazias e não exibe faixa de demonstração", async () => {
+  it("sem estabelecimentos: oculta seções e mostra estado vazio com ação real", async () => {
     renderHome();
     expect(
       await screen.findByRole("link", { name: /^Pizza$/ }),
@@ -133,55 +130,35 @@ describe("HomePage com repositório simulado", () => {
     await waitFor(() =>
       expect(screen.queryAllByTestId("skeleton")).toHaveLength(0),
     );
-    for (const title of [
-      "Perto de você",
-      "Mais pedidos",
-      "Comerciantes em destaque",
-      "Recomendados",
-    ]) {
+    for (const title of ["Restaurantes em Itaú de Minas", "Comerciantes em destaque"]) {
       expect(
         screen.queryByRole("heading", { level: 2, name: title }),
       ).not.toBeInTheDocument();
     }
-    expect(screen.queryByText("Nada por aqui ainda")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Alguns estabelecimentos são de demonstração"),
-    ).not.toBeInTheDocument();
+      await screen.findByText("Ainda não há estabelecimentos em Itaú de Minas"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Cadastrar meu negócio" }),
+    ).toHaveAttribute("href", "/cadastrar-negocio");
+    expect(screen.queryByText(/demonstração/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/comunidade|conecta/i)).not.toBeInTheDocument();
   });
 
-  it('mostra selo "Demonstração" nos estabelecimentos de demonstração', async () => {
-    const demo = business({
-      id: "d1",
-      name: "Lanchonete Demo",
-      slug: "lanchonete-demo",
-      isDemo: true,
-    });
+  it("lista restaurantes reais da cidade sem selo de demonstração", async () => {
     vi.mocked(repo.listRestaurants).mockResolvedValue(
-      toPage([demo], PAGE_SIZE, 0),
+      toPage([business({ id: "r1", name: "Lanchonete Real", slug: "lanchonete-real" })], PAGE_SIZE, 0),
     );
     renderHome();
     const section = await screen.findByRole("region", {
-      name: "Perto de você",
+      name: "Restaurantes em Itaú de Minas",
     });
     expect(
-      await within(section).findByRole("link", { name: "Lanchonete Demo" }),
-    ).toHaveAttribute("href", "/restaurantes/lanchonete-demo");
-    expect(within(section).getByText("Demonstração")).toBeInTheDocument();
+      await within(section).findByRole("link", { name: "Lanchonete Real" }),
+    ).toHaveAttribute("href", "/restaurantes/lanchonete-real");
     expect(within(section).getByText("Pizza")).toBeInTheDocument();
-  });
-
-  it("não mostra selo nem faixa para estabelecimentos reais", async () => {
-    vi.mocked(repo.listFeatured).mockResolvedValue([
-      business({ name: "Padaria Real", slug: "padaria-real" }),
-    ]);
-    renderHome();
-    expect(
-      await screen.findByRole("link", { name: "Padaria Real" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Demonstração")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Alguns estabelecimentos são de demonstração"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/demonstração/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Ainda não há estabelecimentos em Itaú de Minas")).not.toBeInTheDocument();
   });
 
   it('exibe ErrorState e refaz a consulta ao clicar em "Tentar novamente"', async () => {

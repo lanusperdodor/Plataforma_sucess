@@ -1,41 +1,69 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
+import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { LoginInvite } from '../components/feedback/LoginInvite.tsx'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
-import { DEMO_NOTIFICATIONS } from '../features/demo/preview-data.ts'
+import { listNotifications, markAllRead, type ConectaNotification } from '../features/conecta/repository.ts'
+import { Avatar, relative } from './conecta/components.tsx'
 
+function text(n: ConectaNotification): string {
+  const who = n.actor?.displayName ?? 'Alguém'
+  switch (n.kind) {
+    case 'like': return `${who} curtiu sua publicação.`
+    case 'comment': return `${who} comentou na sua publicação.`
+    case 'reply': return `${who} respondeu ao seu comentário.`
+    case 'follow': return n.message ? `${who} ${n.message}` : `${who} começou a seguir você.`
+    default: return n.message ?? 'Aviso da moderação.'
+  }
+}
+
+function href(n: ConectaNotification): string {
+  if (n.postId) return `/conecta/${n.postId}`
+  if (n.kind === 'follow' && n.actor) return `/conecta/u/${n.actor.handle}`
+  return '/conecta'
+}
+
+/** Notificações reais do Conecta (pedidos entram quando o módulo de pedidos existir). */
 export function NotificationsPage() {
   const { session } = useAuth()
+  const me = session?.user.id
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['me', 'notifications', me ?? ''], queryFn: () => listNotifications(me!), enabled: !!me })
+  const read = useMutation({ mutationFn: () => markAllRead(me!), onSuccess: () => void qc.invalidateQueries({ queryKey: ['me', 'unread'] }) })
+  const hasUnread = (q.data ?? []).some((n) => !n.read)
+  useEffect(() => {
+    // abrir a tela marca como lidas (depois de exibir o estado atual)
+    if (hasUnread && read.isIdle) read.mutate()
+  }, [hasUnread, read])
   return (
     <Page>
-      <PageHeader icon={Bell} title="Notificações" subtitle="Pedidos, novidades e vagas." />
+      <PageHeader icon={Bell} title="Notificações" subtitle="Interações no Conecta e avisos da moderação." />
       {!session ? (
-        <LoginInvite icon={Bell} title="Receba avisos dos seus pedidos" description="Entre para ser avisado a cada etapa." />
+        <LoginInvite icon={Bell} title="Receba avisos das suas interações" description="Entre para ver curtidas, comentários e novos seguidores." />
+      ) : q.isError ? (
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+      ) : (q.data ?? []).length === 0 ? (
+        <EmptyState icon={Bell} title={q.isLoading ? 'Carregando…' : 'Nenhuma notificação'} description="Quando alguém interagir com você, aparece aqui." />
       ) : (
-        <EmptyState icon={Bell} title="Nenhuma notificação" description="Quando algo acontecer, você vê aqui." />
-      )}
-      <section aria-labelledby="not-ex" className="flex flex-col gap-2">
-        <h2 id="not-ex" className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Exemplos</h2>
         <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
-          {DEMO_NOTIFICATIONS.map((n) => (
+          {(q.data ?? []).map((n) => (
             <li key={n.id}>
-              <Link to={n.to} className="pressable flex min-h-16 items-start gap-3 p-4">
-                <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${n.unread ? 'bg-orange' : 'bg-line'}`} />
+              <Link to={href(n)} className="pressable flex min-h-16 items-start gap-3 p-4">
+                <span aria-hidden="true" className={`mt-3 size-2 shrink-0 rounded-full ${n.read ? 'bg-line' : 'bg-orange'}`} />
+                <Avatar profile={n.actor} size={36} />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-ink">
-                    {n.title}
-                    {n.unread && <span className="sr-only"> (não lida)</span>}
-                  </span>
-                  <span className="block truncate text-xs text-ink-muted">{n.text}</span>
+                  <span className="block text-sm text-ink">{text(n)}{!n.read && <span className="sr-only"> (não lida)</span>}</span>
+                  <span className="text-xs text-ink-muted">{relative(n.createdAt)}</span>
                 </span>
-                <span className="shrink-0 text-xs text-ink-muted">{n.whenLabel}</span>
               </Link>
             </li>
           ))}
         </ul>
-      </section>
+      )}
     </Page>
   )
 }

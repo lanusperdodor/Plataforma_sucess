@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod'
-import { RepositoryError, mapPostgrestError } from '../../lib/errors'
+import { RepositoryError, backendUnavailable, mapPostgrestError } from '../../lib/errors'
 import { PAGE_SIZE, pageRange, toPage, type Page } from '../../lib/pagination'
-import { supabase } from '../../lib/supabase'
+import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import {
   businessHourSchema,
   businessRowSchema,
@@ -13,20 +13,18 @@ import {
   type CategoryKind,
   type City,
 } from './schemas'
-import { compareBy, matchesFilters, toQuerySpec } from './filters'
-import { getDataSource, isMissingSchemaError, switchToDemo } from '../../lib/data-source'
-import { DEMO_CATEGORIES, DEMO_CITY, demoBusinesses, demoHours } from './demo-data'
+import { toQuerySpec } from './filters'
 
 /** Estabelecimentos públicos vêm SEMPRE da visão (a tabela `businesses` não é legível pelo público). */
 export const BUSINESSES_VIEW = 'public_businesses'
 
-const CITY_COLUMNS = 'id,name,state,slug,center_lat,center_lng,is_demo'
-const CATEGORY_COLUMNS = 'id,slug,label,kind,icon,sort_order,is_demo'
-const BUSINESS_COLUMNS =
+const CITY_COLUMNS = 'id,name,state,slug,center_lat,center_lng'
+const CATEGORY_COLUMNS = 'id,slug,label,kind,icon,sort_order'
+export const BUSINESS_COLUMNS =
   'id,name,slug,business_type,category_id,city_id,description,cover_url,logo_url,address_line,phone,whatsapp,' +
   'lat,lng,distance_estimate_km,delivery_offer,own_delivery_fee_cents,accepts_pickup,' +
   'estimated_min_minutes,estimated_max_minutes,min_order_cents,price_tier,rating_avg,rating_count,' +
-  'popularity_score,is_featured,is_demo,is_open'
+  'popularity_score,is_featured,is_open'
 
 export type RestaurantSort = 'proximity' | 'popularity' | 'delivery_time'
 
@@ -45,6 +43,7 @@ interface RawResult {
 
 /** Executa a consulta, converte falhas (inclusive exceções de rede) em RepositoryError. */
 async function run(query: PromiseLike<RawResult>): Promise<unknown> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
   let res: RawResult
   try {
     res = await query
@@ -135,32 +134,14 @@ async function remoteGetBusinessHours(businessId: string): Promise<BusinessHour[
   return parseRows(businessHourSchema, data)
 }
 
-// ---------- prévia visual: dados locais de demonstração ----------
-// Usados quando o Supabase não está configurado, quando VITE_DEMO_DATA=1, ou quando o banco ainda
-// não tem as tabelas da experiência do cliente. Os registros são marcados isDemo e a UI os rotula.
-
-async function withDemo<T>(remote: () => Promise<T>, demo: () => T): Promise<T> {
-  if (getDataSource().mode === 'demo') return demo()
-  try {
-    return await remote()
-  } catch (e) {
-    if (isMissingSchemaError(e)) {
-      switchToDemo('Tabelas do catálogo ainda não existem no Supabase')
-      return demo()
-    }
-    throw e
-  }
-}
+// ---------- API pública do repositório (somente dados reais do Supabase) ----------
 
 export function listCities(): Promise<City[]> {
-  return withDemo(remoteListCities, () => [DEMO_CITY])
+  return remoteListCities()
 }
 
 export function listCategories(kind?: CategoryKind): Promise<Category[]> {
-  return withDemo(
-    () => remoteListCategories(kind),
-    () => DEMO_CATEGORIES.filter((c) => !kind || c.kind === kind),
-  )
+  return remoteListCategories(kind)
 }
 
 export function listRestaurants(
@@ -168,58 +149,29 @@ export function listRestaurants(
   filters: RestaurantQueryFilters = {},
   page = 0,
 ): Promise<Page<BusinessSummary>> {
-  return withDemo(
-    () => remoteListRestaurants(cityId, filters, page),
-    () => {
-      const categoryId = filters.categorySlug
-        ? DEMO_CATEGORIES.find((c) => c.slug === filters.categorySlug)?.id
-        : undefined
-      const rows = demoBusinesses()
-        .filter((b) => b.cityId === cityId && b.businessType === 'restaurante')
-        .filter((b) => matchesFilters(b, filters, categoryId))
-        .sort(compareBy(filters.sort ?? 'popularity'))
-      const { from, to } = pageRange(page, PAGE_SIZE)
-      return toPage(rows.slice(from, to + 1), PAGE_SIZE, page)
-    },
-  )
+  return remoteListRestaurants(cityId, filters, page)
 }
 
 export function listFeatured(cityId: string, limit = 10): Promise<BusinessSummary[]> {
-  return withDemo(
-    () => remoteListFeatured(cityId, limit),
-    () =>
-      demoBusinesses()
-        .filter((b) => b.cityId === cityId && b.isFeatured)
-        .sort(compareBy('popularity'))
-        .slice(0, limit),
-  )
+  return remoteListFeatured(cityId, limit)
 }
 
 export function getBusinessHours(businessId: string): Promise<BusinessHour[]> {
-  return withDemo(() => remoteGetBusinessHours(businessId), () => demoHours(businessId))
+  return remoteGetBusinessHours(businessId)
 }
+
 /** Estabelecimentos de um tipo (lojas, serviços) na cidade, por popularidade. */
-export function listBusinesses(
+export async function listBusinesses(
   cityId: string,
   type: BusinessSummary['businessType'],
   categorySlug?: string,
 ): Promise<BusinessSummary[]> {
-  return withDemo(
-    async () => {
-      let q = supabase.from(BUSINESSES_VIEW).select(BUSINESS_COLUMNS).eq('city_id', cityId).eq('business_type', type)
-      if (categorySlug) {
-        const cats = parseRows(categorySchema, await run(supabase.from('categories').select(CATEGORY_COLUMNS).eq('slug', categorySlug)))
-        if (cats.length === 0) return []
-        q = q.eq('category_id', cats[0]!.id)
-      }
-      const data = await run(q.order('popularity_score', { ascending: false }).order('id').limit(48))
-      return parseRows(businessRowSchema, data)
-    },
-    () => {
-      const catId = categorySlug ? DEMO_CATEGORIES.find((c) => c.slug === categorySlug)?.id : undefined
-      return demoBusinesses()
-        .filter((b) => b.cityId === cityId && b.businessType === type && (!categorySlug || b.categoryId === catId))
-        .sort(compareBy('popularity'))
-    },
-  )
+  let q = supabase.from(BUSINESSES_VIEW).select(BUSINESS_COLUMNS).eq('city_id', cityId).eq('business_type', type)
+  if (categorySlug) {
+    const cats = parseRows(categorySchema, await run(supabase.from('categories').select(CATEGORY_COLUMNS).eq('slug', categorySlug)))
+    if (cats.length === 0) return []
+    q = q.eq('category_id', cats[0]!.id)
+  }
+  const data = await run(q.order('popularity_score', { ascending: false }).order('id').limit(48))
+  return parseRows(businessRowSchema, data)
 }

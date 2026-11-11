@@ -72,7 +72,7 @@ export function RestaurantsPage() {
           {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : list.isError ? (
-        <ErrorState onRetry={() => void list.refetch()} />
+        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
           title="Nenhum restaurante com esses filtros"

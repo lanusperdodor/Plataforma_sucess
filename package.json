@@ -13,7 +13,9 @@
     "format": "prettier --check .",
     "check-bundle": "node scripts/check-bundle.mjs",
     "test": "vitest",
-    "test:sql": "node scripts/test-sql.mjs"
+    "test:sql": "node scripts/test-sql.mjs",
+    "check-secrets": "node scripts/check-secrets.mjs",
+    "audit:deps": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@hookform/resolvers": "7.0.3",

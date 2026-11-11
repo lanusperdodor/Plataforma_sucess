@@ -3,9 +3,12 @@ import { useEffect, useRef } from 'react'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 
 /**
- * Remove o cache pessoal (`['me', ...]`) ao sair ou ao trocar de usuário.
+ * Remove o cache pessoal e administrativo ao sair ou ao trocar de usuário, para que dados de
+ * uma conta nunca apareçam para a próxima pessoa no mesmo aparelho.
  * Não toca na Sacola nem em outros dados do localStorage.
  */
+export const PERSONAL_QUERY_ROOTS = ['me', 'admin', 'business', 'privacy'] as const
+
 export function SessionCacheGuard() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
@@ -14,7 +17,7 @@ export function SessionCacheGuard() {
 
   useEffect(() => {
     if (previous.current !== null && previous.current !== userId) {
-      queryClient.removeQueries({ queryKey: ['me'] })
+      for (const key of PERSONAL_QUERY_ROOTS) queryClient.removeQueries({ queryKey: [key] })
     }
     previous.current = userId
   }, [userId, queryClient])

@@ -37,7 +37,7 @@ export function BusinessListing({ type, title, subtitle, icon }: BusinessListing
           {Array.from({ length: 3 }, (_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : list.isError ? (
-        <ErrorState onRetry={() => void list.refetch()} />
+        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : (list.data ?? []).length === 0 ? (
         <EmptyState
           title="Nada encontrado"

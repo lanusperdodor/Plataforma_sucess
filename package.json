@@ -15,6 +15,7 @@
     "test": "vitest",
     "test:sql": "node scripts/test-sql.mjs",
     "check-secrets": "node scripts/check-secrets.mjs",
+    "sql:bundle": "node scripts/bundle-sql.mjs",
     "audit:deps": "npm audit --audit-level=moderate"
   },
   "dependencies": {

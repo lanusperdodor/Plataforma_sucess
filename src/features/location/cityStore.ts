@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { z } from 'zod'
+import { BRAND } from '../../config/brand'
 import { readStorage, removeStorage, writeStorage } from '../../lib/storage'
 import { useCities } from '../catalog/hooks'
 import type { City } from '../catalog/schemas'
@@ -49,7 +50,7 @@ export interface CurrentCity {
 }
 
 /**
- * Cidade atual: a escolhida (se ainda existir) ou a primeira cidade ativa devolvida.
+ * Cidade atual: a escolhida (se ainda existir), senão a região inicial (Itaú de Minas), senão a primeira ativa.
  * Sincronizar com `profiles.preferred_city_id` fica para quando houver repositório de perfil.
  */
 export function useCurrentCity(): CurrentCity {
@@ -57,7 +58,11 @@ export function useCurrentCity(): CurrentCity {
   const query = useCities()
   const cities = useMemo(() => query.data ?? [], [query.data])
   const city = useMemo(
-    () => cities.find((c) => c.id === storedId) ?? cities[0] ?? null,
+    () =>
+      cities.find((c) => c.id === storedId) ??
+      cities.find((c) => c.name === BRAND.initialRegion.city && c.state === BRAND.initialRegion.state) ??
+      cities[0] ??
+      null,
     [cities, storedId],
   )
   const setCity = useCallback((id: string) => setStoredCityId(id), [])

@@ -165,14 +165,14 @@ begin
   perform tsta.denied($q$select public.admin_save_city(null, 'Nova', 'MG')$q$, 'operador sem permissão cria cidade');
   perform tsta.denied('select * from public.admin_list_cities()', 'operador sem permissão lista cidades');
   perform tsta.login(r);
-  new_city := public.admin_save_city(null, 'Cássia', 'mg', -20.6, -46.9, false);
-  perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and slug = 'cassia-mg' and state = 'MG'$q$, new_city)) = 1,
+  new_city := public.admin_save_city(null, 'Vila Teste Cássio', 'mg', -20.6, -46.9, false);
+  perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and slug = 'vila-teste-cassio-mg' and state = 'MG'$q$, new_city)) = 1,
                   'cidade criada com slug e UF normalizada');
   perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and not is_active$q$, new_city)) = 1, 'admin vê cidade inativa');
   perform tsta.denied($q$select public.admin_save_city(null, 'Outra', 'MGX')$q$, 'UF inválida', array['P0001']);
   perform tsta.denied($q$select public.admin_save_city(null, 'Outra', 'MG', -20.1, null)$q$, 'latitude sem longitude', array['P0001']);
-  perform tsta.denied($q$select public.admin_save_city(null, 'Cássia', 'MG')$q$, 'cidade duplicada', array['23505']);
-  perform public.admin_save_city(new_city, 'Cássia', 'MG', null, null, true);
+  perform tsta.denied($q$select public.admin_save_city(null, 'Vila Teste Cássio', 'MG')$q$, 'cidade duplicada', array['23505']);
+  perform public.admin_save_city(new_city, 'Vila Teste Cássio', 'MG', null, null, true);
   perform tsta.anon();
   perform tsta.ok(tsta.count(format($q$select 1 from public.cities where id = %L$q$, new_city)) = 1, 'cidade ativada visível ao público');
   perform tsta.login(c);

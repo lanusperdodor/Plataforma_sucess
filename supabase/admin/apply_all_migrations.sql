@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0013) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0014) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -4742,5 +4742,84 @@ $tucai_sql$;
     raise notice 'Tucaí 0013: aplicada agora';
   end if;
 end $tucai_0013$;
+
+-- ===================== supabase/migrations/0014_cidades_regiao_itau.sql =====================
+do $tucai_0014$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0014') then
+    raise notice 'Tucaí 0014: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0014_cidades_regiao_itau: cidades atendidas num raio de ~100 km de Itaú de Minas (MG).
+-- Idempotente: cidades já cadastradas (por nome+UF ou slug) são mantidas como estão.
+-- Coordenadas ficam para o Master definir depois. Estabelecimentos de cada cidade aparecem
+-- quando a pessoa escolhe a cidade no seletor do topo.
+
+insert into public.cities (name, state, slug) values
+  ('Alpinópolis', 'MG', 'alpinopolis-mg'),
+  ('Alterosa', 'MG', 'alterosa-mg'),
+  ('Arceburgo', 'MG', 'arceburgo-mg'),
+  ('Areado', 'MG', 'areado-mg'),
+  ('Bom Jesus da Penha', 'MG', 'bom-jesus-da-penha-mg'),
+  ('Cabo Verde', 'MG', 'cabo-verde-mg'),
+  ('Capetinga', 'MG', 'capetinga-mg'),
+  ('Capitólio', 'MG', 'capitolio-mg'),
+  ('Carmo do Rio Claro', 'MG', 'carmo-do-rio-claro-mg'),
+  ('Cássia', 'MG', 'cassia-mg'),
+  ('Claraval', 'MG', 'claraval-mg'),
+  ('Conceição da Aparecida', 'MG', 'conceicao-da-aparecida-mg'),
+  ('Delfinópolis', 'MG', 'delfinopolis-mg'),
+  ('Fortaleza de Minas', 'MG', 'fortaleza-de-minas-mg'),
+  ('Guapé', 'MG', 'guape-mg'),
+  ('Guaranésia', 'MG', 'guaranesia-mg'),
+  ('Guaxupé', 'MG', 'guaxupe-mg'),
+  ('Ibiraci', 'MG', 'ibiraci-mg'),
+  ('Ilicínea', 'MG', 'ilicinea-mg'),
+  ('Itamogi', 'MG', 'itamogi-mg'),
+  ('Itaú de Minas', 'MG', 'itau-de-minas-mg'),
+  ('Jacuí', 'MG', 'jacui-mg'),
+  ('Juruaia', 'MG', 'juruaia-mg'),
+  ('Monte Belo', 'MG', 'monte-belo-mg'),
+  ('Monte Santo de Minas', 'MG', 'monte-santo-de-minas-mg'),
+  ('Muzambinho', 'MG', 'muzambinho-mg'),
+  ('Nova Resende', 'MG', 'nova-resende-mg'),
+  ('Passos', 'MG', 'passos-mg'),
+  ('Piumhi', 'MG', 'piumhi-mg'),
+  ('Pratápolis', 'MG', 'pratapolis-mg'),
+  ('São João Batista do Glória', 'MG', 'sao-joao-batista-do-gloria-mg'),
+  ('São José da Barra', 'MG', 'sao-jose-da-barra-mg'),
+  ('São Pedro da União', 'MG', 'sao-pedro-da-uniao-mg'),
+  ('São Roque de Minas', 'MG', 'sao-roque-de-minas-mg'),
+  ('São Sebastião do Paraíso', 'MG', 'sao-sebastiao-do-paraiso-mg'),
+  ('São Tomás de Aquino', 'MG', 'sao-tomas-de-aquino-mg'),
+  ('Tapira', 'MG', 'tapira-mg'),
+  ('Vargem Bonita', 'MG', 'vargem-bonita-mg'),
+  ('Altinópolis', 'SP', 'altinopolis-sp'),
+  ('Batatais', 'SP', 'batatais-sp'),
+  ('Brodowski', 'SP', 'brodowski-sp'),
+  ('Caconde', 'SP', 'caconde-sp'),
+  ('Cajuru', 'SP', 'cajuru-sp'),
+  ('Cássia dos Coqueiros', 'SP', 'cassia-dos-coqueiros-sp'),
+  ('Cristais Paulista', 'SP', 'cristais-paulista-sp'),
+  ('Franca', 'SP', 'franca-sp'),
+  ('Itirapuã', 'SP', 'itirapua-sp'),
+  ('Jeriquara', 'SP', 'jeriquara-sp'),
+  ('Mococa', 'SP', 'mococa-sp'),
+  ('Patrocínio Paulista', 'SP', 'patrocinio-paulista-sp'),
+  ('Pedregulho', 'SP', 'pedregulho-sp'),
+  ('Restinga', 'SP', 'restinga-sp'),
+  ('Ribeirão Corrente', 'SP', 'ribeirao-corrente-sp'),
+  ('Santa Cruz da Esperança', 'SP', 'santa-cruz-da-esperanca-sp'),
+  ('Santo Antônio da Alegria', 'SP', 'santo-antonio-da-alegria-sp'),
+  ('São José da Bela Vista', 'SP', 'sao-jose-da-bela-vista-sp'),
+  ('São José do Rio Pardo', 'SP', 'sao-jose-do-rio-pardo-sp'),
+  ('Tapiratiba', 'SP', 'tapiratiba-sp')
+on conflict do nothing;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0014', '0014_cidades_regiao_itau.sql', 'applied');
+    raise notice 'Tucaí 0014: aplicada agora';
+  end if;
+end $tucai_0014$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

@@ -28,10 +28,9 @@ describe('Menu de conta', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /Sair/ }))
     expect(h.signOut).toHaveBeenCalled()
   })
-  it('sem sessão: Entrar / Criar conta e botão de tema', () => {
+  it('sem sessão: Entrar / Criar conta', () => {
     show()
     expect(screen.getByRole('link', { name: 'Entrar' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Criar conta' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /modo (escuro|claro)/ })).toBeInTheDocument()
   })
 })

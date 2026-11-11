@@ -1,5 +1,6 @@
 import { Bell, MapPin, Search, ShoppingBag } from "lucide-react";
 import { AccountMenu } from "../account/AccountMenu.tsx";
+import { ThemeToggleButton } from "../account/ThemeToggle.tsx";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BRAND } from "../../config/brand.ts";
@@ -84,6 +85,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
     </Link>
   );
   const profile = <AccountMenu compact={!desktop} />;
+  const theme = <ThemeToggleButton />;
   const bag = (
     <Link
       to="/sacola"
@@ -129,6 +131,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
             </Link>
             <div className="min-w-0 flex-1">{loc}</div>
             <div className="flex items-center gap-1">
+              {theme}
               {bell}
               {profile}
               {bag}
@@ -164,6 +167,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
         </div>
         <div className="min-w-0 flex-1">{srch}</div>
         <div className="flex items-center gap-1">
+          {theme}
           {bell}
           {profile}
           {bag}

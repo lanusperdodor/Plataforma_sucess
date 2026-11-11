@@ -45,12 +45,14 @@ describe('TopBar', () => {
     view('desktop')
     expect(screen.getByText('Entrar')).toBeInTheDocument()
     expect(screen.getByText('Criar conta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /modo (escuro|claro)/ })).toBeInTheDocument()
     cleanup()
     mocks.session = { user: { id: 'u1', email: 'joao@exemplo.com' } }
     view('desktop')
     expect(screen.queryByText('Entrar')).toBeNull()
     expect(screen.getByRole('button', { name: /Conta de joao/ })).toBeInTheDocument()
     expect(screen.getByText('joao')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /modo (escuro|claro)/ })).toBeInTheDocument()
   })
 
   it('expõe contadores nos aria-labels', () => {
@@ -74,5 +76,16 @@ describe('TopBar', () => {
     expect(screen.getByRole('banner')).toHaveAttribute('data-compact', 'true')
     expect(screen.getByLabelText('Buscar')).toBeInTheDocument()
     expect(screen.getAllByLabelText('Sacola, 1 item').length).toBeGreaterThan(0)
+  })
+})
+
+describe('botão de tema', () => {
+  it('aparece no celular e alterna claro/escuro', () => {
+    view('mobile')
+    const btn = screen.getByRole('button', { name: /modo (escuro|claro)/ })
+    const before = document.documentElement.dataset.theme
+    btn.click()
+    expect(document.documentElement.dataset.theme).not.toBe(before)
+    localStorage.removeItem('tucai:theme')
   })
 })

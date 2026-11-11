@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getAccountIdentity } from '../../features/account/repository.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { activeRole, displayName } from './identity.ts'
-import { ThemeChooser, ThemeToggleButton } from './ThemeToggle.tsx'
+import { ThemeChooser } from './ThemeToggle.tsx'
 
 export function useAccountIdentity() {
   const { session, authz } = useAuth()
@@ -47,7 +47,6 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   if (!signedIn || !session) {
     return (
       <div className="flex items-center gap-1">
-        {!compact && <ThemeToggleButton />}
         <Link to="/entrar" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-3 text-sm font-semibold text-ink">
           Entrar
         </Link>

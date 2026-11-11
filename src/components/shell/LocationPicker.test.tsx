@@ -15,14 +15,13 @@ vi.mock('../../features/catalog/repository', () => ({
 import { CITY_KEY, setStoredCityId } from '../../features/location/cityStore.ts'
 import { LocationPicker } from './LocationPicker.tsx'
 
-const city = (id: string, name: string, isDemo = false) => ({
+const city = (id: string, name: string) => ({
   id,
   name,
   state: 'MG',
   slug: id,
   centerLat: null,
   centerLng: null,
-  isDemo,
 })
 
 const view = () =>
@@ -34,7 +33,7 @@ const view = () =>
 
 beforeEach(() => {
   h.fail = false
-  h.cities = [city('c1', 'Itaú de Minas', true), city('c2', 'Passos')]
+  h.cities = [city('c1', 'Itaú de Minas'), city('c2', 'Passos')]
   window.localStorage.clear()
   setStoredCityId(null)
 })
@@ -44,7 +43,7 @@ describe('LocationPicker', () => {
   it('mostra a primeira cidade, abre, seleciona e grava', async () => {
     view()
     const trigger = screen.getByRole('button', { name: /Itaú de Minas, MG/ })
-    await waitFor(() => expect(trigger).toHaveTextContent('Demonstração'))
+    await waitFor(() => expect(trigger).not.toHaveTextContent('Demonstração'))
     fireEvent.click(trigger)
     const dialog = screen.getByRole('dialog', { name: 'Escolha sua cidade' })
     expect(dialog).toBeInTheDocument()

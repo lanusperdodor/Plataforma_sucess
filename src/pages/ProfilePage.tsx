@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Bookmark, ChevronRight, CreditCard, Heart, LogOut, MapPin, Receipt, Settings, Store, Ticket, User, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Bell, Briefcase, ShieldCheck, Bookmark, ChevronRight, CreditCard, Heart, LogOut, MapPin, Receipt, Settings, Store, Ticket, User, type LucideIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { LoginInvite } from '../components/feedback/LoginInvite.tsx'
@@ -16,10 +16,10 @@ interface Item {
 const ITEMS: Item[] = [
   { slug: 'dados', to: '/conta', label: 'Dados da conta', text: 'Nome, telefone e e-mail', icon: User },
   { slug: 'enderecos', to: '/perfil/enderecos', label: 'Endereços', text: 'Onde você recebe seus pedidos', icon: MapPin },
-  { slug: 'pagamentos', to: '/perfil/pagamentos', label: 'Formas de pagamento', text: 'Nesta fase, apenas pagamento de teste', icon: CreditCard },
+  { slug: 'pagamentos', to: '/perfil/pagamentos', label: 'Formas de pagamento', text: 'Pagamentos online ainda não ativados', icon: CreditCard },
   { slug: 'pedidos', to: '/pedidos', label: 'Pedidos', text: 'Em andamento e anteriores', icon: Receipt },
   { slug: 'favoritos', to: '/perfil/favoritos', label: 'Favoritos', text: 'Restaurantes e lojas que você ama', icon: Heart },
-  { slug: 'seguidas', to: '/perfil/seguidas', label: 'Empresas seguidas', text: 'Novidades da comunidade', icon: Store },
+  { slug: 'seguidas', to: '/perfil/seguidas', label: 'Empresas seguidas', text: 'Novidades do Conecta', icon: Store },
   { slug: 'salvos', to: '/perfil/salvos', label: 'Publicações salvas', text: 'Promoções e eventos guardados', icon: Bookmark },
   { slug: 'cupons', to: '/perfil/cupons', label: 'Cupons', text: 'Descontos oferecidos pelos comércios', icon: Ticket },
   { slug: 'notificacoes', to: '/notificacoes', label: 'Notificações', text: 'Avisos de pedidos e novidades', icon: Bell },
@@ -42,13 +42,14 @@ export function ProfilePage() {
         {!session ? (
           <LoginInvite icon={Icon} title="Entre para ver esta seção" description="Ela guarda informações da sua conta." />
         ) : (
-          <EmptyState icon={Icon} title="Nada por aqui ainda" description="Esta seção será preenchida quando a conta estiver conectada aos pedidos e à comunidade." />
+          <EmptyState icon={Icon} title="Nada por aqui ainda" description="Esta seção ainda não está disponível. Ela será ativada junto com o módulo correspondente." />
         )}
       </Page>
     )
   }
 
   const email = session?.user.email
+  const isAdmin = !!authz?.roles.some((r) => r === 'platform_master' || r === 'platform_operator')
   return (
     <Page>
       <PageHeader icon={User} title="Perfil" subtitle="Sua conta, endereços, favoritos e preferências." />
@@ -64,7 +65,11 @@ export function ProfilePage() {
         <LoginInvite icon={User} title="Entre na sua conta" description="Peça, salve favoritos, siga comércios e acompanhe entregas." />
       )}
       <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {ITEMS.map(({ slug, to, label, text, icon: Icon }) => (
+        {[
+          { slug: 'negocio', to: '/cadastrar-negocio', label: 'Meus negócios', text: 'Cadastre ou acompanhe seu estabelecimento', icon: Briefcase },
+          ...(isAdmin ? [{ slug: 'admin', to: '/admin', label: 'Administração', text: 'Painel Master da Tucaí', icon: ShieldCheck }] : []),
+          ...ITEMS,
+        ].map(({ slug, to, label, text, icon: Icon }) => (
           <li key={slug}>
             <Link to={to} className="hover-lift pressable flex min-h-16 items-center gap-3 rounded-card border border-line bg-surface p-3">
               <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-ink"><Icon className="size-5" /></span>

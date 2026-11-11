@@ -8,7 +8,6 @@ const mk = (id: string, kind: RecentInput['kind'] = 'loja'): RecentInput => ({
   kind,
   id,
   name: `Item ${id}`,
-  isDemo: false,
 })
 
 describe('recentStore', () => {

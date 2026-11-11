@@ -5,6 +5,7 @@ export type RepositoryErrorCode =
   | 'validation'
   | 'conflict'
   | 'business_rule'
+  | 'unavailable'
   | 'unknown'
 
 export class RepositoryError extends Error {
@@ -19,10 +20,21 @@ export class RepositoryError extends Error {
   }
 }
 
+/** Tabela/visão/função inexistente: migrations ainda não aplicadas no projeto Supabase. */
+const MISSING_SCHEMA_CODES = new Set(['PGRST205', 'PGRST202', '42P01', '42883'])
+
+export const UNAVAILABLE_MESSAGE =
+  'Este recurso ainda não está disponível: o banco de dados da Tucaí está em configuração.'
+
+export function backendUnavailable(cause?: unknown): RepositoryError {
+  return new RepositoryError('unavailable', UNAVAILABLE_MESSAGE, undefined, { cause })
+}
+
 const FETCH_FAILURE = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i
 
 export function mapPostgrestError(e: { code?: string; message: string; details?: string }): RepositoryError {
   const opts = { cause: e }
+  if (e.code && MISSING_SCHEMA_CODES.has(e.code)) return backendUnavailable(e)
   switch (e.code) {
     case '42501':
       return new RepositoryError('forbidden', 'Você não tem permissão para esta ação.', undefined, opts)

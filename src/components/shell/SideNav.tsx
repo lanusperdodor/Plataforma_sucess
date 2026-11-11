@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   NAV_DESTINATIONS,
+  PARTNER_DESTINATIONS,
   SECONDARY_DESTINATIONS,
   resolveActiveDestination,
 } from './destinations.ts'
@@ -64,8 +65,8 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
       )
     })
 
-  const secondary = () =>
-    SECONDARY_DESTINATIONS.map((item) => {
+  const secondary = (items = SECONDARY_DESTINATIONS) =>
+    items.map((item) => {
       const Icon = item.icon
       const isCurrent = pathname === item.to || pathname.startsWith(`${item.to}/`)
       return (
@@ -96,6 +97,10 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
           Descobrir
         </h2>
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary()}</ul>
+        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
+          Parceiros
+        </h2>
+        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(PARTNER_DESTINATIONS)}</ul>
       </nav>
     )
   }
@@ -155,6 +160,10 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
           Descobrir
         </h2>
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary()}</ul>
+        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
+          Parceiros
+        </h2>
+        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(PARTNER_DESTINATIONS)}</ul>
       </aside>
     </>
   )

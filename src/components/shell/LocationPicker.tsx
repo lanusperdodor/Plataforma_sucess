@@ -54,9 +54,6 @@ export function LocationPicker() {
                 <span>
                   {c.name}, {c.state}
                 </span>
-                {c.isDemo ? (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-muted">Demonstração</span>
-                ) : null}
               </button>
             )
           })}
@@ -76,10 +73,6 @@ export function LocationPicker() {
       >
         <MapPin aria-hidden="true" className="size-4 shrink-0 text-brand" />
         <span className="min-w-0 truncate">{label}</span>
-        {city?.isDemo ? (
-          // no celular o aviso de demonstração fica na faixa global (DemoBanner)
-          <span className="hidden shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-ink-muted md:inline">Demonstração</span>
-        ) : null}
       </button>
       {layout === 'mobile' ? (
         <Sheet open={open} onClose={close} title={title}>

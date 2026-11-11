@@ -15,6 +15,8 @@ vi.mock('../components/shell/LocationPicker.tsx', () => ({ LocationPicker: () =>
 vi.mock('../pages/RestaurantPage.tsx', () => ({ RestaurantPage: () => <h1>Detalhe do restaurante</h1> }))
 vi.mock('../pages/ServicesPage.tsx', () => ({ ServicesPage: () => <h1>Serviços</h1> }))
 vi.mock('../pages/NotFoundPage.tsx', () => ({ NotFoundPage: () => <h1>Não encontrada</h1> }))
+vi.mock('../pages/ConectaPage.tsx', () => ({ ConectaPage: () => <h1>Tucaí Conecta</h1> }))
+vi.mock('../pages/CouriersPage.tsx', () => ({ CouriersPage: () => <h1>Entregadores parceiros</h1> }))
 
 import { AppRoutes } from './routes.tsx'
 
@@ -91,5 +93,38 @@ describe('AppShell + rotas reais', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByTestId('from')).toHaveTextContent('/sacola/checkout?cupom=X')
+  })
+
+  it('antiga /comunidade redireciona para /conecta (Conecta ativo)', async () => {
+    setWidth(375)
+    render(
+      <MemoryRouter initialEntries={['/comunidade']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Tucaí Conecta' })).toBeInTheDocument()
+    expect(currentLabels(screen.getByRole('navigation', { name: 'Navegação principal' }))).toEqual(['Conecta'])
+  })
+
+  it('a prévia visual /previa não existe mais', async () => {
+    setWidth(375)
+    render(
+      <MemoryRouter initialEntries={['/previa']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Não encontrada' })).toBeInTheDocument()
+  })
+
+  it('desktop: menu lateral tem entrada clara para Entregadores', async () => {
+    setWidth(1280)
+    render(
+      <MemoryRouter initialEntries={['/entregadores']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Entregadores parceiros' })).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Menu lateral' })
+    expect(currentLabels(nav)).toContain('Entregadores')
   })
 })

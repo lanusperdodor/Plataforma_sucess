@@ -1,10 +1,15 @@
-import { EmptyState } from '../components/feedback/EmptyState.tsx'
+import { Link } from 'react-router-dom'
+import { NotFoundState } from '../components/feedback/NotFoundState.tsx'
+import { Page } from '../components/nav/PageHeader.tsx'
 
 export function NotFoundPage() {
   return (
-    <section className="p-4">
-      <h1 className="text-xl font-semibold">Página não encontrada</h1>
-      <EmptyState title="Em construção" description="Esta tela estará disponível em breve." />
-    </section>
+    <Page>
+      <h1 className="sr-only">Página não encontrada</h1>
+      <NotFoundState
+        title="Página não encontrada"
+        action={<Link to="/" className="pressable inline-flex min-h-11 items-center rounded-full bg-brand px-5 text-sm font-semibold text-surface">Ir para o início</Link>}
+      />
+    </Page>
   )
 }

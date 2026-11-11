@@ -45,3 +45,11 @@ Verificado no navegador (Edge headless, 390×844 e 1280×900): Início, Explorar
 - typecheck, lint, 216 testes e build passaram.
 
 Limitações: interações da Comunidade/Vagas/Pedidos são só visuais; carregamento inicial 574 kB (meta 450 kB, Supabase no bundle inicial); migrations 0002+ não aplicadas no Supabase remoto.
+
+## Sprint 1 — auditoria, remoção de demonstrações e Painel Master — 11/11/2026
+- Removidos do produto: catálogo fictício com fallback automático, conteúdo fictício de Comunidade/Vagas/Pedidos/Notificações, prévia `/previa`, faixa e selos de demonstração, seed fictício. Tabela ausente no Supabase agora mostra "Serviço em configuração", nunca dados inventados.
+- Comunidade renomeada para Tucaí Conecta (`/conecta`; `/comunidade` redireciona). Entrada de Entregadores e "Cadastrar negócio" no menu lateral e em Explorar.
+- Migrations 0003–0005 (dados reais só; estado `rejected`; Painel Master com permissões por integrante, MFA, cidades, análise de estabelecimentos, auditoria).
+- Painel Master `/admin`: painel geral, estabelecimentos, cidades, equipe/permissões, auditoria, segurança/MFA. Cadastro de negócio em `/cadastrar-negocio`.
+- Verificado: typecheck, lint, 235 testes Vitest, build; testes SQL (foundation, experiência, admin) em PostgreSQL 16 local; controle negativo; bootstrap do primeiro Master.
+- Não verificado: Supabase real (nenhuma migration aplicada remotamente), MFA com GoTrue real, navegador. Bundle inicial 575 kB (> meta 450 kB).

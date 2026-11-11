@@ -192,11 +192,15 @@ begin
   perform tst.denied($q$update public.audit_logs set action = 'x'$q$, 'master altera auditoria');
   perform tst.denied($q$delete from public.audit_logs$q$, 'master apaga auditoria');
 
-  -- 11. operador lê perfis mas não concede papéis
+  -- 11. operador só lê perfis com a permissão users.view (0005) e não concede papéis
   perform tst.su();
   insert into public.user_roles(user_id, role) values (b, 'platform_operator');
   perform tst.login(b);
-  perform tst.ok(tst.count('select 1 from public.profiles') >= 8, 'operador lê perfis');
+  perform tst.ok(tst.count('select 1 from public.profiles') = 1, 'operador sem permissão lê só o próprio perfil');
+  perform tst.su();
+  insert into public.platform_staff_permissions(user_id, permission) values (b, 'users.view');
+  perform tst.login(b);
+  perform tst.ok(tst.count('select 1 from public.profiles') >= 8, 'operador com users.view lê perfis');
   perform tst.denied($q$select public.grant_role('00000000-0000-0000-0000-0000000000b1','platform_master')$q$, 'operador concede master');
   perform tst.ok(tst.count('select 1 from public.audit_logs') = 0, 'operador não lê auditoria');
 

@@ -28,14 +28,6 @@ export function PageHeader({ title, subtitle, icon: Icon, actions }: PageHeaderP
   )
 }
 
-export function DemoTag({ className = '' }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-ink-muted ${className}`}>
-      Demonstração
-    </span>
-  )
-}
-
 /** Página: espaçamento e largura comuns a todas as abas. */
 export function Page({ children }: { children: ReactNode }) {
   return <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-4 p-4 md:gap-6 md:p-6">{children}</div>

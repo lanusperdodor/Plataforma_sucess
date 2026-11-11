@@ -44,6 +44,7 @@ export interface CurrentCity {
   setCity: (id: string) => void
   isLoading: boolean
   isError: boolean
+  error: unknown
   refetch: () => void
 }
 
@@ -61,5 +62,5 @@ export function useCurrentCity(): CurrentCity {
   )
   const setCity = useCallback((id: string) => setStoredCityId(id), [])
   const refetch = useCallback(() => void query.refetch(), [query])
-  return { city, cities, setCity, isLoading: query.isLoading, isError: query.isError, refetch }
+  return { city, cities, setCity, isLoading: query.isLoading, isError: query.isError, error: query.error, refetch }
 }

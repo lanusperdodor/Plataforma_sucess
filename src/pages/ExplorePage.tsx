@@ -1,4 +1,4 @@
-import { ArrowRight, Briefcase, Compass, ShoppingBag, Users, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Bike, Briefcase, Compass, ShoppingBag, Users, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { BusinessCard } from '../components/cards/BusinessCard.tsx'
 import { SkeletonCard } from '../components/feedback/Skeleton.tsx'
@@ -6,7 +6,6 @@ import { CategoryRail } from '../components/nav/CategoryRail.tsx'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { Section } from '../components/nav/Section.tsx'
 import { useBusinesses, useCategories, useFeatured } from '../features/catalog/hooks.ts'
-import { DEMO_JOBS, DEMO_POSTS } from '../features/demo/preview-data.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
 import { categoryHref } from './HomePage.tsx'
 
@@ -62,8 +61,8 @@ export function ExplorePage() {
     { to: '/restaurantes', title: 'Restaurantes', text: 'Delivery e retirada', icon: UtensilsCrossed, count: restaurants.data?.length, accent: true },
     { to: '/lojas', title: 'Lojas', text: 'Farmácia, moda, calçados', icon: ShoppingBag, count: stores.data?.length },
     { to: '/servicos', title: 'Serviços', text: 'Profissionais da região', icon: Wrench, count: services.data?.length },
-    { to: '/vagas', title: 'Vagas', text: 'Oportunidades perto de você', icon: Briefcase, count: DEMO_JOBS.length },
-    { to: '/comunidade', title: 'Comunidade', text: 'Novidades dos comércios', icon: Users, count: DEMO_POSTS.length },
+    { to: '/vagas', title: 'Vagas', text: 'Oportunidades perto de você', icon: Briefcase },
+    { to: '/conecta', title: 'Conecta', text: 'A rede social da região', icon: Users },
   ]
 
   return (
@@ -76,6 +75,17 @@ export function ExplorePage() {
           </li>
         ))}
       </ul>
+      <section aria-labelledby="explorar-parceiros" className="flex flex-col gap-3">
+        <h2 id="explorar-parceiros" className="text-lg font-semibold text-ink">Seja parceiro da Tucaí</h2>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <li>
+            <AreaTile area={{ to: '/entregadores', title: 'Entregadores', text: 'Faça entregas como parceiro independente', icon: Bike }} />
+          </li>
+          <li>
+            <AreaTile area={{ to: '/cadastrar-negocio', title: 'Cadastrar negócio', text: 'Restaurante, loja ou serviço', icon: ShoppingBag }} />
+          </li>
+        </ul>
+      </section>
       {(categories.data ?? []).length > 0 && (
         <section aria-labelledby="explorar-cat" className="flex flex-col gap-3">
           <h2 id="explorar-cat" className="text-lg font-semibold text-ink">Navegue por categoria</h2>

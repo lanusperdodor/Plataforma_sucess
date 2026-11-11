@@ -12,8 +12,8 @@ describe('resolveActiveDestination', () => {
     ['/servicos', 'explorar'],
     ['/vagas/42', 'explorar'],
     ['/busca', 'explorar'],
-    ['/comunidade', 'comunidade'],
-    ['/comunidade/post/1', 'comunidade'],
+    ['/conecta', 'conecta'],
+    ['/conecta/post/1', 'conecta'],
     ['/pedidos', 'pedidos'],
     ['/pedidos/9', 'pedidos'],
     ['/perfil', 'perfil'],
@@ -33,7 +33,7 @@ describe('resolveActiveDestination', () => {
 
 describe('destinos', () => {
   it('tem 5 destinos primários e 5 secundários', () => {
-    expect(NAV_DESTINATIONS.map((d) => d.id)).toEqual(['inicio', 'explorar', 'comunidade', 'pedidos', 'perfil'])
+    expect(NAV_DESTINATIONS.map((d) => d.id)).toEqual(['inicio', 'explorar', 'conecta', 'pedidos', 'perfil'])
     expect(SECONDARY_DESTINATIONS.map((d) => d.label)).toEqual([
       'Restaurantes',
       'Lojas',

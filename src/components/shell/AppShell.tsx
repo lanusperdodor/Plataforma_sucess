@@ -5,7 +5,6 @@ import { useScrollRestoration } from '../../app/useScrollRestoration.ts'
 import { AnnounceContext } from './announceContext.ts'
 import { BottomNav } from './BottomNav.tsx'
 import { CartFab } from './CartFab.tsx'
-import { DemoBanner } from './DemoBanner.tsx'
 import { LocationPicker } from './LocationPicker.tsx'
 import { SideNav } from './SideNav.tsx'
 import { TopBar } from './TopBar.tsx'
@@ -54,7 +53,6 @@ export function AppShell({ children }: AppShellProps) {
                 : undefined
             }
           >
-            <DemoBanner />
             {desktop ? (
               <div className="mx-auto w-full min-w-0 max-w-[var(--content-max)]">{children}</div>
             ) : (

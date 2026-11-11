@@ -83,6 +83,7 @@ async function main() {
       ...sqlFiles('supabase/seed'),
       ...one('supabase/tests/rls_foundation.sql'),
       ...one('supabase/tests/rls_experiencia.sql'),
+      ...one('supabase/tests/rls_admin.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

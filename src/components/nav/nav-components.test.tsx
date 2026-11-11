@@ -15,7 +15,6 @@ const cat = (slug: string, label: string, icon: string | null): Category => ({
   kind: 'restaurante',
   icon,
   sortOrder: 1,
-  isDemo: false,
 })
 
 describe('Section', () => {

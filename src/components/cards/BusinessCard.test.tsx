@@ -35,7 +35,6 @@ function make(over: Record<string, unknown> = {}): BusinessSummary {
     rating_count: 12,
     popularity_score: 1,
     is_featured: false,
-    is_demo: true,
     is_open: true,
     ...over,
   })
@@ -71,13 +70,13 @@ describe('BusinessCard', () => {
     expect(screen.getByText('Fechado')).toBeInTheDocument()
   })
 
-  it('rotula demo e estimativa de distância; selo de promoção só com prop', () => {
+  it('rotula estimativa de distância; selo de promoção só com prop; nunca rotula demonstração', () => {
     renderCard(make())
-    expect(screen.getByText('Demonstração')).toBeInTheDocument()
+    expect(screen.queryByText('Demonstração')).toBeNull()
     expect(screen.getByText('≈ 2,4 km do centro (estimativa)')).toBeInTheDocument()
     expect(screen.queryByText('Frete grátis')).toBeNull()
     cleanup()
-    renderCard(make({ is_demo: false }), { promotion: { label: 'Frete grátis' } })
+    renderCard(make(), { promotion: { label: 'Frete grátis' } })
     expect(screen.queryByText('Demonstração')).toBeNull()
     expect(screen.getByText('Frete grátis')).toBeInTheDocument()
   })

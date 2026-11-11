@@ -23,7 +23,6 @@ export const citySchema = z
     slug: z.string(),
     center_lat: z.number().nullable(),
     center_lng: z.number().nullable(),
-    is_demo: z.boolean(),
   })
   .transform((r) => ({
     id: r.id,
@@ -32,7 +31,6 @@ export const citySchema = z
     slug: r.slug,
     centerLat: r.center_lat,
     centerLng: r.center_lng,
-    isDemo: r.is_demo,
   }))
 export type City = z.output<typeof citySchema>
 
@@ -45,7 +43,6 @@ export const categorySchema = z
     kind: z.enum(categoryKinds),
     icon: z.string().nullable(),
     sort_order: z.number(),
-    is_demo: z.boolean(),
   })
   .transform((r) => ({
     id: r.id,
@@ -54,7 +51,6 @@ export const categorySchema = z
     kind: r.kind,
     icon: r.icon,
     sortOrder: r.sort_order,
-    isDemo: r.is_demo,
   }))
 export type Category = z.output<typeof categorySchema>
 
@@ -87,7 +83,6 @@ export const businessRowSchema = z
     rating_count: z.number().int(),
     popularity_score: z.number(),
     is_featured: z.boolean(),
-    is_demo: z.boolean(),
     is_open: z.boolean(),
   })
   .transform((r) => ({
@@ -120,8 +115,6 @@ export const businessRowSchema = z
     ratingCount: r.rating_count,
     popularityScore: r.popularity_score,
     isFeatured: r.is_featured,
-    /** A UI deve rotular "Demonstração". */
-    isDemo: r.is_demo,
     isOpen: r.is_open,
   }))
 export type BusinessSummary = z.output<typeof businessRowSchema>

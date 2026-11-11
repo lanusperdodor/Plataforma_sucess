@@ -134,6 +134,9 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false }: { business
                     {d.status === 'offered' && d.offerRound > 1 && <span className="text-ink-muted">· {d.offerRound}ª rodada de oferta</span>}
                   </p>
                 )}
+                {o.fulfillment === 'delivery_own' && (o.status === 'ready' || o.status === 'out_for_delivery') && (
+                  <p className="text-sm text-ink-muted">Entrega própria: a sua equipe leva o pedido (não vai para entregador parceiro). Use “Saiu para entrega” e depois “Marcar entregue”.</p>
+                )}
                 {d?.attention && <p role="status" className="rounded-xl bg-orange/15 p-2 text-sm font-semibold text-ink">Atenção: {d.attention}. A equipe Tucaí foi avisada.</p>}
                 {o.rejectionReason && <p className="text-sm text-ink-muted">Motivo: {o.rejectionReason}</p>}
                 <p className="text-sm">

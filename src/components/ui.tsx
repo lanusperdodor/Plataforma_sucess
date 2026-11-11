@@ -10,7 +10,7 @@ export function Button({
     'inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold transition-colors duration-150 disabled:opacity-50'
   const style =
     variant === 'primary'
-      ? 'bg-brand text-white hover:bg-accent'
+      ? 'bg-brand text-surface hover:bg-accent'
       : 'bg-transparent text-brand hover:bg-brand/10'
   return <button className={`${base} ${style} ${className}`} {...props} />
 }

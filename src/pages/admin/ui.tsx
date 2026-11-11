@@ -32,3 +32,18 @@ export function formatDateTime(iso: string | null | undefined): string {
 export function errorMessage(e: unknown): string {
   return e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente novamente.'
 }
+
+/** Paginação: Anterior / Próxima, página atual e total. */
+export function Pager({ page, pageSize, total, onPage, loading }: { page: number; pageSize: number; total: number; onPage: (p: number) => void; loading?: boolean }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  if (total === 0) return null
+  const first = (page - 1) * pageSize + 1
+  const last = Math.min(page * pageSize, total)
+  return (
+    <nav aria-label="Paginação" className="flex flex-wrap items-center gap-2 text-sm">
+      <button type="button" disabled={page <= 1 || loading} onClick={() => onPage(page - 1)} className={secondaryButton}>Anterior</button>
+      <span className="text-ink" aria-live="polite">Página {page} de {pages} · {first}–{last} de {total}</span>
+      <button type="button" disabled={page >= pages || loading} onClick={() => onPage(page + 1)} className={secondaryButton}>Próxima</button>
+    </nav>
+  )
+}

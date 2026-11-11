@@ -43,15 +43,21 @@ begin
   perform public.admin_set_account_name(cli, 'Cliente Renomeado');
   perform tsta2.ok(public.admin_set_account_username(cli, 'Cliente.Real') = 'cliente.real', 'suporte define usuário');
   perform tsta2.denied(format($q$select public.admin_set_account_username(%L, 'admin')$q$, cli), 'suporte usa nome reservado', array['P0001']);
-  perform tsta2.denied(format($q$select public.admin_set_account_password(%L, 'curta')$q$, cli), 'senha fraca', array['P0001']);
-  perform public.admin_set_account_password(cli, 'nova-senha-123');
+  -- senha temporária: conta real só Master com MFA (0023); conta de teste pelo suporte
+  perform tsta2.denied(format($q$select public.admin_set_account_password(%L, 'nova-senha-123')$q$, cli), 'suporte define senha de conta real');
+  perform tsta2.su();
+  select id into tst from auth.users where email like 'cliente1-%@teste.example.com';
+  perform tsta2.login(sup);
+  perform tsta2.denied(format($q$select public.admin_set_account_password(%L, 'curta')$q$, tst), 'senha fraca', array['P0001']);
+  perform public.admin_set_account_password(tst, 'nova-senha-123');
   perform public.admin_set_account_blocked(cli, true);
   perform tsta2.denied(format($q$select public.admin_set_account_password(%L, 'senha-nova-999')$q$, m), 'suporte troca senha do Master');
   perform tsta2.denied(format($q$select public.admin_set_account_blocked(%L, true)$q$, op2), 'suporte bloqueia operador');
   perform tsta2.denied(format($q$select public.admin_set_account_blocked(%L, true)$q$, sup), 'bloqueia a si mesmo', array['P0001']);
   perform tsta2.su();
   perform tsta2.ok((select full_name = 'Cliente Renomeado' and username = 'cliente.real' from public.profiles where id = cli), 'nome e usuário salvos');
-  perform tsta2.ok((select encrypted_password = extensions.crypt('nova-senha-123', encrypted_password) and banned_until > now() from auth.users where id = cli), 'senha nova e bloqueio');
+  perform tsta2.ok((select encrypted_password = extensions.crypt('nova-senha-123', encrypted_password) from auth.users where id = tst), 'senha temporária gravada');
+  perform tsta2.ok((select banned_until > now() from auth.users where id = cli), 'bloqueio');
   perform tsta2.ok(not exists (select 1 from public.audit_logs where details::text like '%nova-senha-123%'), 'senha fora da auditoria');
   perform tsta2.ok(tsta2.count($q$select 1 from public.audit_logs where action like 'accounts.%'$q$) = 4, 'auditoria: nome, usuário, senha e bloqueio');
   -- Master altera equipe

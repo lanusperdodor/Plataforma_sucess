@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -60,7 +61,7 @@ function Roles() {
 }
 function renderApp(path: string, extra?: ReactNode) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <Where />
         <Roles />
@@ -74,7 +75,7 @@ function renderApp(path: string, extra?: ReactNode) {
           <Route path="/master" element={<RequireAuth role="platform_master"><p>área master</p></RequireAuth>} />
         </Routes>
       </AuthProvider>
-    </MemoryRouter>,
+    </MemoryRouter></QueryClientProvider>,
   )
 }
 const type = (label: string | RegExp, value: string) =>

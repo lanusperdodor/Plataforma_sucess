@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -70,6 +71,7 @@ function UsernameForm({ userId }: { userId: string }) {
 
 /** Troca da própria senha (o Supabase exige a sessão atual; nada passa pelo nosso banco). */
 function PasswordForm() {
+  const qc = useQueryClient()
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
   const [msg, setMsg] = useState<Msg>()
@@ -85,6 +87,7 @@ function PasswordForm() {
     setPw('')
     setConfirm('')
     setMsg({ kind: 'success', text: 'Senha alterada. Use a nova senha no próximo login.' })
+    void qc.invalidateQueries({ queryKey: ['me', 'must-change-password'] })
   }
   return (
     <form
@@ -107,6 +110,7 @@ function PasswordForm() {
 
 export function AccountPage() {
   const { session, authz, authzError, signOut } = useAuth()
+  const qc = useQueryClient()
   const location = useLocation()
   const initialNotice = (location.state as { notice?: unknown } | null)?.notice
   const [msg, setMsg] = useState<Msg | undefined>(
@@ -146,6 +150,7 @@ export function AccountPage() {
     // RLS que bloqueia retorna 0 linhas sem erro: tratar como falha
     const ok = !error && (data?.length ?? 0) === 1
     setMsg(ok ? { kind: 'success', text: 'Perfil salvo.' } : { kind: 'error', text: 'Não foi possível salvar.' })
+    if (ok) void qc.invalidateQueries({ queryKey: ['me', 'identity'] })
   })
 
   const onSignOut = async () => {

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, KeyRound, Pencil, Search, ShieldCheck, UserRound } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Ban, Info, KeyRound, Mail, Pencil, Search, ShieldCheck, UserRound } from 'lucide-react'
+import { Fragment, useState, type FormEvent } from 'react'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { FilterChips } from '../../components/nav/FilterChips.tsx'
+import { sendPasswordRecoveryEmail } from '../../features/account/repository.ts'
 import {
+  accountDetail,
+  startPasswordRecovery,
   listAccounts,
   setAccountBlocked,
   setAccountName,
@@ -43,12 +46,52 @@ const shownEmail = (email: string | null) => (email && !email.endsWith('@tucai.e
 
 type Panel = 'name' | 'username' | 'password' | null
 
+const ROLE_NAMES: Record<string, string> = { ...ROLE_LABEL, business_owner: 'Proprietário', business_staff: 'Funcionário', courier_own: 'Entregador da loja', service_provider: 'Prestador de serviços' }
+const MEMBER_NAMES: Record<string, string> = { owner: 'Proprietário', manager: 'Gerente', attendant: 'Atendente', kitchen: 'Cozinha', courier_own: 'Entregador da loja' }
+
+function AccountDetails({ id }: { id: string }) {
+  const q = useQuery({ queryKey: ['admin', 'account', id], queryFn: () => accountDetail(id) })
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+  const d = q.data
+  if (!d) return <p role="status" className="text-ink-muted">Carregando…</p>
+  return (
+    <div className="grid gap-3 rounded-xl border border-line p-3 md:grid-cols-2">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        <dt className="text-ink-muted">Situação</dt><dd className="text-ink">{d.blocked ? 'Bloqueada' : 'Ativa'}{d.email_confirmed ? ' · e-mail confirmado' : ' · e-mail não confirmado'}{d.must_change_password ? ' · troca de senha pendente' : ''}</dd>
+        <dt className="text-ink-muted">Papéis</dt><dd className="text-ink">{d.roles.map((r) => ROLE_NAMES[r] ?? r).join(', ') || '—'}</dd>
+        {d.permissions.length > 0 && (<><dt className="text-ink-muted">Permissões</dt><dd className="text-ink">{d.permissions.join(', ')}</dd></>)}
+        {d.memberships.map((m) => (<Fragment key={m.business_id}><dt className="text-ink-muted">Estabelecimento</dt><dd className="text-ink">{m.business} · {MEMBER_NAMES[m.role] ?? m.role}</dd></Fragment>))}
+        {d.courier && (<><dt className="text-ink-muted">Entregador</dt><dd className="text-ink">{d.courier.status} · {d.courier.city ?? '—'} · {d.courier.is_online ? 'online' : 'offline'}</dd></>)}
+        <dt className="text-ink-muted">Pedidos feitos</dt><dd className="text-ink">{d.orders}</dd>
+      </dl>
+      <div>
+        <h4 className="mb-1 font-semibold text-ink">Alterações administrativas nesta conta</h4>
+        {d.audit.length === 0 ? <p className="text-ink-muted">Nenhuma registrada.</p> : (
+          <ul className="flex flex-col gap-1">
+            {d.audit.map((a, n) => <li key={n} className="text-ink"><span className="text-ink-muted">{formatDateTime(a.created_at)}</span> · {a.action}{a.actor ? ` · por ${a.actor}` : ''}</li>)}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [open, setOpen] = useState<Panel>(null)
   const [value, setValue] = useState('')
   const [shownPassword, setShownPassword] = useState<string | null>(null)
+  const [details, setDetails] = useState(false)
+  const recovery = useMutation({
+    mutationFn: async () => {
+      const email = await startPasswordRecovery(a.id)
+      await sendPasswordRecoveryEmail(email)
+      return email
+    },
+    onSuccess: (email) => toast.success(`Link de recuperação enviado para ${email}. A pessoa cria a nova senha pelo link.`),
+    onError: (e) => toast.error(errorMessage(e)),
+  })
   const done = (msg: string) => {
     toast.success(msg)
     setOpen(null)
@@ -103,11 +146,20 @@ function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
       <p className="text-xs text-ink-muted">
         Criada em {formatDateTime(a.createdAt)} · último acesso {a.lastSignInAt ? formatDateTime(a.lastSignInAt) : 'nunca'}{a.phone ? ` · ${a.phone}` : ''}
       </p>
+      <div>
+        <button type="button" aria-expanded={details} onClick={() => setDetails((v) => !v)} className={`${secondaryButton}`}><Info aria-hidden="true" className="size-4" />{details ? 'Ocultar detalhes' : 'Ver detalhes'}</button>
+      </div>
+      {details && <AccountDetails id={a.id} />}
       {canEdit && (
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => start('name')} className={secondaryButton}><Pencil aria-hidden="true" className="size-4" />Nome</button>
           <button type="button" onClick={() => start('username')} className={secondaryButton}><UserRound aria-hidden="true" className="size-4" />Usuário</button>
-          <button type="button" onClick={() => start('password')} className={secondaryButton}><KeyRound aria-hidden="true" className="size-4" />Nova senha</button>
+          {email && (
+            <button type="button" disabled={recovery.isPending} onClick={() => { if (window.confirm(`Enviar link de recuperação de senha para ${email}?`)) recovery.mutate() }} className={secondaryButton}>
+              <Mail aria-hidden="true" className="size-4" />{recovery.isPending ? 'Enviando…' : 'Enviar recuperação de senha'}
+            </button>
+          )}
+          <button type="button" onClick={() => start('password')} className={secondaryButton}><KeyRound aria-hidden="true" className="size-4" />Senha temporária</button>
           {a.blocked ? (
             <button type="button" disabled={run.isPending} onClick={() => run.mutate('unblock')} className={secondaryButton}><ShieldCheck aria-hidden="true" className="size-4" />Desbloquear</button>
           ) : (
@@ -118,12 +170,17 @@ function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
       {open && (
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2 rounded-xl border border-line p-3">
           <label className="min-w-56 flex-1 text-xs font-medium text-ink">
-            {open === 'name' ? 'Nome completo' : open === 'username' ? 'Novo usuário (3 a 30 letras, números, ponto ou sublinhado; vazio remove)' : 'Nova senha (gerada; você pode editar)'}
+            {open === 'name' ? 'Nome completo' : open === 'username' ? 'Novo usuário (3 a 30 letras, números, ponto ou sublinhado; vazio remove)' : 'Senha temporária (gerada; você pode editar)'}
             <input value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" spellCheck={false} className={inputClass} />
           </label>
           <button type="submit" disabled={run.isPending} className={primaryButton}>{run.isPending ? 'Salvando…' : 'Salvar'}</button>
           <button type="button" onClick={() => setOpen(null)} className={secondaryButton}>Cancelar</button>
-          {open === 'password' && <p className="w-full text-xs text-ink-muted">Passe a senha para a pessoa por um canal seguro e peça para trocá-la em Minha conta → Alterar senha.</p>}
+          {open === 'password' && (
+            <p className="w-full text-xs text-ink-muted">
+              Para contas de teste ou casos excepcionais. Conta real: só o Master com verificação em duas etapas ativa (prefira o link de recuperação).
+              A pessoa é obrigada a criar uma senha nova no primeiro acesso. Passe a senha por um canal seguro.
+            </p>
+          )}
         </form>
       )}
       {shownPassword && (

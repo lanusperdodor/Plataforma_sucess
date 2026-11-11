@@ -5,6 +5,7 @@ import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { generateIntegrationKey, getGateway, saveGateway } from '../../features/admin/repository.ts'
 import { testGateway, type GatewayStatus } from '../../features/payments/repository.ts'
+import { PaymentsHistory } from './PaymentsHistory.tsx'
 import { useAdminAccess } from './access-context.ts'
 import { AdminHeader, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
@@ -152,6 +153,7 @@ export function AdminPayments() {
           Com tudo certo, troque para as credenciais de produção.
         </Step>
       </ol>
+      <PaymentsHistory />
     </div>
   )
 }

@@ -143,6 +143,27 @@ export function listCities(): Promise<City[]> {
   return remoteListCities()
 }
 
+/**
+ * Busca de cidades no banco (0023): sem acento e sem maiúsculas, filtro por UF e limite de resultados,
+ * para funcionar com milhares de municípios sem carregar a lista inteira.
+ * Retorna null quando o banco ainda não tem a função (a tela usa a lista já carregada).
+ */
+export async function searchCities(term: string, state: string | null, limit = 30): Promise<City[] | null> {
+  if (!isSupabaseConfigured) return null
+  const res = await supabase.rpc('search_cities', { _q: term.trim() || null, _state: state, _limit: limit })
+  if (res.error) {
+    if (res.error.code === 'PGRST202' || res.error.code === '42883') return null
+    throw mapPostgrestError(res.error)
+  }
+  return parseRows(citySchema, res.data)
+}
+
+/** Uma cidade pelo id (cidade escolhida que não está na lista carregada). */
+export async function getCityById(id: string): Promise<City | null> {
+  const data = await run(supabase.from('cities').select(CITY_COLUMNS).eq('id', id).limit(1))
+  return parseRows(citySchema, data)[0] ?? null
+}
+
 export function listCategories(kind?: CategoryKind): Promise<Category[]> {
   return remoteListCategories(kind)
 }

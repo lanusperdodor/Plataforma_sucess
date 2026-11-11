@@ -22,6 +22,7 @@ import {
 } from '../../features/admin/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { createPaymentLink } from '../../features/payments/repository.ts'
+import { FinanceReportSection } from './FinanceReport.tsx'
 import { useAdminAccess } from './access-context.ts'
 import { BarList, ColumnChart } from './charts.tsx'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
@@ -324,8 +325,9 @@ export function AdminFinance() {
       <AdminHeader title="Financeiro" subtitle="Planos, vencimentos, recebimentos e contato com os estabelecimentos." />
       <Summary />
       <Charts />
+      <FinanceReportSection />
       <p className="text-xs text-ink-muted">
-        Cobrança manual: não há pagamento online contratado. Gere a mensalidade e a comissão aqui, receba por Pix ou outro meio e marque como paga.
+        Gere a mensalidade e a comissão aqui. Com o Mercado Pago configurado (aba Pagamentos), envie o link de pagamento: a confirmação do provedor marca a cobrança como paga. Sem ele, receba por Pix ou outro meio e dê baixa manual.
         Pagar a mensalidade renova o plano por 1 mês. Planos aprovados: Delivery R$ 79/mês e Presencial + Delivery R$ 99/mês.
       </p>
       <section aria-labelledby="empresas" className="flex flex-col gap-3">

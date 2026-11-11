@@ -10,6 +10,17 @@ vi.mock('../../features/admin/repository.ts', () => ({
   getFinanceSeries: () => Promise.resolve([{ month: '2026-10-01', receivedCents: 0, feesCents: 340, newSubscriptions: 0 }, { month: '2026-11-01', receivedCents: 9900, feesCents: 0, newSubscriptions: 1 }]),
   getFinanceByPlan: () => Promise.resolve([{ planCode: 'delivery', planName: 'Delivery', businesses: 1, mrrCents: 7900 }, { planCode: null, planName: 'Sem plano', businesses: 2, mrrCents: 0 }]),
   listPlans: () => Promise.resolve([]),
+  listCities: () => Promise.resolve([]),
+  financeReport: () => Promise.resolve({
+    confirmado: { pedidos: 2, volume_bruto_cents: 12400, produtos_cents: 11600, comissao_cents: 232, taxas_plataforma_cents: 200, devido_entregadores_cents: 1000, logistica_estabelecimentos_cents: 400 },
+    previsto: { pedidos: 1, volume_bruto_cents: 6200, comissao_cents: 116, taxas_plataforma_cents: 100 },
+    cancelados: { pedidos: 0, volume_cents: 0 },
+    mensalidades: { recebido_cents: 9900, recebido_online_cents: 0, a_receber_cents: 7900, vencido_cents: 0 },
+    repassado: { entregadores_cents: 0, registrado: false }, reembolsos: { cents: 0, registrado: false },
+    por_estabelecimento: [], por_cidade: [{ cidade: 'Passos - MG', pedidos: 2, volume_cents: 12400 }],
+  }),
+  financeTransactions: () => Promise.resolve([{ kind: 'pedido', ref: 'ABC123', at: '2026-11-11T12:00:00Z', business: 'Lanchonete F', city: 'Passos - MG', description: 'Pedido (entregador parceiro)',
+    status: 'delivered', amountCents: 6200, platformCents: 216, courierCents: 500, method: 'cash', total: 1 }]),
 }))
 vi.mock('../../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('./access-context.ts', () => ({ useAdminAccess: () => ({ isMaster: true, mfaOk: true }) }))
@@ -31,7 +42,10 @@ describe('financeiro', () => {
   it('mostra resumo, plano, vencimento e botão de WhatsApp', async () => {
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AdminFinance /></QueryClientProvider>)
     expect(await screen.findByText('R$ 178,00')).toBeInTheDocument()
-    expect(screen.getByText('Lanchonete F')).toBeInTheDocument()
+    expect(screen.getAllByText('Lanchonete F').length).toBeGreaterThan(0)
+    expect(await screen.findByText('Receita da plataforma')).toBeInTheDocument()
+    expect(screen.getByText('R$ 4,32')).toBeInTheDocument()
+    expect(await screen.findByText(/#ABC123/)).toBeInTheDocument()
     expect(screen.getByText(/Presencial \+ Delivery · R\$ 99,00\/mês/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /WhatsApp/ })).toHaveAttribute('href', expect.stringContaining('https://wa.me/5535977770000'))
     expect(screen.getByRole('button', { name: 'Gerar mensalidade' })).toBeInTheDocument()

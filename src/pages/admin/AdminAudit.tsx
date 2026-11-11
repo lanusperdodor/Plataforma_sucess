@@ -1,11 +1,10 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { ClipboardList } from 'lucide-react'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
-import { listAudit, type AuditEntry } from '../../features/admin/repository.ts'
-import { AdminHeader, formatDateTime, secondaryButton } from './ui.tsx'
-
-const PAGE = 50
+import { AUDIT_PAGE_SIZE, auditActions, auditPage, type AuditFilters } from '../../features/admin/repository.ts'
+import { AdminHeader, formatDateTime, inputClass, Pager, primaryButton, secondaryButton } from './ui.tsx'
 
 const ACTION_LABEL: Record<string, string> = {
   grant_role: 'Papel concedido',
@@ -39,29 +38,73 @@ const ACTION_LABEL: Record<string, string> = {
   'courier.suspend': 'Entregador suspenso',
   'courier.reactivate': 'Entregador reativado',
   'community.create': 'Comunidade criada',
+  'accounts.name': 'Nome da conta alterado',
+  'accounts.username': 'Usuário da conta alterado',
+  'accounts.password': 'Senha temporária definida',
+  'accounts.password_recovery_email': 'Recuperação de senha enviada',
+  'accounts.block': 'Conta bloqueada',
+  'accounts.unblock': 'Conta desbloqueada',
+  'staff.invite': 'Convite para a equipe',
+  'staff.invite_existing': 'Conta vinculada à equipe',
+  'staff.invite_accept': 'Convite aceito',
+  'staff.invite_revoke': 'Convite cancelado',
+  'orders.cancel': 'Pedido cancelado pela Tucaí',
+  'orders.redispatch': 'Entrega redistribuída',
+  'delivery.accept': 'Entrega aceita',
+  'delivery.decline': 'Oferta recusada',
+  'delivery.release': 'Entrega liberada',
+  'delivery.complete': 'Entrega concluída',
+  'test_data.create': 'Dados de teste criados',
+  'test_data.remove': 'Dados de teste removidos',
 }
 
-/** Logs de auditoria (somente leitura; o banco impede alteração e exclusão). */
+/** Logs de auditoria: 20 por página, paginação no banco, do mais recente para o mais antigo. Somente leitura. */
 export function AdminAudit() {
-  const q = useInfiniteQuery<AuditEntry[], Error, { pages: AuditEntry[][] }, readonly unknown[], number | null>({
-    queryKey: ['admin', 'audit'],
-    queryFn: ({ pageParam }) => listAudit(pageParam, PAGE),
-    initialPageParam: null,
-    getNextPageParam: (last) => (last.length === PAGE ? last[last.length - 1]!.id : undefined),
-  })
-  const rows = (q.data?.pages ?? []).flat()
+  const empty: AuditFilters = { action: '', actor: '', from: '', to: '' }
+  const [draft, setDraft] = useState<AuditFilters>(empty)
+  const [filters, setFilters] = useState<AuditFilters>(empty)
+  const [page, setPage] = useState(1)
+  const actions = useQuery({ queryKey: ['admin', 'audit-actions'], queryFn: auditActions, staleTime: 300_000 })
+  const q = useQuery({ queryKey: ['admin', 'audit', page, filters], queryFn: () => auditPage(page, filters), placeholderData: keepPreviousData })
+  const rows = q.data ?? []
+  const total = rows[0]?.total ?? 0
+  const apply = (f: AuditFilters) => { setFilters(f); setPage(1) }
   return (
     <>
       <AdminHeader title="Auditoria" subtitle="Registro imutável das ações administrativas e cadastros." />
+      <form
+        className="mb-4 grid gap-2 rounded-card border border-line bg-surface p-3 sm:grid-cols-2 lg:grid-cols-5"
+        onSubmit={(e) => { e.preventDefault(); apply(draft) }}
+      >
+        <label className="text-sm font-medium text-ink">Ação
+          <select value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })} className={inputClass}>
+            <option value="">Todas</option>
+            {(actions.data ?? []).map((a) => <option key={a} value={a}>{ACTION_LABEL[a] ?? a}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-ink">Usuário (nome ou e-mail)
+          <input value={draft.actor} onChange={(e) => setDraft({ ...draft, actor: e.target.value })} className={inputClass} />
+        </label>
+        <label className="text-sm font-medium text-ink">De
+          <input type="date" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} className={inputClass} />
+        </label>
+        <label className="text-sm font-medium text-ink">Até
+          <input type="date" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} className={inputClass} />
+        </label>
+        <div className="flex items-end gap-2">
+          <button type="submit" className={primaryButton}>Filtrar</button>
+          <button type="button" onClick={() => { setDraft(empty); apply(empty) }} className={secondaryButton}>Limpar</button>
+        </div>
+      </form>
       {q.isLoading ? (
         <p role="status" className="text-sm text-ink-muted">Carregando…</p>
       ) : q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Nenhum registro ainda" />
+        <EmptyState icon={ClipboardList} title="Nenhum registro com estes filtros" />
       ) : (
         <>
-          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+          <ul aria-busy={q.isFetching} className={`divide-y divide-line overflow-hidden rounded-card border border-line bg-surface ${q.isFetching ? 'opacity-60' : ''}`}>
             {rows.map((r) => (
               <li key={r.id} className="flex flex-col gap-1 p-3 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -69,7 +112,7 @@ export function AdminAudit() {
                   <time className="text-xs text-ink-muted" dateTime={r.createdAt}>{formatDateTime(r.createdAt)}</time>
                 </div>
                 <span className="text-ink-muted">
-                  {r.actorEmail ?? 'sistema'} · {r.entity}
+                  {r.actorName ?? r.actorEmail ?? 'sistema'} · {r.entity}
                   {r.entityId ? ` · ${r.entityId}` : ''}
                 </span>
                 {Object.keys(r.details).length > 0 && (
@@ -78,11 +121,7 @@ export function AdminAudit() {
               </li>
             ))}
           </ul>
-          {q.hasNextPage && (
-            <button type="button" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage} className={`${secondaryButton} mt-3`}>
-              {q.isFetchingNextPage ? 'Carregando…' : 'Carregar mais'}
-            </button>
-          )}
+          <div className="mt-3"><Pager page={page} pageSize={AUDIT_PAGE_SIZE} total={total} onPage={setPage} loading={q.isFetching} /></div>
         </>
       )}
     </>

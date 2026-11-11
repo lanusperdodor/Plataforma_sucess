@@ -1,8 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { z } from 'zod'
 import { BRAND } from '../../config/brand'
 import { readStorage, removeStorage, writeStorage } from '../../lib/storage'
 import { useCities } from '../catalog/hooks'
+import { getCityById } from '../catalog/repository'
 import type { City } from '../catalog/schemas'
 
 export const CITY_KEY = 'city:v1'
@@ -57,13 +59,17 @@ export function useCurrentCity(): CurrentCity {
   const [storedId] = useCity()
   const query = useCities()
   const cities = useMemo(() => query.data ?? [], [query.data])
+  // cidade escolhida pela busca que não está na lista carregada: busca só ela
+  const missing = !!storedId && query.isSuccess && !cities.some((c) => c.id === storedId)
+  const extra = useQuery({ queryKey: ['catalog', 'city', storedId], queryFn: () => getCityById(storedId!), enabled: missing, staleTime: 3_600_000 })
   const city = useMemo(
     () =>
       cities.find((c) => c.id === storedId) ??
+      (missing ? extra.data : undefined) ??
       cities.find((c) => c.name === BRAND.initialRegion.city && c.state === BRAND.initialRegion.state) ??
       cities[0] ??
       null,
-    [cities, storedId],
+    [cities, storedId, missing, extra.data],
   )
   const setCity = useCallback((id: string) => setStoredCityId(id), [])
   const refetch = useCallback(() => void query.refetch(), [query])

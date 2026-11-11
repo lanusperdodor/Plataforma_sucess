@@ -1,8 +1,8 @@
-import { Bell, MapPin, Search, ShoppingBag, User } from "lucide-react";
+import { Bell, MapPin, Search, ShoppingBag } from "lucide-react";
+import { AccountMenu } from "../account/AccountMenu.tsx";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BRAND } from "../../config/brand.ts";
-import { useAuth } from "../../features/auth/AuthProvider.tsx";
 import type { Breakpoint } from "./useBreakpoint.ts";
 import { useCompactHeader } from "./useCompactHeader.ts";
 import { formatBadge, useCartSummary, useUnreadCount } from "./useShellData.ts";
@@ -64,7 +64,6 @@ const inertIf = (on: boolean): Record<string, string> =>
 
 export function TopBar({ layout, location, search }: TopBarProps) {
   const compact = useCompactHeader();
-  const { session } = useAuth();
   const { count } = useCartSummary();
   const unread = useUnreadCount();
   const desktop = layout !== "mobile";
@@ -84,20 +83,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
       <Badge value={unread} />
     </Link>
   );
-  const profile = session ? (
-    <Link to="/perfil" aria-label="Perfil" className={`${TARGET} bg-muted`}>
-      <span className="grid size-8 place-items-center rounded-full bg-brand text-surface">
-        <User aria-hidden="true" className="size-4" />
-      </span>
-    </Link>
-  ) : (
-    <Link
-      to="/entrar"
-      className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-brand"
-    >
-      Entrar
-    </Link>
-  );
+  const profile = <AccountMenu compact={!desktop} />;
   const bag = (
     <Link
       to="/sacola"
@@ -170,7 +156,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
             alt=""
             width={138}
             height={40}
-            className="h-10 w-auto"
+            className="h-10 w-auto brand-logo"
           />
         </Link>
         <div className={fade} {...inertIf(compact)}>

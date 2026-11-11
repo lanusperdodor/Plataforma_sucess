@@ -183,6 +183,8 @@ begin
   -- 10. master: concessão/revogação auditadas
   perform tst.login(m1);
   perform tst.ok(tst.count('select 1 from public.profiles') >= 8, 'master lê perfis');
+  -- conceder Master exige MFA na sessão (0023)
+  perform set_config('request.jwt.claims', json_build_object('sub', m1, 'role', 'authenticated', 'aal', 'aal2')::text, true);
   perform public.grant_role(m2, 'platform_master');
   perform public.grant_role(a, 'platform_operator');
   perform tst.ok(tst.count($q$select 1 from public.audit_logs where action = 'grant_role'$q$) = 2, 'concessões auditadas');

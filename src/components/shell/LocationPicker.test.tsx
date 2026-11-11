@@ -1,15 +1,24 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
   cities: [] as unknown[],
   fail: false,
+  remote: null as unknown[] | null,
+  search: vi.fn(),
 }))
 
 vi.mock('../../features/catalog/repository', () => ({
   listCities: () => (h.fail ? Promise.reject(new Error('x')) : Promise.resolve(h.cities)),
+  getCityById: () => Promise.resolve(null),
+  searchCities: (term: string, uf: string | null) => { h.search(term, uf); return Promise.resolve(h.remote) },
+}))
+vi.mock('../../features/catalog/repository.ts', () => ({
+  listCities: () => (h.fail ? Promise.reject(new Error('x')) : Promise.resolve(h.cities)),
+  getCityById: () => Promise.resolve(null),
+  searchCities: (term: string, uf: string | null) => { h.search(term, uf); return Promise.resolve(h.remote) },
 }))
 
 import { CITY_KEY, setStoredCityId } from '../../features/location/cityStore.ts'
@@ -33,6 +42,8 @@ const view = () =>
 
 beforeEach(() => {
   h.fail = false
+  h.remote = null
+  h.search.mockClear()
   h.cities = [city('c1', 'Itaú de Minas'), city('c2', 'Passos')]
   window.localStorage.clear()
   setStoredCityId(null)
@@ -47,7 +58,7 @@ describe('LocationPicker', () => {
     fireEvent.click(trigger)
     const dialog = screen.getByRole('dialog', { name: 'Escolha sua cidade' })
     expect(dialog).toBeInTheDocument()
-    const options = screen.getAllByRole('radio')
+    const options = within(screen.getByRole('radiogroup', { name: 'Cidades' })).getAllByRole('radio')
     expect(options).toHaveLength(2)
     expect(options[0]).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: /Passos, MG/ }))
@@ -73,10 +84,26 @@ describe('LocationPicker', () => {
     expect(screen.getByText('Minas Gerais')).toBeInTheDocument()
     expect(screen.getByText('São Paulo')).toBeInTheDocument()
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'sao jose' } })
-    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['São José da Barra, MG', 'São José do Rio Pardo, SP'])
+    const radios = () => within(screen.getByRole('radiogroup', { name: 'Cidades' })).getAllByRole('radio')
+    expect(radios().map((r) => r.textContent)).toEqual(['São José da Barra, MG', 'São José do Rio Pardo, SP'])
+    fireEvent.click(screen.getByRole('radio', { name: 'SP' }))
+    expect(radios().map((r) => r.textContent)).toEqual(['São José do Rio Pardo, SP'])
+    fireEvent.click(screen.getByRole('radio', { name: 'Todas' }))
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'cassia' } })
-    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    expect(radios()).toHaveLength(1)
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'xyz' } })
-    expect(screen.getByText('Nenhuma cidade encontrada.')).toBeInTheDocument()
+    expect(screen.getByText(/Nenhuma cidade encontrada/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar busca' }))
+    expect(radios().length).toBe(names.length)
+  })
+
+  it('com milhares de cidades, busca no banco depois de parar de digitar e mostra só os resultados', async () => {
+    h.remote = [{ ...city('x1', 'São Sebastião do Paraíso') }]
+    view()
+    fireEvent.click(await screen.findByRole('button', { name: /Itaú de Minas, MG/ }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'Sao Sebastiao' } })
+    expect(await screen.findByRole('radio', { name: /São Sebastião do Paraíso, MG/ })).toBeInTheDocument()
+    expect(h.search).toHaveBeenCalledWith('sao sebastiao', null)
+    expect(h.search).toHaveBeenCalledTimes(1)
   })
 })

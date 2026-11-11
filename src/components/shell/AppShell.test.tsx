@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -40,14 +41,14 @@ function Announcer() {
 
 const view = () =>
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/']}>
       <AppShell>
         <Routes>
           <Route path="*" element={<Where />} />
         </Routes>
         <Announcer />
       </AppShell>
-    </MemoryRouter>,
+    </MemoryRouter></QueryClientProvider>,
   )
 
 const original = window.matchMedia

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, Navigate } from 'react-router-dom'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
-import { loginSchema, type LoginValues } from '../features/auth/schemas.ts'
+import { adminIdentifierToEmail, adminLoginSchema, type AdminLoginValues } from '../features/auth/schemas.ts'
 import { isSupabaseConfigured, signInWithPassword } from '../features/auth/signIn.ts'
 import { OFFLINE_MESSAGE } from './AuthPages.tsx'
 
@@ -20,14 +20,14 @@ const ADMIN_ROLES = ['platform_master', 'platform_operator'] as const
 export function AdminLoginPage() {
   const { session, authz, loading, authzError, signOut } = useAuth()
   const [error, setError] = useState<string>()
-  const f = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
+  const f = useForm<AdminLoginValues>({ resolver: zodResolver(adminLoginSchema) })
   const isAdmin = !!authz?.roles.some((r) => (ADMIN_ROLES as readonly string[]).includes(r))
 
   const onSubmit = f.handleSubmit(async (v) => {
     setError(undefined)
     if (!isSupabaseConfigured) return setError(OFFLINE_MESSAGE)
-    const { error: err } = await signInWithPassword(v.email, v.password)
-    if (err) setError('E-mail ou senha incorretos.')
+    const { error: err } = await signInWithPassword(adminIdentifierToEmail(v.identifier), v.password)
+    if (err) setError('Usuário ou senha incorretos.')
   })
 
   const header = (
@@ -59,7 +59,7 @@ export function AdminLoginPage() {
     <Card title="Entrar na administração" subtitle="Acesso exclusivo da equipe Tucaí. Ações administrativas são registradas em auditoria.">
       {header}
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <Field label="E-mail corporativo" type="email" autoComplete="username" error={f.formState.errors.email?.message} {...f.register('email')} />
+        <Field label="Usuário ou e-mail" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.identifier?.message} {...f.register('identifier')} />
         <Field label="Senha" type="password" autoComplete="current-password" error={f.formState.errors.password?.message} {...f.register('password')} />
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting}>
           {f.formState.isSubmitting ? 'Verificando…' : 'Entrar'}

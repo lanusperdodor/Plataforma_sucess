@@ -307,3 +307,30 @@ export function listSettings(): Promise<PlatformSetting[]> {
 export function setSetting(key: string, value: unknown): Promise<void> {
   return rpc('admin_set_setting', { _key: key, _value: value }, z.any()).then(() => undefined)
 }
+
+// ---------- dados de teste (0015) ----------
+const testLoginSchema = z.object({ role: z.string(), label: z.string(), email: z.string() })
+export type TestLogin = z.infer<typeof testLoginSchema>
+
+const createdSchema = z
+  .object({ run_id: z.string(), city: z.string(), password: z.string(), logins: z.array(testLoginSchema) })
+  .transform((r) => ({ runId: r.run_id, city: r.city, password: r.password, logins: r.logins }))
+export type CreatedTestData = z.output<typeof createdSchema>
+
+/** Cria empresas, entregador e clientes de teste na cidade. A senha volta só nesta resposta. */
+export function createTestData(cityId: string): Promise<CreatedTestData> {
+  return rpc('admin_create_test_data', { _city: cityId }, createdSchema)
+}
+
+const runSchema = z
+  .object({ run_id: z.string(), city_name: z.string().nullable(), created_at: z.string(), logins: z.array(testLoginSchema), businesses: z.number() })
+  .transform((r) => ({ runId: r.run_id, city: r.city_name, createdAt: r.created_at, logins: r.logins, businesses: r.businesses }))
+export type TestDataRun = z.output<typeof runSchema>
+
+export function listTestData(): Promise<TestDataRun[]> {
+  return rpc('admin_list_test_data', undefined, z.array(runSchema))
+}
+
+export function removeTestData(runId: string): Promise<void> {
+  return rpc('admin_remove_test_data', { _run: runId }, z.any()).then(() => undefined)
+}

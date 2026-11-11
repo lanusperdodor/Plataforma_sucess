@@ -5,6 +5,25 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Informe a senha'),
 })
 
+/** Domínio das contas administrativas criadas por usuário (ex.: "admin"). Reservado (RFC 2606). */
+export const ADMIN_USERNAME_DOMAIN = 'tucai.example.com'
+
+/** "admin" vira admin@tucai.example.com; e-mail completo passa como está. */
+export function adminIdentifierToEmail(id: string): string {
+  const v = id.trim().toLowerCase()
+  return v.includes('@') ? v : `${v}@${ADMIN_USERNAME_DOMAIN}`
+}
+
+export const adminLoginSchema = z.object({
+  identifier: z
+    .string()
+    .trim()
+    .min(1, 'Informe o usuário ou e-mail')
+    .refine((v) => (v.includes('@') ? z.string().email().safeParse(v).success : /^[a-zA-Z0-9._-]{3,40}$/.test(v)), 'Usuário ou e-mail inválido'),
+  password: z.string().min(1, 'Informe a senha'),
+})
+export type AdminLoginValues = z.infer<typeof adminLoginSchema>
+
 const strongPassword = z
   .string()
   .min(10, 'Use ao menos 10 caracteres')

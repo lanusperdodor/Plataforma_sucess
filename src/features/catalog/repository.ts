@@ -69,6 +69,9 @@ function parseRows<T>(schema: ZodType<T>, data: unknown): T[] {
 }
 
 async function remoteListCities(): Promise<City[]> {
+  // Só na prévia estática (sem acesso à rede): cópia da lista real de cidades lida do banco no build.
+  const snapshot = import.meta.env.VITE_PREVIEW_CITIES
+  if (snapshot) return parseRows(citySchema, JSON.parse(snapshot))
   const data = await run(supabase.from('cities').select(CITY_COLUMNS).order('name'))
   return parseRows(citySchema, data)
 }

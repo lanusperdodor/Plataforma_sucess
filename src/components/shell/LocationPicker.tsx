@@ -1,4 +1,4 @@
-import { MapPin, Search } from 'lucide-react'
+import { Check, MapPin, Search } from 'lucide-react'
 import { useState } from 'react'
 import { BRAND } from '../../config/brand.ts'
 import { useCurrentCity } from '../../features/location/cityStore.ts'
@@ -50,22 +50,22 @@ export function LocationPicker() {
       ) : (
         <>
           {cities.length > 8 && (
-            <div className="relative mb-2">
-              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 bg-surface px-4 pb-3 pt-4">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-7 top-[2.375rem] size-4 -translate-y-1/2 text-ink-muted" />
               <input
                 type="search"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 placeholder="Buscar cidade"
                 aria-label="Buscar cidade"
-                className="min-h-11 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink"
+                className="min-h-11 w-full rounded-full border border-line bg-muted pl-9 pr-4 text-sm text-ink"
               />
             </div>
           )}
           {shown.length === 0 ? (
             <p role="status" className="py-3 text-sm text-ink-muted">Nenhuma cidade encontrada.</p>
           ) : (
-            <div role="radiogroup" aria-label="Cidades" className="flex max-h-[60dvh] flex-col gap-1 overflow-y-auto">
+            <div role="radiogroup" aria-label="Cidades" className="flex flex-col gap-1">
               {states.map((uf) => (
                 <div key={uf} className="flex flex-col gap-1">
                   {states.length > 1 && <p className="px-1 pt-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{uf === 'MG' ? 'Minas Gerais' : uf === 'SP' ? 'São Paulo' : uf}</p>}
@@ -81,11 +81,13 @@ export function LocationPicker() {
                           setCity(c.id)
                           close()
                         }}
-                        className={`pressable flex min-h-11 w-full shrink-0 items-center justify-between gap-2 rounded-xl border px-3 text-left text-sm ${selected ? 'border-brand font-semibold text-brand' : 'border-line text-ink'}`}
+                        className={`pressable flex min-h-12 w-full shrink-0 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm transition-colors ${selected ? 'bg-muted font-semibold text-ink' : 'text-ink hover:bg-muted'}`}
                       >
-                        <span>
+                        <span className="flex items-center gap-2">
+                          <MapPin aria-hidden="true" className={`size-4 shrink-0 ${selected ? 'text-accent' : 'text-ink-muted'}`} />
                           {c.name}, {c.state}
                         </span>
+                        {selected && <Check aria-hidden="true" className="size-4 shrink-0 text-accent" />}
                       </button>
                     )
                   })}
@@ -111,11 +113,11 @@ export function LocationPicker() {
         <span className="min-w-0 truncate">{label}</span>
       </button>
       {layout === 'mobile' ? (
-        <Sheet open={open} onClose={close} title={title}>
+        <Sheet open={open} onClose={close} title={title} className="scroll-soft">
           {body}
         </Sheet>
       ) : (
-        <Dialog open={open} onClose={close} title={title}>
+        <Dialog open={open} onClose={close} title={title} className="scroll-soft">
           {body}
         </Dialog>
       )}

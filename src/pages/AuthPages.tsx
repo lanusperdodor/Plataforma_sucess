@@ -15,6 +15,7 @@ import {
   type ResetValues,
   type SignUpValues,
 } from '../features/auth/schemas.ts'
+import { SIGN_IN_MESSAGES, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
 export const OFFLINE_MESSAGE = 'Entrar e criar conta não funcionam nesta prévia, que não se conecta ao banco. Use o site publicado.'
@@ -29,6 +30,50 @@ function ConfigWarning() {
         <>Supabase não configurado. Copie <code>.env.example</code> para <code>.env.local</code> e preencha.</>
       )}
     </Notice>
+  )
+}
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5">
+      <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7Z" />
+      <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1Z" />
+      <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9Z" />
+    </svg>
+  )
+}
+
+/** Entrar ou criar conta com o Google (OAuth do Supabase). */
+export function GoogleButton({ onError }: { onError: (msg: string) => void }) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <>
+      <div className="my-4 flex items-center gap-3 text-xs text-ink-muted" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />ou<span className="h-px flex-1 bg-line" />
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          if (!isSupabaseConfigured) return onError(OFFLINE_MESSAGE)
+          setBusy(true)
+          const { error } = await signInWithGoogle()
+          if (error) {
+            setBusy(false)
+            onError(error)
+          }
+        }}
+        className="pressable flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink disabled:opacity-50"
+      >
+        <GoogleIcon />
+        {busy ? 'Abrindo o Google…' : 'Continuar com Google'}
+      </button>
+      <p className="mt-2 text-center text-xs text-ink-muted">
+        Ao continuar, você concorda com os <Link className="underline" to="/termos">Termos de uso</Link> e a{' '}
+        <Link className="underline" to="/privacidade">Política de privacidade</Link>.
+      </p>
+    </>
   )
 }
 
@@ -52,14 +97,8 @@ export function LoginPage() {
   const onSubmit = f.handleSubmit(async (v) => {
     setError(undefined)
     if (!isSupabaseConfigured) return setError(OFFLINE_MESSAGE)
-    const { error: err } = await supabase.auth.signInWithPassword(v)
-    if (err) {
-      return setError(
-        err.code === 'email_not_confirmed'
-          ? 'Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.'
-          : 'E-mail ou senha incorretos.',
-      )
-    }
+    const { error: err } = await signInWithIdentifier(v.identifier, v.password)
+    if (err) return setError(SIGN_IN_MESSAGES[err])
     navigate(target, { replace: true })
   })
 
@@ -68,13 +107,14 @@ export function LoginPage() {
   return (
     <Card title="Entrar" subtitle="Acesse sua conta Tucaí para pedir, acompanhar e interagir.">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <Field label="E-mail" type="email" autoComplete="email" error={f.formState.errors.email?.message} {...f.register('email')} />
+        <Field label="E-mail ou usuário" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.identifier?.message} {...f.register('identifier')} />
         <Field label="Senha" type="password" autoComplete="current-password" error={f.formState.errors.password?.message} {...f.register('password')} />
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting}>
           {f.formState.isSubmitting ? 'Entrando…' : 'Entrar'}
         </Button>
       </form>
       {error && <Notice kind="error">{error}</Notice>}
+      <GoogleButton onError={setError} />
       <ConfigWarning />
       <p className="mt-4 flex justify-between text-sm">
         <Link className="text-brand" to="/recuperar-senha">Esqueci a senha</Link>
@@ -92,10 +132,15 @@ export function SignUpPage() {
   const onSubmit = f.handleSubmit(async (v) => {
     setMsg(undefined)
     if (!isSupabaseConfigured) return setMsg({ kind: 'error', text: OFFLINE_MESSAGE })
+    const username = v.username?.trim().toLowerCase() || ''
+    if (username) {
+      const { data: free } = await supabase.rpc('username_available', { _username: username })
+      if (free === false) return f.setError('username', { message: 'Este nome de usuário já está em uso ou é reservado.' })
+    }
     const { data, error } = await supabase.auth.signUp({
       email: v.email,
       password: v.password,
-      options: { data: { full_name: v.fullName }, emailRedirectTo: `${window.location.origin}/entrar` },
+      options: { data: { full_name: v.fullName, ...(username ? { username } : {}) }, emailRedirectTo: `${window.location.origin}/entrar` },
     })
     if (error) return setMsg({ kind: 'error', text: 'Não foi possível criar a conta. Verifique os dados.' })
     // projeto sem confirmação de e-mail: a sessão já vem aberta
@@ -108,12 +153,14 @@ export function SignUpPage() {
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="Nome completo" autoComplete="name" error={f.formState.errors.fullName?.message} {...f.register('fullName')} />
         <Field label="E-mail" type="email" autoComplete="email" error={f.formState.errors.email?.message} {...f.register('email')} />
+        <Field label="Nome de usuário (opcional, para entrar sem digitar o e-mail)" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.username?.message} {...f.register('username')} />
         <Field label="Senha" type="password" autoComplete="new-password" error={f.formState.errors.password?.message} {...f.register('password')} />
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting}>
           {f.formState.isSubmitting ? 'Criando…' : 'Criar conta'}
         </Button>
       </form>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      <GoogleButton onError={(text) => setMsg({ kind: 'error', text })} />
       <ConfigWarning />
       <p className="mt-4 text-sm">
         Já tem conta? <Link className="text-brand" to="/entrar">Entrar</Link>

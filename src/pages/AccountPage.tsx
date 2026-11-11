@@ -4,10 +4,69 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
-import { profileSchema, type ProfileValues } from '../features/auth/schemas.ts'
+import { USERNAME_RE, profileSchema, type ProfileValues } from '../features/auth/schemas.ts'
 import { supabase } from '../lib/supabase.ts'
 
 type Msg = { kind: 'error' | 'success'; text: string }
+
+/** Nome de usuário para entrar sem digitar o e-mail (gravado pelo servidor, que valida e evita duplicados). */
+function UsernameForm({ userId }: { userId: string }) {
+  const [value, setValue] = useState('')
+  const [current, setCurrent] = useState<string | null>(null)
+  const [msg, setMsg] = useState<Msg>()
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        if (!active || !data) return
+        const u = (data as { username?: string | null }).username ?? null
+        setCurrent(u)
+        setValue(u ?? '')
+      })
+    return () => {
+      active = false
+    }
+  }, [userId])
+  const save = async () => {
+    setMsg(undefined)
+    if (value.trim() && !USERNAME_RE.test(value.trim())) return setMsg({ kind: 'error', text: 'Use de 3 a 30 letras, números, ponto ou sublinhado.' })
+    setBusy(true)
+    const { data, error } = await supabase.rpc('set_my_username', { _username: value.trim() })
+    setBusy(false)
+    if (error) return setMsg({ kind: 'error', text: error.message || 'Não foi possível salvar.' })
+    setCurrent((data as string | null) ?? null)
+    setMsg({ kind: 'success', text: data ? `Pronto: você pode entrar com o usuário ${data as string}.` : 'Nome de usuário removido.' })
+  }
+  return (
+    <form
+      className="mt-6 space-y-3 border-t border-line pt-4"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void save()
+      }}
+      noValidate
+    >
+      <Field
+        label="Nome de usuário (para entrar sem o e-mail)"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <p className="text-xs text-ink/70">
+        {current ? `Atual: ${current}. ` : ''}Não diferencia maiúsculas de minúsculas e não aparece para outras pessoas.
+      </p>
+      <Button type="submit" variant="ghost" className="w-full" disabled={busy}>{busy ? 'Salvando…' : 'Salvar usuário'}</Button>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+    </form>
+  )
+}
 
 export function AccountPage() {
   const { session, authz, authzError, signOut } = useAuth()
@@ -71,6 +130,7 @@ export function AccountPage() {
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting || loadFailed}>Salvar</Button>
       </form>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      {userId && <UsernameForm userId={userId} />}
       <Button variant="ghost" className="mt-4 w-full" onClick={() => void onSignOut()}>Sair</Button>
     </Card>
   )

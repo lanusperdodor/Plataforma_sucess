@@ -2,14 +2,14 @@
 -- LOGIN DE ADMINISTRADOR (usuário "admin") — executar manualmente no SQL Editor do Supabase.
 --
 -- Cria (ou atualiza a senha de) a conta admin@tucai.example.com e concede platform_master.
--- Na tela /admin/entrar basta digitar o usuário "admin" e a senha.
+-- Na tela de login (/entrar ou /admin/entrar) basta digitar o usuário admin (maiúsculas ou minúsculas) e a senha.
 -- example.com é um domínio reservado: nenhum e-mail é enviado para ele.
 --
 -- Uso: troque TROQUE-PELA-SENHA (linha admin_password) pela senha desejada e execute.
 -- NUNCA salve a senha neste arquivo no GitHub.
 --
 -- Depois: no primeiro acesso o painel pede para cadastrar o autenticador (MFA) em Segurança.
--- Pré-requisito: banco atualizado (supabase/admin/apply_all_migrations.sql).
+-- Pré-requisito: banco atualizado (supabase/admin/apply_all_migrations.sql, até a 0016).
 -- =====================================================================================
 do $$
 declare
@@ -33,6 +33,7 @@ begin
      where id = uid;
     raise notice 'Senha da conta % atualizada.', admin_email;
   end if;
+  update public.profiles set username = 'admin' where id = uid;  -- entra digitando admin, ADMIN ou Admin
   insert into public.user_roles(user_id, role) values (uid, 'platform_master') on conflict do nothing;
   insert into public.audit_logs(actor_id, action, entity, entity_id, details)
   values (null, 'bootstrap_master', 'user_roles', uid::text, jsonb_build_object('method', 'create_admin_login.sql'));

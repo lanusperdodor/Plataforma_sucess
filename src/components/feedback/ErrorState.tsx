@@ -13,12 +13,13 @@ export interface ErrorStateProps {
 export function ErrorState({ title, description, error, onRetry }: ErrorStateProps) {
   const repo = error instanceof RepositoryError ? error : null
   const unavailable = repo?.code === 'unavailable'
+  const outdated = repo?.detail?.field === 'schema'
   return (
     <StateShell
       icon={unavailable ? DatabaseZap : TriangleAlert}
       tone="warm"
       role="alert"
-      title={title ?? (unavailable ? (import.meta.env.VITE_STATIC_PREVIEW === '1' ? 'Disponível no site publicado' : 'Serviço indisponível no momento') : 'Algo deu errado')}
+      title={title ?? (outdated ? 'Banco de dados desatualizado' : unavailable ? (import.meta.env.VITE_STATIC_PREVIEW === '1' ? 'Disponível no site publicado' : 'Serviço indisponível no momento') : 'Algo deu errado')}
       description={description ?? repo?.message ?? 'Não foi possível carregar agora. Tente novamente.'}
       action={
         onRetry ? (

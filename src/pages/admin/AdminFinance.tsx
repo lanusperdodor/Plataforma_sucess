@@ -9,6 +9,8 @@ import {
   cancelSubscription,
   chargeCommission,
   chargeSubscription,
+  getFinanceByPlan,
+  getFinanceSeries,
   getFinanceSummary,
   listCharges,
   listFinanceBusinesses,
@@ -21,6 +23,7 @@ import {
 import { formatBRL } from '../../lib/money.ts'
 import { createPaymentLink } from '../../features/payments/repository.ts'
 import { useAdminAccess } from './access-context.ts'
+import { BarList, ColumnChart } from './charts.tsx'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
 const brl = (c: number | null | undefined) => formatBRL(Math.max(0, Math.round(c ?? 0)))
@@ -164,6 +167,63 @@ function BusinessRow({ b, canEdit }: { b: FinanceBusiness; canEdit: boolean }) {
   )
 }
 
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const MONTHS_FULL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+const monthLabel = (iso: string) => MONTHS[Number(iso.slice(5, 7)) - 1] ?? iso
+const monthFull = (iso: string) => `${MONTHS_FULL[Number(iso.slice(5, 7)) - 1] ?? ''} de ${iso.slice(0, 4)}`
+/** Eixo compacto: R$ 1,2 mil em vez de R$ 1.200,00. */
+export function brlShort(cents: number): string {
+  const v = cents / 100
+  if (v >= 1000) return `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`
+  return `R$ ${v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+}
+
+function Charts() {
+  const series = useQuery({ queryKey: ['admin', 'finance', 'series'], queryFn: () => getFinanceSeries(12) })
+  const byPlan = useQuery({ queryKey: ['admin', 'finance', 'by-plan'], queryFn: getFinanceByPlan })
+  if (series.isError) return <ErrorState error={series.error} onRetry={() => void series.refetch()} />
+  const months = series.data ?? []
+  const fmtFull = (c: number) => brl(c)
+  return (
+    <section aria-label="Gráficos" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <Panel>
+        <ColumnChart
+          title="Recebido por mês (últimos 12 meses)"
+          data={months.map((m) => ({ label: monthLabel(m.month), fullLabel: monthFull(m.month), value: m.receivedCents }))}
+          format={(c) => (c === 0 ? 'R$ 0' : brlShort(c))}
+          empty={series.isLoading ? 'Carregando…' : 'Nenhum pagamento recebido ainda.'}
+        />
+        <p className="mt-1 text-xs text-ink-muted">Cobranças marcadas como pagas, pela data do pagamento. Total no período: {fmtFull(months.reduce((s, m) => s + m.receivedCents, 0))}.</p>
+      </Panel>
+      <Panel>
+        <ColumnChart
+          title="Comissão e taxas geradas por mês"
+          data={months.map((m) => ({ label: monthLabel(m.month), fullLabel: monthFull(m.month), value: m.feesCents }))}
+          format={(c) => (c === 0 ? 'R$ 0' : brlShort(c))}
+          empty={series.isLoading ? 'Carregando…' : 'Nenhum pedido concluído ainda.'}
+        />
+        <p className="mt-1 text-xs text-ink-muted">Comissão de 2% acima de R$ 50 e taxas de entrega dos pedidos concluídos (a cobrar no fechamento do mês).</p>
+      </Panel>
+      <Panel>
+        <BarList
+          title="Empresas por plano"
+          data={(byPlan.data ?? []).map((p) => ({ label: p.planName, value: p.businesses }))}
+          format={(n) => `${n} ${n === 1 ? 'empresa' : 'empresas'}`}
+          empty={byPlan.isLoading ? 'Carregando…' : 'Nenhuma empresa ativa ainda.'}
+        />
+      </Panel>
+      <Panel>
+        <BarList
+          title="Receita mensal por plano"
+          data={(byPlan.data ?? []).filter((p) => p.planCode).map((p) => ({ label: p.planName, value: p.mrrCents }))}
+          format={fmtFull}
+          empty={byPlan.isLoading ? 'Carregando…' : 'Nenhum plano ativo ainda.'}
+        />
+      </Panel>
+    </section>
+  )
+}
+
 const STATUS_OPTIONS = [
   { value: 'aberta', label: 'Em aberto' },
   { value: 'paga', label: 'Pagas' },
@@ -263,6 +323,7 @@ export function AdminFinance() {
     <div className="flex flex-col gap-6">
       <AdminHeader title="Financeiro" subtitle="Planos, vencimentos, recebimentos e contato com os estabelecimentos." />
       <Summary />
+      <Charts />
       <p className="text-xs text-ink-muted">
         Cobrança manual: não há pagamento online contratado. Gere a mensalidade e a comissão aqui, receba por Pix ou outro meio e marque como paga.
         Pagar a mensalidade renova o plano por 1 mês. Planos aprovados: Delivery R$ 79/mês e Presencial + Delivery R$ 99/mês.

@@ -454,3 +454,22 @@ export function saveGateway(v: { publicKey: string; accessToken: string; webhook
 export function generateIntegrationKey(): Promise<string> {
   return rpc('admin_generate_integration_key', undefined, z.string())
 }
+
+// ---------- gráficos do financeiro (0020) ----------
+const seriesSchema = z
+  .object({ month: z.string(), received_cents: num, fees_cents: num, new_subscriptions: num })
+  .transform((r) => ({ month: r.month.slice(0, 10), receivedCents: r.received_cents, feesCents: r.fees_cents, newSubscriptions: r.new_subscriptions }))
+export type FinanceMonth = z.output<typeof seriesSchema>
+
+export function getFinanceSeries(months = 12): Promise<FinanceMonth[]> {
+  return rpc('admin_finance_series', { _months: months }, z.array(seriesSchema))
+}
+
+const byPlanSchema = z
+  .object({ plan_code: z.string().nullable(), plan_name: z.string(), businesses: num, mrr_cents: num })
+  .transform((r) => ({ planCode: r.plan_code, planName: r.plan_name, businesses: r.businesses, mrrCents: r.mrr_cents }))
+export type FinanceByPlan = z.output<typeof byPlanSchema>
+
+export function getFinanceByPlan(): Promise<FinanceByPlan[]> {
+  return rpc('admin_finance_by_plan', undefined, z.array(byPlanSchema))
+}

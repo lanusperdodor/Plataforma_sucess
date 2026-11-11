@@ -51,22 +51,26 @@ begin
   perform tstd.login(m);
   res := public.admin_create_test_data(city);
   run := (res->>'run_id')::uuid;
-  perform tstd.ok(jsonb_array_length(res->'logins') = 5 and res->>'password' ~ '^Teste-[0-9A-F]{8}!$', 'devolve 5 logins e a senha gerada');
+  perform tstd.ok(jsonb_array_length(res->'logins') = 10 and res->>'password' ~ '^Teste-[0-9A-F]{8}!$', 'devolve 10 logins (9 perfis) e a senha gerada');
   perform tstd.ok(tstd.count('select * from public.admin_list_test_data()') = 1, 'lote listado');
   perform tstd.su();
   select user_ids, business_ids into uids, bizs from private.test_data_runs where id = run;
-  perform tstd.ok((select count(*) from auth.users where id = any(uids) and email_confirmed_at is not null and encrypted_password like '$2%') = 5, 'contas confirmadas com senha em hash');
-  perform tstd.ok((select count(*) from auth.identities where user_id = any(uids)) = 5, 'identidades de e-mail criadas');
+  perform tstd.ok((select count(*) from auth.users where id = any(uids) and email_confirmed_at is not null and encrypted_password like '$2%') = 10, 'contas confirmadas com senha em hash');
+  perform tstd.ok((select count(*) from auth.identities where user_id = any(uids)) = 10, 'identidades de e-mail criadas');
   perform tstd.ok(not exists (select 1 from private.test_data_runs where logins::text like '%Teste-%'), 'senha não é guardada');
-  perform tstd.ok((select count(*) from public.user_roles where user_id = any(uids) and role = 'customer') = 5, 'todos ganham papel de cliente');
+  perform tstd.ok((select count(*) from public.user_roles where user_id = any(uids) and role = 'customer') = 10, 'todos ganham papel de cliente');
   perform tstd.ok(exists (select 1 from public.couriers where user_id = any(uids) and status = 'approved' and city_id = city), 'entregador aprovado na cidade');
 
-  -- visível ao público e pronto para pedir
+  -- fora do público; visível e pronto para pedir só para contas de teste
   perform tstd.anon();
-  perform tstd.ok(tstd.count(format('select 1 from public.public_businesses where city_id = %L and is_open', city)) = 2, 'dois estabelecimentos ativos e abertos na cidade');
-  perform tstd.ok(tstd.count(format('select 1 from public.jobs where city_id = %L', city)) = 1, 'vaga publicada');
+  perform tstd.ok(tstd.count(format('select 1 from public.public_businesses where city_id = %L', city)) = 0, 'público não vê estabelecimentos de teste');
+  perform tstd.ok(tstd.count(format('select 1 from public.jobs where city_id = %L', city)) = 0, 'público não vê vaga de teste');
   perform tstd.su();
-  c1 := uids[4];
+  select id into c1 from auth.users where id = any(uids) and email like 'cliente1-%';
+  perform tstd.login(c1);
+  perform tstd.ok(tstd.count(format('select 1 from public.public_businesses where city_id = %L and is_open', city)) = 2, 'conta de teste vê os dois estabelecimentos abertos');
+  perform tstd.ok(tstd.count(format('select 1 from public.jobs where city_id = %L', city)) = 1, 'conta de teste vê a vaga');
+  perform tstd.su();
   select p.id into burger from public.products p where p.business_id = bizs[1] and p.name = 'X-Burger';
   select o.id into ponto from public.options o join public.option_groups g on g.id = o.group_id where g.product_id = burger and o.name = 'Ao ponto';
   perform tstd.login(c1);

@@ -25,6 +25,7 @@ export const PERMISSION_LABEL: Record<(typeof PLATFORM_PERMISSION_CODES)[number]
   'privacy.manage': 'Privacidade (LGPD)',
   'couriers.review': 'Analisar entregadores',
   'orders.view': 'Consultar pedidos',
+  'orders.manage': 'Tratar ocorrências de pedidos',
   'finance.view': 'Consultar financeiro',
   'moderation.manage': 'Moderação do Conectuaí',
   'support.manage': 'Chamados',

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Banknote, MapPin, Navigation, Package, Phone, Power, Truck } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -10,6 +10,8 @@ import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import {
   VEHICLE_LABEL,
   acceptDelivery,
+  declineOffer,
+  shareLocation,
   completeDelivery,
   getEarnings,
   getMyCourier,
@@ -26,6 +28,20 @@ import { phoneDigits } from '../BusinessPage.tsx'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
+/** Tempo restante da rodada de oferta (atualiza a cada segundo). */
+function OfferDeadline({ expiresAt, round }: { expiresAt: string | null; round: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = globalThis.setInterval(() => setNow(Date.now()), 1000)
+    return () => globalThis.clearInterval(t)
+  }, [])
+  if (!expiresAt) return null
+  const left = Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000))
+  const mm = Math.floor(left / 60)
+  const ss = String(left % 60).padStart(2, '0')
+  return <p className="text-xs text-ink-muted">{left > 0 ? `Responda em ${mm}:${ss}` : 'Prazo encerrado, aguardando redistribuição'}{round > 1 ? ` · ${round}ª rodada` : ''}</p>
+}
+
 const secondary = 'pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-ink disabled:opacity-50'
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente novamente.')
 const mapsHref = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
@@ -115,6 +131,24 @@ export function CourierArea() {
     },
     onError: (e) => toast.error(msg(e)),
   })
+  const decline = useMutation({
+    mutationFn: declineOffer,
+    onSuccess: () => { toast.success('Oferta recusada.'); void qc.invalidateQueries({ queryKey: ['courier', 'offers'] }) },
+    onError: (e) => { toast.error(msg(e)); void qc.invalidateQueries({ queryKey: ['courier', 'offers'] }) },
+  })
+  const locate = useMutation({
+    mutationFn: () =>
+      new Promise<void>((resolve, reject) => {
+        if (!('geolocation' in navigator)) return reject(new Error('Este aparelho não informa a localização.'))
+        navigator.geolocation.getCurrentPosition(
+          (p) => void shareLocation(p.coords.latitude, p.coords.longitude).then(resolve, reject),
+          () => reject(new Error('Permissão de localização negada.')),
+          { enableHighAccuracy: true, timeout: 15_000 },
+        )
+      }),
+    onSuccess: () => toast.success('Localização compartilhada com a Tucaí.'),
+    onError: (e) => toast.error(msg(e)),
+  })
   const accept = useMutation({
     mutationFn: acceptDelivery,
     onSuccess: () => { toast.success('Entrega aceita. Vá até o estabelecimento.'); void qc.invalidateQueries({ queryKey: ['courier'] }) },
@@ -145,6 +179,12 @@ export function CourierArea() {
         <button type="button" disabled={toggle.isPending} onClick={() => toggle.mutate(!c.isOnline)} className={`pressable inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-base font-semibold ${c.isOnline ? 'border border-line text-ink' : 'bg-orange text-ink'}`}>
           <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar indisponível' : 'Ficar disponível'}
         </button>
+        {c.isOnline && (
+          <button type="button" disabled={locate.isPending} onClick={() => locate.mutate()} className={secondary}>
+            <MapPin aria-hidden="true" className="size-4" />{locate.isPending ? 'Obtendo localização…' : 'Compartilhar minha localização'}
+          </button>
+        )}
+        <p className="text-xs text-ink-muted">Opcional. A localização só é enviada quando você toca no botão e é apagada quando fica indisponível.</p>
       </section>
 
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : current.map((d) => <ActiveDelivery key={d.orderId} d={d} />)}
@@ -166,9 +206,11 @@ export function CourierArea() {
                     <p className="font-semibold text-ink">{o.businessName}</p>
                     {o.businessAddress && <p className="text-ink-muted">Coleta: {o.businessAddress}</p>}
                     <p className="text-ink-muted">Destino: {o.neighborhood ?? 'informado após aceitar'} · {o.itemsCount} {o.itemsCount === 1 ? 'item' : 'itens'}</p>
+                    <OfferDeadline expiresAt={o.expiresAt} round={o.round} />
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="text-lg font-bold text-success">{formatBRL(o.payCents)}</span>
+                    <button type="button" disabled={decline.isPending} onClick={() => decline.mutate(o.orderId)} className={secondary}>Recusar</button>
                     <button type="button" disabled={accept.isPending} onClick={() => accept.mutate(o.orderId)} className={primary}>Aceitar</button>
                   </div>
                 </li>

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, Settings, Wallet } from 'lucide-react'
+import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -19,6 +19,7 @@ import { AdminSettings } from './AdminSettings.tsx'
 import { AdminFinance } from './AdminFinance.tsx'
 import { AdminPayments } from './AdminPayments.tsx'
 import { AdminLogins } from './AdminLogins.tsx'
+import { AdminOrders } from './AdminOrders.tsx'
 import { AdminTeam } from './AdminTeam.tsx'
 import { AdminAccessContext } from './access-context.ts'
 
@@ -34,6 +35,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/admin', label: 'Painel', icon: LayoutDashboard, permission: 'admin.dashboard' },
+  { to: '/admin/pedidos', label: 'Pedidos', icon: ReceiptText, permission: 'orders.view' },
   { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
   { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
   { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
@@ -187,6 +189,7 @@ export function AdminApp() {
           <Route path="privacidade" element={<Guard access={data} item={item('/admin/privacidade')}><AdminPrivacy /></Guard>} />
           <Route path="moderacao" element={<Guard access={data} item={item('/admin/moderacao')}><AdminModeration /></Guard>} />
           <Route path="financeiro" element={<Guard access={data} item={item('/admin/financeiro')}><AdminFinance /></Guard>} />
+          <Route path="pedidos" element={<Guard access={data} item={item('/admin/pedidos')}><AdminOrders /></Guard>} />
           <Route path="logins" element={<Guard access={data} item={item('/admin/logins')}><AdminLogins /></Guard>} />
           <Route path="pagamentos" element={<Guard access={data} item={item('/admin/pagamentos')}><AdminPayments /></Guard>} />
           <Route path="configuracoes" element={<Guard access={data} item={item('/admin/configuracoes')}><AdminSettings /></Guard>} />

@@ -113,10 +113,12 @@ const offerSchema = z
   .object({
     order_id: z.string(), business_name: z.string(), business_address: z.string().nullable(), courier_pay_cents: z.number().int(),
     offered_at: z.string(), neighborhood_hint: z.string().nullable(), items_count: z.number(),
+    offer_expires_at: z.string().nullable().optional(), offer_round: z.number().int().optional(),
   })
   .transform((r) => ({
     orderId: r.order_id, businessName: r.business_name, businessAddress: r.business_address, payCents: r.courier_pay_cents,
     offeredAt: r.offered_at, neighborhood: r.neighborhood_hint, itemsCount: r.items_count,
+    expiresAt: r.offer_expires_at ?? null, round: r.offer_round ?? 1,
   }))
 export type DeliveryOffer = z.output<typeof offerSchema>
 
@@ -149,6 +151,16 @@ export async function acceptDelivery(orderId: string): Promise<void> {
 }
 export async function releaseDelivery(orderId: string): Promise<void> {
   await exec(supabase.rpc('courier_release_delivery', { _order: orderId }), z.unknown())
+}
+
+/** Recusa a oferta nesta rodada (ela volta a aparecer se for redistribuída). */
+export async function declineOffer(orderId: string): Promise<void> {
+  await exec(supabase.rpc('courier_decline_delivery', { _order: orderId }), z.unknown())
+}
+
+/** Compartilha a posição atual (só enquanto disponível; apagada ao ficar indisponível). */
+export async function shareLocation(lat: number, lng: number): Promise<void> {
+  await exec(supabase.rpc('courier_update_location', { _lat: lat, _lng: lng }), z.unknown())
 }
 export async function pickupDelivery(orderId: string): Promise<void> {
   await exec(supabase.rpc('courier_pickup_delivery', { _order: orderId }), z.unknown())

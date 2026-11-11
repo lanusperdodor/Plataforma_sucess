@@ -144,6 +144,9 @@ export function OrderPage() {
 
       <section aria-labelledby="st" className={box}>
         <h2 id="st" className="mb-3 text-lg font-semibold text-ink" aria-live="polite">{STATUS_LABEL[o.status]}</h2>
+        {o.estimatedReadyAt && (o.status === 'accepted' || o.status === 'preparing') && (
+          <p className="mb-3 text-sm text-ink">Previsão do estabelecimento: pronto por volta das <strong>{new Date(o.estimatedReadyAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong>.</p>
+        )}
         {failed ? (
           <p className="text-sm text-ink">{o.rejectionReason ? `Motivo: ${o.rejectionReason}` : o.status === 'cancelled' ? 'Pedido cancelado.' : 'Pedido recusado.'}</p>
         ) : (

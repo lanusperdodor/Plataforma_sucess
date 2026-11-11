@@ -32,6 +32,14 @@ export const UNAVAILABLE_MESSAGE =
     ? PREVIEW_MESSAGE
     : 'Não foi possível acessar este recurso no banco de dados da Tucaí agora. Tente novamente em instantes.'
 
+export const OUTDATED_MESSAGE =
+  'Esta parte do sistema precisa de uma atualização do banco de dados. No Supabase, abra o SQL Editor e rode o arquivo supabase/admin/apply_all_migrations.sql (pode rodar quantas vezes quiser).'
+
+/** Tabela ou função ainda não criada no banco (migrations pendentes). */
+export function outdatedSchema(cause?: unknown): RepositoryError {
+  return new RepositoryError('unavailable', OUTDATED_MESSAGE, { field: 'schema' }, { cause })
+}
+
 export function backendUnavailable(cause?: unknown): RepositoryError {
   return new RepositoryError('unavailable', UNAVAILABLE_MESSAGE, undefined, { cause })
 }
@@ -40,7 +48,7 @@ const FETCH_FAILURE = /failed to fetch|networkerror|network request failed|load 
 
 export function mapPostgrestError(e: { code?: string; message: string; details?: string }): RepositoryError {
   const opts = { cause: e }
-  if (e.code && MISSING_SCHEMA_CODES.has(e.code)) return backendUnavailable(e)
+  if (e.code && MISSING_SCHEMA_CODES.has(e.code)) return outdatedSchema(e)
   switch (e.code) {
     case '42501':
       return new RepositoryError('forbidden', 'Você não tem permissão para esta ação.', undefined, opts)

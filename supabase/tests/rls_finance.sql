@@ -91,6 +91,14 @@ begin
   perform public.admin_cancel_charge(ccid);
   perform tstf.ok((public.admin_finance_summary()->>'open_cents')::int = 0, 'cancelada não entra no a receber');
   perform tstf.ok(tstf.count(format('select 1 from public.audit_logs where action like %L', 'finance.%')) >= 5, 'auditoria');
+  -- séries dos gráficos: 12 meses; recebido no mês atual; taxas no mês passado; por plano
+  perform tstf.ok(tstf.count('select * from public.admin_finance_series(12)') = 12, 'série de 12 meses');
+  perform tstf.ok((select received_cents = 9900 and new_subscriptions = 1 from public.admin_finance_series(12) order by month desc limit 1), 'recebido e novas assinaturas no mês atual');
+  perform tstf.ok((select fees_cents = 340 from public.admin_finance_series(12) where month = last_month), 'comissão e taxas no mês dos pedidos');
+  perform tstf.ok((select businesses = 1 and mrr_cents = 9900 from public.admin_finance_by_plan() where plan_code = 'presencial_delivery'), 'empresas e receita por plano');
+  perform tstf.login(op);
+  perform tstf.denied('select * from public.admin_finance_series(12)', 'operador sem permissão vê séries');
+  perform tstf.login(m);
 
   -- o estabelecimento vê só o próprio
   perform tstf.login(dono);

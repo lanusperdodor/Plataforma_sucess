@@ -23,6 +23,7 @@ import {
   type Post,
   type ReportReason,
   type SocialProfile,
+  type ReportTarget,
 } from '../../features/conecta/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 
@@ -60,7 +61,7 @@ export function useConectaRefresh() {
 }
 
 // ---------- denúncia ----------
-export function ReportDialog({ open, onClose, target }: { open: boolean; onClose: () => void; target: { type: 'post' | 'comment' | 'profile'; id: string } }) {
+export function ReportDialog({ open, onClose, target }: { open: boolean; onClose: () => void; target: { type: ReportTarget; id: string } }) {
   const toast = useToast()
   const [reason, setReason] = useState<ReportReason>('harassment')
   const [details, setDetails] = useState('')
@@ -141,7 +142,7 @@ function CommentItem({ c, post, me, onReply }: { c: Comment; post: Post; me: str
       <Avatar profile={c.author} size={32} />
       <div className="min-w-0 flex-1">
         <div className="rounded-2xl bg-muted px-3 py-2">
-          <Link to={`/conecta/u/${c.author?.handle ?? ''}`} className="text-sm font-semibold text-ink">{c.author?.displayName ?? 'Perfil indisponível'}</Link>
+          <Link to={`/conectuai/u/${c.author?.handle ?? ''}`} className="text-sm font-semibold text-ink">{c.author?.displayName ?? 'Perfil indisponível'}</Link>
           {c.hidden ? (
             <p className="text-sm italic text-ink-muted">Comentário ocultado pela moderação.</p>
           ) : (
@@ -222,7 +223,7 @@ export function CommentThread({ post }: { post: Post }) {
 // ---------- publicação ----------
 function SharedPreview({ post }: { post: Omit<Post, 'shared'> }) {
   return (
-    <Link to={`/conecta/${post.id}`} className="block rounded-2xl border border-line p-3 hover:bg-muted">
+    <Link to={`/conectuai/${post.id}`} className="block rounded-2xl border border-line p-3 hover:bg-muted">
       <p className="text-xs font-semibold text-ink">{post.business?.name ?? post.author?.displayName}</p>
       <p className="line-clamp-4 whitespace-pre-wrap break-words text-sm text-ink">{post.body}</p>
     </Link>
@@ -242,7 +243,7 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
   const [sharing, setSharing] = useState(false)
   const [shareText, setShareText] = useState('')
   const mine = me === post.authorId
-  const needLogin = () => toast.info('Entre e crie seu perfil no Conecta para interagir.')
+  const needLogin = () => toast.info('Entre e crie seu perfil no Conectuaí para interagir.')
 
   const like = useMutation({ mutationFn: () => setLike(post.id, !post.likedByMe, me!), onSuccess: refresh, onError: (e) => toast.error(errMsg(e)) })
   const save = useMutation({ mutationFn: () => setSave(post.id, !post.savedByMe, me!), onSuccess: refresh, onError: (e) => toast.error(errMsg(e)) })
@@ -257,7 +258,7 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
   const copyLink = async () => {
     const url = `${window.location.origin}/conecta/${post.id}`
     try {
-      if (navigator.share) await navigator.share({ url, title: 'Publicação no Tucaí Conecta' })
+      if (navigator.share) await navigator.share({ url, title: 'Publicação no Conectuaí' })
       else {
         await navigator.clipboard.writeText(url)
         toast.success('Link copiado.')
@@ -281,12 +282,12 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
           {post.business ? (
             <Link to={businessHref(post.business)} className="block truncate text-sm font-semibold text-ink">{post.business.name}</Link>
           ) : (
-            <Link to={`/conecta/u/${post.author?.handle ?? ''}`} className="block truncate text-sm font-semibold text-ink">{authorName}</Link>
+            <Link to={`/conectuai/u/${post.author?.handle ?? ''}`} className="block truncate text-sm font-semibold text-ink">{authorName}</Link>
           )}
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
             {post.business && post.author && <span>por @{post.author.handle}</span>}
             {!post.business && post.author && <span>@{post.author.handle}</span>}
-            <Link to={`/conecta/${post.id}`} className="hover:underline">{relative(post.createdAt)}</Link>
+            <Link to={`/conectuai/${post.id}`} className="hover:underline">{relative(post.createdAt)}</Link>
             {post.editedAt && <span>· editado</span>}
             {post.isSponsored && <span className="inline-flex items-center gap-0.5 font-semibold text-warm"><Rocket aria-hidden="true" className="size-3" />Patrocinado</span>}
           </p>
@@ -366,7 +367,7 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
         <button type="button" aria-expanded={showComments} aria-label={`Comentários (${post.commentCount})`} onClick={() => setShowComments((v) => !v)} className={`${action} text-ink-muted`}>
           <MessageCircle aria-hidden="true" className="size-5" />{post.commentCount}
         </button>
-        <button type="button" aria-label="Compartilhar no Conecta" disabled={post.hidden} onClick={() => (me ? setSharing((v) => !v) : needLogin())} className={`${action} text-ink-muted`}>
+        <button type="button" aria-label="Compartilhar no Conectuaí" disabled={post.hidden} onClick={() => (me ? setSharing((v) => !v) : needLogin())} className={`${action} text-ink-muted`}>
           <Repeat2 aria-hidden="true" className="size-5" />
         </button>
         <button type="button" aria-label="Copiar ou enviar link" onClick={() => void copyLink()} className={`${action} text-ink-muted`}>

@@ -9,7 +9,7 @@ import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { getPost } from '../features/conecta/repository.ts'
 import { PostCard } from './conecta/components.tsx'
 
-/** Publicação do Conecta com comentários abertos (link compartilhável). */
+/** Publicação do Conectuaí com comentários abertos (link compartilhável). */
 export function PostPage() {
   const { postId = '' } = useParams()
   const { session } = useAuth()
@@ -17,8 +17,8 @@ export function PostPage() {
   const q = useQuery({ queryKey: ['conecta', 'post', postId, me ?? ''], queryFn: () => getPost(postId, me), enabled: !!postId })
   return (
     <Page>
-      <Link to="/conecta" className="pressable inline-flex min-h-11 w-fit items-center gap-1 text-sm font-semibold text-ink"><ArrowLeft aria-hidden="true" className="size-4" />Conecta</Link>
-      <h1 className="sr-only">Publicação no Tucaí Conecta</h1>
+      <Link to="/conectuai" className="pressable inline-flex min-h-11 w-fit items-center gap-1 text-sm font-semibold text-ink"><ArrowLeft aria-hidden="true" className="size-4" />Conectuaí</Link>
+      <h1 className="sr-only">Publicação no Conectuaí</h1>
       <div className="mx-auto w-full max-w-2xl">
         {q.isLoading ? (
           <SkeletonCard />

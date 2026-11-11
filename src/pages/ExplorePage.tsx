@@ -62,7 +62,7 @@ export function ExplorePage() {
     { to: '/lojas', title: 'Lojas', text: 'Farmácia, moda, calçados', icon: ShoppingBag, count: stores.data?.length },
     { to: '/servicos', title: 'Serviços', text: 'Profissionais da região', icon: Wrench, count: services.data?.length },
     { to: '/vagas', title: 'Vagas', text: 'Oportunidades perto de você', icon: Briefcase },
-    { to: '/conecta', title: 'Conecta', text: 'A rede social da região', icon: Users },
+    { to: '/conectuai', title: 'Conectuaí', text: 'A rede social da região', icon: Users },
   ]
 
   return (

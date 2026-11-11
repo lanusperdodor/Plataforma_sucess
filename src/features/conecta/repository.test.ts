@@ -23,7 +23,7 @@ function route(q: FakeQuery) {
   return { data: [], error: null }
 }
 
-describe('feed do Conecta', () => {
+describe('feed do Conectuaí', () => {
   it('feed da cidade filtra por cidade, ordena e junta autor e estado do usuário', async () => {
     h.fake.handler = route
     const { posts } = await repo.listFeed({ kind: 'city', cityId: 'c1' }, 'me')
@@ -50,7 +50,7 @@ describe('feed do Conecta', () => {
   })
 })
 
-describe('escrita no Conecta', () => {
+describe('escrita no Conectuaí', () => {
   it('produto só acompanha publicação em nome de estabelecimento', async () => {
     h.fake.handler = () => ({ data: [{ id: 'n1' }], error: null })
     await repo.createPost({ body: ' Oi ', cityId: 'c1', businessId: null, productId: 'p9', sharedPostId: null })

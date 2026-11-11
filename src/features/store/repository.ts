@@ -104,13 +104,13 @@ export async function getMenu(businessId: string): Promise<MenuSection[]> {
 }
 
 const reviewSchema = z
-  .object({ id: z.string(), rating: z.number().int(), comment: z.string().nullable(), author_name: z.string().nullable(), created_at: z.string() })
-  .transform((r) => ({ id: r.id, rating: r.rating, comment: r.comment, authorName: r.author_name, createdAt: r.created_at }))
+  .object({ id: z.string(), rating: z.number().int(), comment: z.string().nullable(), author_name: z.string().nullable(), created_at: z.string(), reply: z.string().nullable().optional() })
+  .transform((r) => ({ id: r.id, rating: r.rating, comment: r.comment, authorName: r.author_name, createdAt: r.created_at, reply: r.reply ?? null }))
 export type PublicReview = z.output<typeof reviewSchema>
 
 export async function getReviews(businessId: string): Promise<PublicReview[]> {
   return query(
-    supabase.from('reviews').select('id,rating,comment,author_name,created_at').eq('business_id', businessId).order('created_at', { ascending: false }).limit(20),
+    supabase.from('reviews').select('id,rating,comment,author_name,created_at,reply').eq('business_id', businessId).order('created_at', { ascending: false }).limit(20),
     z.array(reviewSchema),
   )
 }

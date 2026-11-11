@@ -18,7 +18,7 @@ export function ErrorState({ title, description, error, onRetry }: ErrorStatePro
       icon={unavailable ? DatabaseZap : TriangleAlert}
       tone="warm"
       role="alert"
-      title={title ?? (unavailable ? 'Serviço em configuração' : 'Algo deu errado')}
+      title={title ?? (unavailable ? 'Serviço indisponível no momento' : 'Algo deu errado')}
       description={description ?? repo?.message ?? 'Não foi possível carregar agora. Tente novamente.'}
       action={
         onRetry ? (

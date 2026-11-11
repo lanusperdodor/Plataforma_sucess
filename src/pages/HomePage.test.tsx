@@ -40,7 +40,7 @@ describe('HomePage', () => {
     expect(screen.getByRole('link', { name: 'Restaurantes' })).toHaveAttribute('href', '/restaurantes')
     expect(screen.getByRole('link', { name: 'Lojas' })).toHaveAttribute('href', '/lojas')
     expect(screen.getByRole('link', { name: 'Serviços' })).toHaveAttribute('href', '/servicos')
-    expect(screen.queryByRole('link', { name: /Comunidade|Conecta/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Comunidade|Conectuaí/ })).toBeNull()
     expect(screen.getByPlaceholderText('Busque restaurantes, lojas e serviços…')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /^Pizza$/ })).toHaveAttribute('href', '/restaurantes?categoria=pizza')
   })

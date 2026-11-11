@@ -1,0 +1,36 @@
+# Mantém o projeto Supabase ativo: o plano gratuito pausa projetos após ~7 dias sem uso.
+# Faz uma consulta real e leve ao banco (leitura pública de cidades) a cada 2 dias.
+# Se falhar, o job fica vermelho e o GitHub avisa por e-mail quem administra o repositório.
+# Observação: tarefas agendadas do GitHub só rodam a partir da branch padrão (main).
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '23 11 */2 * *' # a cada 2 dias, 08:23 (horário de Brasília)
+  workflow_dispatch: # permite rodar manualmente em Actions
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # Chave publicável (pública por definição: é a mesma usada pelo site no navegador).
+      # Para trocar sem editar este arquivo, crie as variáveis SUPABASE_URL e
+      # SUPABASE_PUBLISHABLE_KEY em Settings > Secrets and variables > Actions > Variables.
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://folrcnsihpllvutnhdmy.supabase.co' }}
+      SUPABASE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_AupTnn-oFiwoodhfXl_06g_ToBuGP9A' }}
+    steps:
+      - name: Consulta leve ao banco
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+              "$SUPABASE_URL/rest/v1/cities?select=id&limit=1" -H "apikey: $SUPABASE_KEY")
+            echo "tentativa $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::error::O Supabase não respondeu. O projeto pode estar pausado: abra o painel do Supabase e clique em Restore."
+          exit 1

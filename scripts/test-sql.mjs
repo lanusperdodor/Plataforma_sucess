@@ -65,7 +65,8 @@ async function main() {
       tool('pg_ctl'),
       [
         'start', '-w', '-D', join(dataDir, 'data'), '-l', join(dataDir, 'pg.log'),
-        '-o', `-p ${port} -c listen_addresses=127.0.0.1 -c fsync=off`,
+        // socket Unix no diretório temporário: /var/run/postgresql não é gravável em runners de CI
+        '-o', `-p ${port} -c listen_addresses=127.0.0.1 -c fsync=off${process.platform === 'win32' ? '' : ` -c unix_socket_directories=${dataDir}`}`,
       ],
       // stdio 'ignore': no Windows o postmaster herda os pipes e o spawnSync nunca retornaria.
       { stdio: 'ignore', timeout: 60_000 },
@@ -92,7 +93,13 @@ async function main() {
       ...one('supabase/tests/rls_security.sql'),
       ...one('supabase/tests/rls_merchant.sql'),
       ...one('supabase/tests/rls_conecta.sql'),
+
       ...one('supabase/tests/rls_multicidades.sql'),
+      ...one('supabase/tests/rls_couriers.sql'),
+      ...one('supabase/tests/rls_conectuai.sql'),
+      ...one('supabase/tests/rls_orders.sql'),
+      ...one('supabase/tests/rls_jobs.sql'),
+
       ...sqlFiles('supabase/tests/props'),
     ];
 

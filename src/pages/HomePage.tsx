@@ -52,7 +52,7 @@ function recentHref(r: RecentItem): string {
     case 'vaga':
       return `/vagas/${r.id}`
     default:
-      return `/conecta/${r.id}`
+      return `/conectuai/${r.id}`
   }
 }
 

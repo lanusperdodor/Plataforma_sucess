@@ -63,4 +63,20 @@ describe('LocationPicker', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar as cidades')
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument()
   })
+
+  it('usa Itaú de Minas como padrão mesmo fora da ordem alfabética, busca sem acento e agrupa por estado', async () => {
+    const names = ['Alpinópolis', 'Areado', 'Cássia', 'Franca', 'Guaxupé', 'Itaú de Minas', 'Passos', 'São José da Barra', 'São José do Rio Pardo']
+    h.cities = names.map((n, i) => ({ ...city(`c${i}`, n), state: n === 'Franca' || n === 'São José do Rio Pardo' ? 'SP' : 'MG' }))
+    view()
+    const trigger = await screen.findByRole('button', { name: /Itaú de Minas, MG/ })
+    fireEvent.click(trigger)
+    expect(screen.getByText('Minas Gerais')).toBeInTheDocument()
+    expect(screen.getByText('São Paulo')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'sao jose' } })
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['São José da Barra, MG', 'São José do Rio Pardo, SP'])
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'cassia' } })
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cidade' }), { target: { value: 'xyz' } })
+    expect(screen.getByText('Nenhuma cidade encontrada.')).toBeInTheDocument()
+  })
 })

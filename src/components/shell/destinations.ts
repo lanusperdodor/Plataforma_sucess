@@ -1,20 +1,24 @@
 import {
   Bell,
-  Briefcase,
-  Compass,
-  Home,
-  Receipt,
-  User,
-  UtensilsCrossed,
-  Users,
-  Wrench,
-  ShoppingBag,
   Bike,
+  Compass,
+  House,
+  LayoutDashboard,
+  MessagesSquare,
+  ReceiptText,
+  ShieldCheck,
+  ShoppingBag,
   Store,
+  Truck,
+  CircleUser,
+  UtensilsCrossed,
+  Wrench,
+  Lock,
   type LucideIcon,
 } from 'lucide-react'
+import type { AuthContext } from '../../features/permissions/permissions.ts'
 
-export type DestinationId = 'inicio' | 'explorar' | 'conecta' | 'pedidos' | 'perfil'
+export type DestinationId = 'inicio' | 'explorar' | 'conectuai' | 'pedidos' | 'perfil'
 
 export type NavDestination = {
   id: DestinationId
@@ -25,15 +29,41 @@ export type NavDestination = {
   prefixes: readonly string[]
 }
 
+/** Quem está navegando (somente UX; cada tela e o banco autorizam de novo). */
+export interface Audience {
+  signedIn: boolean
+  merchant: boolean
+  courier: boolean
+  admin: boolean
+}
+
+export function audienceOf(signedIn: boolean, authz: AuthContext | null | undefined): Audience {
+  const roles = authz?.roles ?? []
+  return {
+    signedIn,
+    merchant: (authz?.memberships.length ?? 0) > 0,
+    courier: roles.includes('courier_partner'),
+    admin: roles.includes('platform_master') || roles.includes('platform_operator'),
+  }
+}
+
 export type SecondaryDestination = {
   id: string
   label: string
   to: string
   icon: LucideIcon
+  /** Para quem o item aparece; ausente = todos. */
+  show?: (a: Audience) => boolean
+}
+
+export interface NavGroup {
+  id: string
+  title: string
+  items: readonly SecondaryDestination[]
 }
 
 export const NAV_DESTINATIONS: readonly NavDestination[] = [
-  { id: 'inicio', label: 'Início', to: '/', icon: Home, prefixes: ['/'] },
+  { id: 'inicio', label: 'Início', to: '/', icon: House, prefixes: ['/'] },
   {
     id: 'explorar',
     label: 'Explorar',
@@ -41,13 +71,13 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = [
     icon: Compass,
     prefixes: ['/explorar', '/restaurantes', '/lojas', '/servicos', '/vagas', '/busca'],
   },
-  { id: 'conecta', label: 'Conecta', to: '/conecta', icon: Users, prefixes: ['/conecta'] },
-  { id: 'pedidos', label: 'Pedidos', to: '/pedidos', icon: Receipt, prefixes: ['/pedidos'] },
+  { id: 'conectuai', label: 'Conectuaí', to: '/conectuai', icon: MessagesSquare, prefixes: ['/conectuai'] },
+  { id: 'pedidos', label: 'Pedidos', to: '/pedidos', icon: ReceiptText, prefixes: ['/pedidos'] },
   {
     id: 'perfil',
     label: 'Perfil',
     to: '/perfil',
-    icon: User,
+    icon: CircleUser,
     prefixes: ['/perfil', '/conta', '/notificacoes'],
   },
 ]
@@ -56,15 +86,44 @@ export const SECONDARY_DESTINATIONS: readonly SecondaryDestination[] = [
   { id: 'restaurantes', label: 'Restaurantes', to: '/restaurantes', icon: UtensilsCrossed },
   { id: 'lojas', label: 'Lojas', to: '/lojas', icon: ShoppingBag },
   { id: 'servicos', label: 'Serviços', to: '/servicos', icon: Wrench },
-  { id: 'vagas', label: 'Vagas', to: '/vagas', icon: Briefcase },
-  { id: 'notificacoes', label: 'Notificações', to: '/notificacoes', icon: Bell },
 ]
 
-/** Áreas de parceiros: entrada clara no desktop (menu lateral) e no mobile (menu do topo/Explorar). */
-export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = [
-  { id: 'entregadores', label: 'Entregadores', to: '/entregadores', icon: Bike },
-  { id: 'negocio', label: 'Cadastrar negócio', to: '/cadastrar-negocio', icon: Store },
+/** Grupos do menu lateral; cada item aparece só para quem pode usá-lo. */
+export const NAV_GROUPS: readonly NavGroup[] = [
+  { id: 'descobrir', title: 'Descobrir', items: SECONDARY_DESTINATIONS },
+  {
+    id: 'conta',
+    title: 'Minha conta',
+    items: [
+      { id: 'notificacoes', label: 'Notificações', to: '/notificacoes', icon: Bell, show: (a) => a.signedIn },
+      { id: 'privacidade', label: 'Privacidade e dados', to: '/perfil/privacidade', icon: Lock, show: (a) => a.signedIn },
+    ],
+  },
+  {
+    id: 'trabalho',
+    title: 'Minha área',
+    items: [
+      { id: 'painel', label: 'Meu estabelecimento', to: '/painel', icon: LayoutDashboard, show: (a) => a.merchant },
+      { id: 'entregador', label: 'Área do entregador', to: '/entregador', icon: Truck, show: (a) => a.courier },
+      { id: 'admin', label: 'Painel Master', to: '/admin', icon: ShieldCheck, show: (a) => a.admin },
+    ],
+  },
+  {
+    id: 'parceiros',
+    title: 'Parceiros',
+    items: [
+      { id: 'entregadores', label: 'Seja entregador', to: '/entregadores', icon: Bike, show: (a) => !a.courier },
+      { id: 'negocio', label: 'Cadastrar negócio', to: '/cadastrar-negocio', icon: Store, show: (a) => !a.merchant },
+    ],
+  },
 ]
+
+/** Compatibilidade: itens de parceiros visíveis a qualquer visitante. */
+export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = NAV_GROUPS[3]!.items
+
+export function visibleGroups(a: Audience): NavGroup[] {
+  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.show || i.show(a)) })).filter((g) => g.items.length > 0)
+}
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   if (prefix === '/') return pathname === '/'

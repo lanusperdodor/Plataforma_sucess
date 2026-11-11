@@ -40,7 +40,7 @@ function ReportRow({ r }: { r: ModerationReport }) {
         <span className="text-xs text-ink-muted">{formatDateTime(r.createdAt)} · {r.openReports} denúncia(s) abertas</span>
       </div>
       <p className="text-ink-muted">
-        Autor: {r.authorHandle ? <Link to={`/conecta/u/${r.authorHandle}`} className="font-semibold text-brand underline">@{r.authorHandle}</Link> : '—'}
+        Autor: {r.authorHandle ? <Link to={`/conectuai/u/${r.authorHandle}`} className="font-semibold text-brand underline">@{r.authorHandle}</Link> : '—'}
         {' · '}Denunciante: {r.reporterEmail ?? 'sinalização automática'}
         {r.contentStatus === 'hidden' && ' · já oculto'}
       </p>
@@ -97,7 +97,7 @@ function AppealRow({ a }: { a: ModerationAppeal }) {
   )
 }
 
-/** Fila de moderação do Conecta: revisão humana, decisões motivadas e contestação. */
+/** Fila de moderação do Conectuaí: revisão humana, decisões motivadas e contestação. */
 export function AdminModeration() {
   const [tab, setTab] = useState<'open' | 'appeals' | 'actioned' | 'dismissed'>('open')
   const reports = useQuery({ queryKey: ['admin', 'moderation', 'reports', tab], queryFn: () => adminListReports(tab === 'appeals' ? 'open' : tab), enabled: tab !== 'appeals' })
@@ -105,7 +105,7 @@ export function AdminModeration() {
   const q = tab === 'appeals' ? appeals : reports
   return (
     <>
-      <AdminHeader title="Moderação do Conecta" subtitle="Denúncias revisadas por pessoas. Nenhum conteúdo é removido automaticamente." />
+      <AdminHeader title="Moderação do Conectuaí" subtitle="Denúncias revisadas por pessoas. Nenhum conteúdo é removido automaticamente." />
       <div className="mb-4">
         <FilterChips label="Fila" options={[{ value: 'open', label: 'Denúncias abertas' }, { value: 'appeals', label: 'Contestações' }, { value: 'actioned', label: 'Com ação' }, { value: 'dismissed', label: 'Mantidos' }]} value={tab} onChange={setTab} />
       </div>

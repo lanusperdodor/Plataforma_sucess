@@ -27,12 +27,18 @@ const ACTION_LABEL: Record<string, string> = {
   bootstrap_master: 'Primeiro Master criado',
   'moderation.hide': 'Conteúdo ocultado',
   'moderation.dismiss': 'Denúncia sem violação',
-  'moderation.suspend': 'Usuário suspenso no Conecta',
+  'moderation.suspend': 'Usuário suspenso no Conectuaí',
   'moderation.unsuspend': 'Suspensão encerrada',
   'moderation.appeal_reverse': 'Contestação aceita',
   'moderation.appeal_uphold': 'Contestação negada',
   'product.create': 'Produto cadastrado',
   'product.price': 'Preço alterado',
+  'courier.submit': 'Cadastro de entregador',
+  'courier.approve': 'Entregador aprovado',
+  'courier.reject': 'Entregador recusado',
+  'courier.suspend': 'Entregador suspenso',
+  'courier.reactivate': 'Entregador reativado',
+  'community.create': 'Comunidade criada',
 }
 
 /** Logs de auditoria (somente leitura; o banco impede alteração e exclusão). */

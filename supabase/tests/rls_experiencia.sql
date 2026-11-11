@@ -146,7 +146,12 @@ begin
                            'privacy_requests',
                            -- Conecta (0008): conteúdo de pessoas; business_id é opcional em posts
                            'social_profiles', 'follows', 'user_blocks', 'post_comments', 'post_likes', 'post_saves',
-                           'notifications', 'content_reports', 'moderation_appeals')
+                           'notifications', 'content_reports', 'moderation_appeals',
+                           -- entregadores (0009) e Conectuaí (0010)
+                           'couriers', 'friendships', 'scraps', 'testimonials', 'community_members', 'community_topics',
+                           'topic_replies', 'community_polls', 'poll_options', 'poll_votes',
+                           -- pedidos (0011): itens e eventos pertencem ao pedido, que tem business_id
+                           'order_items', 'order_events', 'job_applications')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

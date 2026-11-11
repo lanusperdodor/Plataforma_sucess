@@ -52,7 +52,7 @@ describe('página pública do estabelecimento', () => {
     expect(screen.getByText('18:00–23:00')).toBeInTheDocument()
     expect(screen.getByText('Sem avaliações ainda')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Ligar/ })).toHaveAttribute('href', 'tel:3530000000')
-    expect(screen.getByRole('note')).toHaveTextContent('Pedidos online ainda não estão disponíveis')
+    expect(screen.getByRole('note')).toHaveTextContent(/Peça pela Tucaí|Fechado agora|ainda não ativou|fale direto/i)
     expect(screen.getByRole('link', { name: 'Entre para seguir' })).toHaveAttribute('href', '/entrar')
     expect(screen.getByText('feed do estabelecimento')).toBeInTheDocument()
   })

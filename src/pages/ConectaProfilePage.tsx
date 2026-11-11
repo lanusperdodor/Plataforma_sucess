@@ -11,6 +11,11 @@ import { answerFollowRequest, getFollowCounts, getFollowState, getProfileByHandl
 import { useCurrentCity } from '../features/location/cityStore.ts'
 import { Feed, ProfileSetup, useMySocialProfile } from './ConectaPage.tsx'
 import { Avatar, ReportDialog, btn, errMsg, useConectaRefresh } from './conecta/components.tsx'
+import { FilterChips } from '../components/nav/FilterChips.tsx'
+import { getFriendState } from '../features/conectuai/repository.ts'
+import { CommunitiesGrid, FriendButton, FriendsGrid, ScrapWall, Testimonials } from './conectuai/ProfileSections.tsx'
+
+type ProfileTab = 'publicacoes' | 'recados' | 'depoimentos' | 'amigos' | 'comunidades'
 
 /** Perfil social: dados escolhidos pela pessoa, seguidores e publicações (respeitando perfil fechado e bloqueios). */
 export function ConectaProfilePage() {
@@ -23,6 +28,7 @@ export function ConectaProfilePage() {
   const refresh = useConectaRefresh()
   const [editing, setEditing] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [tab, setTab] = useState<ProfileTab>('publicacoes')
   const profile = useQuery({ queryKey: ['conecta', 'profile', handle], queryFn: () => getProfileByHandle(handle) })
   const p = profile.data
   const counts = useQuery({ queryKey: ['conecta', 'counts', p?.userId ?? ''], queryFn: () => getFollowCounts(p!.userId), enabled: !!p })
@@ -30,6 +36,7 @@ export function ConectaProfilePage() {
   const follow = useMutation({ mutationFn: () => setFollow(me!, p!.userId, !(state.data?.following || state.data?.pending)), onSuccess: refresh, onError: (e) => toast.error(errMsg(e)) })
   const requests = useQuery({ queryKey: ['conecta', 'requests', me ?? ''], queryFn: () => listFollowRequests(me!), enabled: !!me && !!p && p.userId === me })
   const answer = useMutation({ mutationFn: ({ id, ok }: { id: string; ok: boolean }) => answerFollowRequest(me!, id, ok), onSuccess: refresh, onError: (e) => toast.error(errMsg(e)) })
+  const friendState = useQuery({ queryKey: ['conectuai', 'friend-state', me ?? '', p?.userId ?? ''], queryFn: () => getFriendState(me!, p!.userId), enabled: !!me && !!p && p.userId !== me })
   const block = useMutation({ mutationFn: () => setBlock(me!, p!.userId, !state.data?.blocked), onSuccess: refresh, onError: (e) => toast.error(errMsg(e)) })
 
   if (profile.isLoading) return <Page><p role="status" className="text-sm text-ink-muted">Carregando…</p></Page>
@@ -38,10 +45,12 @@ export function ConectaProfilePage() {
   const mine = me === p.userId
   const cityName = cities.find((c) => c.id === p.cityId)?.name
   const canSeePosts = p.isPublic || mine || state.data?.following
+  const isFriend = friendState.data === 'friends'
+  const canWriteWall = !!me && !!myProfile.data && (mine || (p.wallEnabled && (p.wallAudience === 'everyone' || isFriend)))
 
   return (
     <Page>
-      <Link to="/conecta" className="pressable inline-flex min-h-11 w-fit items-center gap-1 text-sm font-semibold text-ink"><ArrowLeft aria-hidden="true" className="size-4" />Conecta</Link>
+      <Link to="/conectuai" className="pressable inline-flex min-h-11 w-fit items-center gap-1 text-sm font-semibold text-ink"><ArrowLeft aria-hidden="true" className="size-4" />Conectuaí</Link>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         {editing && myProfile.data ? (
           <ProfileSetup existing={myProfile.data} onDone={() => setEditing(false)} />
@@ -64,6 +73,7 @@ export function ConectaProfilePage() {
                 <button type="button" onClick={() => setEditing(true)} className={`${btn} border border-line text-ink`}>Editar perfil</button>
               ) : me && myProfile.data ? (
                 <>
+                  {!state.data?.blocked && <FriendButton me={me} other={p} />}
                   {!state.data?.blocked && (
                     <button type="button" onClick={() => follow.mutate()} disabled={follow.isPending} className={`${btn} ${state.data?.following || state.data?.pending ? 'border border-line text-ink' : 'bg-brand text-surface'}`}>
                       {state.data?.following ? 'Seguindo' : state.data?.pending ? 'Solicitado' : p.isPublic ? 'Seguir' : 'Pedir para seguir'}
@@ -75,7 +85,7 @@ export function ConectaProfilePage() {
                   <button type="button" onClick={() => setReporting(true)} className={`${btn} border border-line text-ink`}><Flag aria-hidden="true" className="size-4" />Denunciar</button>
                 </>
               ) : me ? (
-                <Link to="/conecta" className={`${btn} bg-brand text-surface`}>Crie seu perfil para seguir</Link>
+                <Link to="/conectuai" className={`${btn} bg-brand text-surface`}>Crie seu perfil para seguir</Link>
               ) : (
                 <Link to="/entrar" className={`${btn} bg-brand text-surface`}>Entre para seguir</Link>
               )}
@@ -89,7 +99,7 @@ export function ConectaProfilePage() {
               {(requests.data ?? []).map((r) => (
                 <li key={r.userId} className="flex flex-wrap items-center gap-2">
                   <Avatar profile={r} size={32} />
-                  <Link to={`/conecta/u/${r.handle}`} className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{r.displayName} <span className="font-normal text-ink-muted">@{r.handle}</span></Link>
+                  <Link to={`/conectuai/u/${r.handle}`} className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{r.displayName} <span className="font-normal text-ink-muted">@{r.handle}</span></Link>
                   <button type="button" onClick={() => answer.mutate({ id: r.userId, ok: true })} className={`${btn} bg-brand text-surface`}>Aprovar</button>
                   <button type="button" onClick={() => answer.mutate({ id: r.userId, ok: false })} className={`${btn} border border-line text-ink`}>Recusar</button>
                 </li>
@@ -97,10 +107,32 @@ export function ConectaProfilePage() {
             </ul>
           </section>
         )}
-        {canSeePosts ? (
-          <Feed scope={{ kind: 'author', userId: p.userId }} me={me} empty={{ title: 'Nenhuma publicação ainda', description: mine ? 'Suas publicações aparecem aqui.' : 'Este perfil ainda não publicou.' }} />
+        <FilterChips
+          label="Seções do perfil"
+          options={[
+            { value: 'publicacoes', label: 'Publicações' },
+            { value: 'recados', label: 'Recados' },
+            { value: 'depoimentos', label: 'Depoimentos' },
+            { value: 'amigos', label: 'Amigos' },
+            { value: 'comunidades', label: 'Comunidades' },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as ProfileTab)}
+        />
+        {tab === 'publicacoes' ? (
+          canSeePosts ? (
+            <Feed scope={{ kind: 'author', userId: p.userId }} me={me} empty={{ title: 'Nenhuma publicação ainda', description: mine ? 'Suas publicações aparecem aqui.' : 'Este perfil ainda não publicou.' }} />
+          ) : (
+            <p className="rounded-card border border-line bg-surface p-4 text-sm text-ink-muted">Perfil fechado: siga para ver as publicações.</p>
+          )
+        ) : tab === 'recados' ? (
+          <ScrapWall owner={p} me={me} canWrite={canWriteWall} />
+        ) : tab === 'depoimentos' ? (
+          <Testimonials owner={p} me={me} isFriend={isFriend} />
+        ) : tab === 'amigos' ? (
+          <FriendsGrid owner={p} me={me} />
         ) : (
-          <p className="rounded-card border border-line bg-surface p-4 text-sm text-ink-muted">Perfil fechado: siga para ver as publicações.</p>
+          <CommunitiesGrid owner={p} me={me} />
         )}
       </div>
       {reporting && <ReportDialog open onClose={() => setReporting(false)} target={{ type: 'profile', id: p.userId }} />}

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bike, CircleCheck, CircleX, Clock, MapPin, MessageCircle, Phone, ShoppingBag, Star, Store, Utensils } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { deliveryText, timeText } from '../components/cards/BusinessCard.tsx'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
@@ -16,6 +16,7 @@ import { getProfileByUser, isFollowingBusiness, setBusinessFollow } from '../fea
 import { addRecent } from '../features/recent/recentStore.ts'
 import { Feed } from './ConectaPage.tsx'
 import { getMenu, getPublicBusiness, getReviews, type MenuProduct } from '../features/store/repository.ts'
+import { ProductSheet } from './store/ProductSheet.tsx'
 import { formatBRL } from '../lib/money.ts'
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -50,7 +51,12 @@ function Hours({ hours }: { hours: BusinessHour[] }) {
   )
 }
 
-function ProductRow({ p }: { p: MenuProduct }) {
+/** O estabelecimento recebe pedidos pela Tucaí? (produtos com entrega ou retirada ativas) */
+export function acceptsOrders(b: BusinessSummary): boolean {
+  return b.businessType !== 'servico' && (b.deliveryOffer !== 'none' || b.acceptsPickup)
+}
+
+function ProductRow({ p, onAdd }: { p: MenuProduct; onAdd?: () => void }) {
   return (
     <li id={`produto-${p.id}`} className="flex gap-3 rounded-card border border-line bg-surface p-3 target:ring-2 target:ring-orange">
       <div className="min-w-0 flex-1">
@@ -65,6 +71,11 @@ function ProductRow({ p }: { p: MenuProduct }) {
           <span className={`font-bold ${p.isAvailable ? 'text-ink' : 'text-ink-muted line-through'}`}>{formatBRL(p.priceCents)}</span>
           {!p.isAvailable && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-ink-muted">Indisponível</span>}
         </p>
+        {onAdd && p.isAvailable && (
+          <button type="button" onClick={onAdd} aria-label={`Adicionar ${p.name}`} className="pressable mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-orange px-4 text-sm font-semibold text-ink">
+            <ShoppingBag aria-hidden="true" className="size-4" />Adicionar
+          </button>
+        )}
       </div>
       {p.imageUrl && <Img src={p.imageUrl} alt="" width={96} height={96} className="size-24 shrink-0 rounded-xl object-cover" />}
     </li>
@@ -129,10 +140,10 @@ function FollowBusiness({ businessId }: { businessId: string }) {
   const following = useQuery({ queryKey: ['conecta', 'bizfollow', me ?? '', businessId], queryFn: () => isFollowingBusiness(me!, businessId), enabled: !!me && !!profile.data })
   const m = useMutation({ mutationFn: () => setBusinessFollow(me!, businessId, !following.data), onSuccess: () => void qc.invalidateQueries({ queryKey: ['conecta', 'bizfollow'] }) })
   if (!me) return <Link to="/entrar" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Entre para seguir</Link>
-  if (profile.data === null) return <Link to="/conecta" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Crie seu perfil no Conecta para seguir</Link>
+  if (profile.data === null) return <Link to="/conectuai" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Crie seu perfil no Conectuaí para seguir</Link>
   return (
     <button type="button" disabled={m.isPending || following.isLoading} onClick={() => m.mutate()} className={`pressable inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${following.data ? 'border border-line text-ink' : 'bg-orange text-ink'}`}>
-      {following.data ? 'Seguindo' : 'Seguir no Conecta'}
+      {following.data ? 'Seguindo' : 'Seguir no Conectuaí'}
     </button>
   )
 }
@@ -147,6 +158,7 @@ export function BusinessPage() {
   const hours = useBusinessHours(b?.id)
   const menu = useQuery({ queryKey: ['store', 'menu', b?.id ?? ''], queryFn: () => getMenu(b!.id), enabled: !!b })
   const reviews = useQuery({ queryKey: ['store', 'reviews', b?.id ?? ''], queryFn: () => getReviews(b!.id), enabled: !!b })
+  const [selected, setSelected] = useState<MenuProduct | null>(null)
 
   useEffect(() => {
     if (b) addRecent({ kind: b.businessType, id: b.id, slug: b.slug, name: b.name, imageUrl: b.logoUrl ?? b.coverUrl ?? undefined })
@@ -165,6 +177,7 @@ export function BusinessPage() {
   }
   const categoryLabel = categories.data?.find((c) => c.id === b.categoryId)?.label
   const listLabel = b.businessType === 'servico' ? 'Serviços' : b.businessType === 'loja' ? 'Produtos' : 'Cardápio'
+  const orderable = acceptsOrders(b)
 
   return (
     <Page>
@@ -172,7 +185,13 @@ export function BusinessPage() {
       <div><FollowBusiness businessId={b.id} /></div>
       <p role="note" className="flex items-start gap-2 rounded-card border border-line bg-muted p-3 text-sm text-ink">
         <ShoppingBag aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        Pedidos online ainda não estão disponíveis na Tucaí. Para comprar, fale direto com o estabelecimento.
+        {b.businessType === 'servico'
+          ? 'Para contratar, fale direto com o prestador pelos contatos acima.'
+          : !orderable
+            ? 'Este estabelecimento ainda não ativou entrega nem retirada pela Tucaí. Fale direto pelos contatos acima.'
+            : b.isOpen
+              ? 'Peça pela Tucaí e pague na entrega ou na retirada: dinheiro, Pix ou cartão na maquininha.'
+              : 'Fechado agora. Você pode montar a sacola e confirmar o pedido quando o estabelecimento abrir.'}
       </p>
       <section aria-labelledby="loja-menu" className="flex flex-col gap-4">
         <h2 id="loja-menu" className="text-xl font-semibold text-ink">{listLabel}</h2>
@@ -186,7 +205,7 @@ export function BusinessPage() {
           (menu.data ?? []).map((s) => (
             <section key={s.id} aria-labelledby={`sec-${s.id}`}>
               <h3 id={`sec-${s.id}`} className="mb-2 text-base font-semibold text-ink">{s.name}</h3>
-              <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">{s.products.map((p) => <ProductRow key={p.id} p={p} />)}</ul>
+              <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">{s.products.map((p) => <ProductRow key={p.id} p={p} onAdd={orderable ? () => setSelected(p) : undefined} />)}</ul>
             </section>
           ))
         )}
@@ -198,23 +217,25 @@ export function BusinessPage() {
       <section aria-labelledby="loja-avaliacoes" className="flex flex-col gap-2">
         <h2 id="loja-avaliacoes" className="text-lg font-semibold text-ink">Avaliações</h2>
         {(reviews.data ?? []).length === 0 ? (
-          <p className="text-sm text-ink-muted">{reviews.isLoading ? 'Carregando…' : 'Ainda sem avaliações. Avaliações serão liberadas para quem concluir um pedido.'}</p>
+          <p className="text-sm text-ink-muted">{reviews.isLoading ? 'Carregando…' : 'Ainda sem avaliações. Só quem recebe um pedido feito pela Tucaí pode avaliar.'}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {(reviews.data ?? []).map((r) => (
               <li key={r.id} className="rounded-card border border-line bg-surface p-3 text-sm">
                 <p className="font-semibold text-ink">{'★'.repeat(r.rating)}<span className="sr-only">{r.rating} de 5</span> · {r.authorName ?? 'Cliente'}</p>
                 {r.comment && <p className="text-ink">{r.comment}</p>}
-                <p className="text-xs text-ink-muted">{dateFmt.format(new Date(r.createdAt))}</p>
+                <p className="text-xs text-ink-muted">{dateFmt.format(new Date(r.createdAt))} · pedido verificado</p>
+                {r.reply && <p className="mt-2 border-l-2 border-brand pl-2 text-ink"><span className="font-semibold">Resposta do estabelecimento:</span> {r.reply}</p>}
               </li>
             ))}
           </ul>
         )}
       </section>
       <section aria-labelledby="loja-conecta" className="flex flex-col gap-3">
-        <h2 id="loja-conecta" className="text-lg font-semibold text-ink">No Conecta</h2>
+        <h2 id="loja-conecta" className="text-lg font-semibold text-ink">No Conectuaí</h2>
         <Feed scope={{ kind: 'business', businessId: b.id }} me={session?.user.id ?? null} empty={{ title: 'Sem publicações ainda', description: 'Novidades e ofertas do estabelecimento aparecem aqui.' }} />
       </section>
+      {selected && <ProductSheet product={selected} business={{ id: b.id, slug: b.slug, name: b.name }} onClose={() => setSelected(null)} />}
       <Link to={b.businessType === 'restaurante' ? '/restaurantes' : b.businessType === 'loja' ? '/lojas' : '/servicos'} className="text-sm font-semibold text-brand underline">
         Ver outros {b.businessType === 'restaurante' ? 'restaurantes' : b.businessType === 'loja' ? 'lojas' : 'serviços'}
       </Link>

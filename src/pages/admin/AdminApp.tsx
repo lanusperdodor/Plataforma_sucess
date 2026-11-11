@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -10,6 +10,7 @@ import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { AdminAudit } from './AdminAudit.tsx'
 import { AdminBusinesses } from './AdminBusinesses.tsx'
 import { AdminCities } from './AdminCities.tsx'
+import { AdminCouriers } from './AdminCouriers.tsx'
 import { AdminModeration } from './AdminModeration.tsx'
 import { AdminPrivacy } from './AdminPrivacy.tsx'
 import { AdminDashboard } from './AdminDashboard.tsx'
@@ -30,6 +31,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/admin', label: 'Painel', icon: LayoutDashboard, permission: 'admin.dashboard' },
   { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
+  { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
   { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
   { to: '/admin/equipe', label: 'Equipe', icon: Users, permission: 'master' },
   { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, permission: 'audit.view' },
@@ -168,6 +170,7 @@ export function AdminApp() {
         <Routes>
           <Route index element={<Guard access={data} item={item('/admin')}><AdminDashboard /></Guard>} />
           <Route path="estabelecimentos" element={<Guard access={data} item={item('/admin/estabelecimentos')}><AdminBusinesses /></Guard>} />
+          <Route path="entregadores" element={<Guard access={data} item={item('/admin/entregadores')}><AdminCouriers /></Guard>} />
           <Route path="cidades" element={<Guard access={data} item={item('/admin/cidades')}><AdminCities /></Guard>} />
           <Route path="equipe" element={<Guard access={data} item={item('/admin/equipe')}><AdminTeam /></Guard>} />
           <Route path="auditoria" element={<Guard access={data} item={item('/admin/auditoria')}><AdminAudit /></Guard>} />

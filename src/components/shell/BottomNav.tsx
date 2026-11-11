@@ -40,7 +40,7 @@ export function BottomNav({ onPrefetch }: BottomNavProps) {
                     isActive ? 'bg-muted' : 'bg-transparent'
                   }`}
                 >
-                  <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.25 : 1.75} />
                 </span>
                 <span className="max-w-full truncate px-1">{item.label}</span>
               </Link>

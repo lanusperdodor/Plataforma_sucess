@@ -23,6 +23,9 @@ export const citySchema = z
     slug: z.string(),
     center_lat: z.number().nullable(),
     center_lng: z.number().nullable(),
+    // 0010: código IBGE e distância (Haversine) até a sede; ausentes em cidades antigas não vinculadas
+    ibge_code: z.number().int().nullish(),
+    distance_from_hq_km: z.number().nullish(),
   })
   .transform((r) => ({
     id: r.id,
@@ -31,6 +34,8 @@ export const citySchema = z
     slug: r.slug,
     centerLat: r.center_lat,
     centerLng: r.center_lng,
+    ibgeCode: r.ibge_code ?? null,
+    distanceFromHqKm: r.distance_from_hq_km ?? null,
   }))
 export type City = z.output<typeof citySchema>
 

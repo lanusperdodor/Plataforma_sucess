@@ -18,7 +18,7 @@ import { toQuerySpec } from './filters'
 /** Estabelecimentos públicos vêm SEMPRE da visão (a tabela `businesses` não é legível pelo público). */
 export const BUSINESSES_VIEW = 'public_businesses'
 
-const CITY_COLUMNS = 'id,name,state,slug,center_lat,center_lng'
+const CITY_COLUMNS = 'id,name,state,slug,center_lat,center_lng,ibge_code,distance_from_hq_km'
 const CATEGORY_COLUMNS = 'id,slug,label,kind,icon,sort_order'
 export const BUSINESS_COLUMNS =
   'id,name,slug,business_type,category_id,city_id,description,cover_url,logo_url,address_line,phone,whatsapp,' +

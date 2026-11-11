@@ -16,6 +16,7 @@
     "test:sql": "node scripts/test-sql.mjs",
     "check-secrets": "node scripts/check-secrets.mjs",
     "sql:bundle": "node scripts/bundle-sql.mjs",
+    "ibge:check": "node scripts/ibge-municipios.mjs --check",
     "audit:deps": "npm audit --audit-level=moderate"
   },
   "dependencies": {

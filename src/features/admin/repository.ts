@@ -163,57 +163,112 @@ export function reviewBusiness(businessId: string, decision: ReviewDecision, not
   )
 }
 
-// ---------- cidades ----------
+// ---------- cidades (0010: base IBGE, raio de atendimento, situação) ----------
+export const cityStatuses = ['planned', 'active', 'suspended'] as const
+export type CityStatus = (typeof cityStatuses)[number]
+export const CITY_STATUS_LABEL: Record<CityStatus, string> = { planned: 'Planejada', active: 'Ativa', suspended: 'Suspensa' }
+
 export const adminCitySchema = z
   .object({
     id: z.string(),
+    ibge_code: z.number().int().nullable(),
     name: z.string(),
     state: z.string(),
     slug: z.string(),
     center_lat: nullableNum,
     center_lng: nullableNum,
-    is_active: z.boolean(),
+    status: z.enum(cityStatuses),
+    distance_from_hq_km: nullableNum,
     businesses_active: num,
-    created_at: z.string(),
+    status_changed_at: z.string().nullable(),
+    total_count: num,
   })
   .transform((r) => ({
     id: r.id,
+    ibgeCode: r.ibge_code,
     name: r.name,
     state: r.state,
     slug: r.slug,
     centerLat: r.center_lat,
     centerLng: r.center_lng,
-    isActive: r.is_active,
+    status: r.status,
+    distanceFromHqKm: r.distance_from_hq_km,
     businessesActive: r.businesses_active,
+    statusChangedAt: r.status_changed_at,
+    totalCount: r.total_count,
   }))
 export type AdminCity = z.output<typeof adminCitySchema>
 
-export function listCities(): Promise<AdminCity[]> {
-  return rpc('admin_list_cities', undefined, z.array(adminCitySchema))
+export interface AdminCityFilters {
+  search?: string
+  state?: string
+  status?: CityStatus | ''
+  maxDistanceKm?: number | null
+  limit?: number
+  offset?: number
 }
 
-export interface CityInput {
-  id: string | null
-  name: string
-  state: string
-  centerLat: number | null
-  centerLng: number | null
-  isActive: boolean
-}
-
-export function saveCity(input: CityInput): Promise<string> {
+export function listCities(f: AdminCityFilters = {}): Promise<AdminCity[]> {
   return rpc(
-    'admin_save_city',
+    'admin_list_cities',
     {
-      _id: input.id,
-      _name: input.name,
-      _state: input.state,
-      _center_lat: input.centerLat,
-      _center_lng: input.centerLng,
-      _is_active: input.isActive,
+      _search: f.search?.trim() || null,
+      _state: f.state?.trim() || null,
+      _status: f.status || null,
+      _max_distance_km: f.maxDistanceKm ?? null,
+      _limit: f.limit ?? 100,
+      _offset: f.offset ?? 0,
     },
-    z.string(),
+    z.array(adminCitySchema),
   )
+}
+
+export function setCityStatus(cityId: string, status: CityStatus, reason?: string): Promise<CityStatus> {
+  return rpc('admin_set_city_status', { _city: cityId, _status: status, _reason: reason?.trim() || null }, z.enum(cityStatuses))
+}
+
+/** Vincula cidade antiga (sem código) ao município IBGE; o servidor confere nome e UF. */
+export function linkCityIbge(cityId: string, ibgeCode: number): Promise<void> {
+  return rpc('admin_link_city_ibge', { _city: cityId, _ibge_code: ibgeCode }, z.unknown()).then(() => undefined)
+}
+
+/** Cadastra, como planejadas, as cidades elegíveis que faltarem. Devolve quantas entraram. */
+export function syncEligibleCities(): Promise<number> {
+  return rpc('admin_sync_eligible_cities', undefined, num)
+}
+
+const coverageCity = z.object({ name: z.string(), state: z.string() })
+export const cityCoverageSchema = z
+  .object({
+    hq: z.object({ ibge_code: z.number(), name: z.string(), state: z.string() }).nullable(),
+    service_radius_km: num,
+    discovery_radius_km: num,
+    eligible_states: z.array(z.string()),
+    reference_total: num,
+    eligible_total: num,
+    by_status: z.record(z.string(), num),
+    missing_eligible: z.array(coverageCity.extend({ ibge_code: z.number(), distance_km: num })),
+    without_ibge: z.array(coverageCity.extend({ id: z.string(), status: z.enum(cityStatuses) })),
+    outside_area: z.array(coverageCity.extend({ id: z.string(), status: z.enum(cityStatuses), distance_km: nullableNum })),
+    coordinates_divergent: z.array(coverageCity.extend({ id: z.string(), offset_km: num })),
+  })
+  .transform((r) => ({
+    hq: r.hq,
+    serviceRadiusKm: r.service_radius_km,
+    discoveryRadiusKm: r.discovery_radius_km,
+    eligibleStates: r.eligible_states,
+    referenceTotal: r.reference_total,
+    eligibleTotal: r.eligible_total,
+    byStatus: { planned: r.by_status.planned ?? 0, active: r.by_status.active ?? 0, suspended: r.by_status.suspended ?? 0 },
+    missingEligible: r.missing_eligible,
+    withoutIbge: r.without_ibge,
+    outsideArea: r.outside_area,
+    coordinatesDivergent: r.coordinates_divergent,
+  }))
+export type CityCoverage = z.output<typeof cityCoverageSchema>
+
+export function getCityCoverage(): Promise<CityCoverage> {
+  return rpc('admin_city_coverage', undefined, cityCoverageSchema)
 }
 
 // ---------- equipe ----------

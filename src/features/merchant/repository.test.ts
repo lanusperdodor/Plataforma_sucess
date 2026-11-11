@@ -30,6 +30,12 @@ describe('painel do estabelecimento — validação', () => {
     expect(repo.storeFormSchema.safeParse({ ...store, estimatedMin: '50', estimatedMax: '40' }).success).toBe(false)
     expect(repo.storeFormSchema.safeParse({ ...store, ownDeliveryFee: 'cinco' }).success).toBe(false)
     expect(repo.storeFormSchema.safeParse({ ...store, deliveryOffer: 'none', acceptsPickup: false }).success).toBe(false)
+    // área de entrega da loja (independente do raio regional de descoberta)
+    expect(repo.storeFormToPatch({ ...store, deliveryOffer: 'own', deliveryRadius: '7,5' }).delivery_radius_km).toBe(7.5)
+    expect(repo.storeFormToPatch({ ...store, deliveryOffer: 'none', acceptsPickup: true, deliveryRadius: '7' }).delivery_radius_km).toBeNull()
+    expect(repo.storeFormToPatch({ ...store, deliveryOffer: 'own', deliveryRadius: '' }).delivery_radius_km).toBeNull()
+    expect(repo.storeFormSchema.safeParse({ ...store, deliveryRadius: '150' }).success).toBe(false)
+    expect(repo.storeFormSchema.safeParse({ ...store, deliveryRadius: '0' }).success).toBe(false)
   })
   it('produto: preço em reais vira centavos; preço inválido ou absurdo é recusado', () => {
     expect(repo.productFormToRow(product)).toEqual({ category_id: 'c1', name: 'X-Burger', description: null, price_cents: 2490, image_url: null, is_available: true })

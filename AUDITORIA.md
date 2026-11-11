@@ -48,7 +48,7 @@ Nada aqui foi testado em produção.
 | 7 | Pagamentos e repasses | BLOQUEADO POR DEPENDÊNCIA | Falta escolher e contratar o provedor (Pix/cartão). |
 | 8 | Cupons e fidelidade | NÃO INICIADO | |
 | 9 | Avaliações | PARCIAL | Tabela de leitura; sem criação verificada nem moderação. |
-| 10 | Multicidades | PARCIAL | Seleção manual + gestão de cidades pelo Master (FUNCIONAL local). Sem geolocalização e raio de 200 km. |
+| 10 | Multicidades | PARCIAL | Base IBGE (MG/SP) + raio de 100 km por Haversine: 58 cidades (Itaú de Minas ativa, demais planejadas); situações planejada/ativa/suspensa; busca e filtros (UF, distância); painel Master; descoberta 200 km separada da área de entrega por loja (FUNCIONAL local, migrations 0009/0010 não aplicadas no remoto). Sem GPS do cliente. Ver docs/MULTICIDADES.md. |
 | 11 | Shopping regional | PARCIAL | Listagem de lojas por categoria; sem produtos/carrinho. |
 | 12 | Serviços e agenda | PARCIAL | Listagem; sem agenda/reservas. |
 | 13 | Tucaí Conecta | PARCIAL — feed FUNCIONAL (local) | 0008: perfis sociais, publicações (pessoa ou estabelecimento, ligadas a produto), comentários e respostas, curtidas, salvos, compartilhar, seguir (com aprovação em perfil fechado), bloqueio, denúncia, moderação humana, suspensão, contestação, notificações. Falta: comunidades, amizades, recados, depoimentos, imagens/vídeos. |

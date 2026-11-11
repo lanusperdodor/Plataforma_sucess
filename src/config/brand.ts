@@ -19,5 +19,10 @@ export const BRAND = {
   locale: 'pt-BR',
   currency: 'BRL',
   timezone: 'America/Sao_Paulo',
-  initialRegion: { city: 'Itaú de Minas', state: 'MG', discoveryRadiusKm: 200 },
+  /**
+   * Sede e raios (espelho de public.regional_settings, que é a fonte no servidor):
+   * serviceRadiusKm = cidades que a plataforma pode operar (MG/SP, IBGE + Haversine);
+   * discoveryRadiusKm = até onde o cliente enxerga cidades ativas. A área de entrega é de cada loja.
+   */
+  initialRegion: { city: 'Itaú de Minas', state: 'MG', ibgeCode: 3133758, serviceRadiusKm: 100, discoveryRadiusKm: 200 },
 } as const

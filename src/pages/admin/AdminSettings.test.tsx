@@ -13,7 +13,10 @@ vi.mock('../../features/admin/repository.ts', () => ({
     return Promise.resolve({ runId: 'r1', city: 'Itaú de Minas - MG', password: 'Teste-ABCDEF12!', logins: [{ role: 'cliente', label: 'Cliente 1', email: 'cliente1-x@teste.example.com' }] })
   },
   removeTestData: () => Promise.resolve(),
+  getMyName: () => Promise.resolve('Administrador Tucaí'),
+  setMyName: () => Promise.resolve(),
 }))
+vi.mock('../../features/auth/AuthProvider.tsx', () => ({ useAuth: () => ({ session: { user: { id: 'u1' } } }) }))
 vi.mock('../../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 
 import { AdminSettings } from './AdminSettings.tsx'
@@ -34,5 +37,6 @@ describe('Configurações do Master', () => {
     expect(await screen.findByText('Teste-ABCDEF12!')).toBeInTheDocument()
     expect(screen.getByText('cliente1-x@teste.example.com')).toBeInTheDocument()
     expect(h.created).toHaveBeenCalledWith('c1')
+    expect(await screen.findByDisplayValue('Administrador Tucaí')).toBeInTheDocument()
   })
 })

@@ -334,3 +334,100 @@ export function listTestData(): Promise<TestDataRun[]> {
 export function removeTestData(runId: string): Promise<void> {
   return rpc('admin_remove_test_data', { _run: runId }, z.any()).then(() => undefined)
 }
+
+// ---------- financeiro (0018) ----------
+const financeSummarySchema = z
+  .object({
+    active_businesses: num, active_subscriptions: num, mrr_cents: num, received_month_cents: num, received_total_cents: num,
+    open_cents: num, overdue_cents: num, fees_month_cents: num, due_soon: num,
+  })
+  .transform((r) => ({
+    activeBusinesses: r.active_businesses, activeSubscriptions: r.active_subscriptions, mrrCents: r.mrr_cents,
+    receivedMonthCents: r.received_month_cents, receivedTotalCents: r.received_total_cents, openCents: r.open_cents,
+    overdueCents: r.overdue_cents, feesMonthCents: r.fees_month_cents, dueSoon: r.due_soon,
+  }))
+export type FinanceSummary = z.output<typeof financeSummarySchema>
+
+export function getFinanceSummary(): Promise<FinanceSummary> {
+  return rpc('admin_finance_summary', undefined, financeSummarySchema)
+}
+
+const financeBusinessSchema = z
+  .object({
+    business_id: z.string(), name: z.string(), slug: z.string(), business_type: z.string(), status: z.string(), city: z.string().nullable(),
+    owner_name: z.string().nullable(), contact_phone: z.string().nullable(), whatsapp: z.string().nullable(),
+    subscription_id: z.string().nullable(), plan_code: z.string().nullable(), plan_name: z.string().nullable(), price_cents: nullableNum,
+    started_on: z.string().nullable(), current_period_end: z.string().nullable(), open_cents: num, overdue_cents: num,
+    last_paid_at: z.string().nullable(), fees_month_cents: num,
+  })
+  .transform((r) => ({
+    businessId: r.business_id, name: r.name, slug: r.slug, businessType: r.business_type, status: r.status, city: r.city,
+    ownerName: r.owner_name, phone: r.contact_phone, whatsapp: r.whatsapp, subscriptionId: r.subscription_id, planCode: r.plan_code,
+    planName: r.plan_name, priceCents: r.price_cents, startedOn: r.started_on, periodEnd: r.current_period_end, openCents: r.open_cents,
+    overdueCents: r.overdue_cents, lastPaidAt: r.last_paid_at, feesMonthCents: r.fees_month_cents,
+  }))
+export type FinanceBusiness = z.output<typeof financeBusinessSchema>
+
+export function listFinanceBusinesses(): Promise<FinanceBusiness[]> {
+  return rpc('admin_finance_businesses', undefined, z.array(financeBusinessSchema))
+}
+
+export const chargeStatuses = ['aberta', 'paga', 'cancelada'] as const
+export type ChargeStatus = (typeof chargeStatuses)[number]
+const chargeSchema = z
+  .object({
+    id: z.string(), business_id: z.string(), business_name: z.string(), kind: z.enum(['plano', 'comissao', 'outro']), description: z.string(),
+    amount_cents: num, due_on: z.string(), reference_month: z.string().nullable(), status: z.enum(chargeStatuses), paid_at: z.string().nullable(),
+    paid_method: z.string().nullable(), created_at: z.string(),
+  })
+  .transform((r) => ({
+    id: r.id, businessId: r.business_id, businessName: r.business_name, kind: r.kind, description: r.description, amountCents: r.amount_cents,
+    dueOn: r.due_on, status: r.status, paidAt: r.paid_at, paidMethod: r.paid_method,
+  }))
+export type Charge = z.output<typeof chargeSchema>
+
+export function listCharges(status: ChargeStatus | null, businessId: string | null = null): Promise<Charge[]> {
+  return rpc('admin_list_charges', { _status: status, _business: businessId }, z.array(chargeSchema))
+}
+
+const planSchema = z.object({ code: z.string(), name: z.string(), price_cents: num }).transform((r) => ({ code: r.code, name: r.name, priceCents: r.price_cents }))
+export type Plan = z.output<typeof planSchema>
+export async function listPlans(): Promise<Plan[]> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const { data, error } = await supabase.from('plans').select('code,name,price_cents').order('sort_order')
+  if (error) throw mapPostgrestError(error)
+  return z.array(planSchema).parse(data)
+}
+
+export function setSubscription(businessId: string, plan: string, startedOn: string, periodEnd: string): Promise<void> {
+  return rpc('admin_set_subscription', { _business: businessId, _plan: plan, _started_on: startedOn, _period_end: periodEnd }, z.any()).then(() => undefined)
+}
+export function cancelSubscription(businessId: string): Promise<void> {
+  return rpc('admin_cancel_subscription', { _business: businessId }, z.any()).then(() => undefined)
+}
+export function chargeSubscription(businessId: string): Promise<void> {
+  return rpc('admin_charge_subscription', { _business: businessId }, z.any()).then(() => undefined)
+}
+export function chargeCommission(businessId: string, month: string): Promise<void> {
+  return rpc('admin_charge_commission', { _business: businessId, _month: month }, z.any()).then(() => undefined)
+}
+export function markChargePaid(chargeId: string, method: string): Promise<void> {
+  return rpc('admin_mark_charge_paid', { _charge: chargeId, _method: method }, z.any()).then(() => undefined)
+}
+export function cancelCharge(chargeId: string): Promise<void> {
+  return rpc('admin_cancel_charge', { _charge: chargeId }, z.any()).then(() => undefined)
+}
+
+// ---------- meu nome no painel ----------
+export async function getMyName(userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const { data, error } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle()
+  if (error) throw mapPostgrestError(error)
+  return (data as { full_name: string | null } | null)?.full_name || null
+}
+export async function setMyName(userId: string, name: string): Promise<void> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const { data, error } = await supabase.from('profiles').update({ full_name: name.trim() }).eq('id', userId).select('id')
+  if (error) throw mapPostgrestError(error)
+  if (!data || data.length !== 1) throw new RepositoryError('forbidden', 'Não foi possível salvar o nome.')
+}

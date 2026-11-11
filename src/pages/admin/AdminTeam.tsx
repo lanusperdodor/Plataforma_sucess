@@ -55,7 +55,7 @@ function MemberCard({ member, self }: { member: StaffMember; self: boolean }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="truncate text-base font-bold text-ink">{member.fullName || member.email}</h2>
-          <p className="truncate text-sm text-ink-muted">{member.email}</p>
+          <p className="truncate text-sm text-ink-muted">{loginLabel(member.email)}</p>
         </div>
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-ink">{isMaster ? 'Master' : 'Operador'}</span>
       </div>
@@ -133,6 +133,12 @@ function AddOperator() {
 }
 
 /** Gestão da equipe administrativa (somente Master). Permissões granulares e auditadas. */
+/** Contas por usuário (ex.: admin@tucai.example.com) mostram o usuário, não o e-mail técnico. */
+export function loginLabel(email: string | null | undefined): string {
+  if (!email) return ''
+  return email.endsWith('@tucai.example.com') ? `usuário: ${email.split('@')[0]}` : email
+}
+
 export function AdminTeam() {
   const { session } = useAuth()
   const q = useQuery({ queryKey: ['admin', 'staff'], queryFn: listStaff })

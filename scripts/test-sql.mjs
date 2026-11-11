@@ -95,6 +95,7 @@ async function main() {
       ...one('supabase/tests/rls_test_data.sql'),
       ...one('supabase/tests/rls_usernames.sql'),
       ...one('supabase/tests/rls_seo.sql'),
+      ...one('supabase/tests/rls_finance.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

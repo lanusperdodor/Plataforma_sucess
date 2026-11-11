@@ -67,6 +67,7 @@ export function ProfilePage() {
       )}
       <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {[
+          ...((authz?.memberships.length ?? 0) > 0 ? [{ slug: 'painel', to: '/painel', label: 'Painel do estabelecimento', text: 'Loja, horários e cardápio', icon: Store }] : []),
           { slug: 'negocio', to: '/cadastrar-negocio', label: 'Meus negócios', text: 'Cadastre ou acompanhe seu estabelecimento', icon: Briefcase },
           ...(isAdmin ? [{ slug: 'admin', to: '/admin', label: 'Administração', text: 'Painel Master da Tucaí', icon: ShieldCheck }] : []),
           ...ITEMS,

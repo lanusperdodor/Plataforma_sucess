@@ -20,7 +20,7 @@ export const BUSINESSES_VIEW = 'public_businesses'
 
 const CITY_COLUMNS = 'id,name,state,slug,center_lat,center_lng'
 const CATEGORY_COLUMNS = 'id,slug,label,kind,icon,sort_order'
-const BUSINESS_COLUMNS =
+export const BUSINESS_COLUMNS =
   'id,name,slug,business_type,category_id,city_id,description,cover_url,logo_url,address_line,phone,whatsapp,' +
   'lat,lng,distance_estimate_km,delivery_offer,own_delivery_fee_cents,accepts_pickup,' +
   'estimated_min_minutes,estimated_max_minutes,min_order_cents,price_tier,rating_avg,rating_count,' +

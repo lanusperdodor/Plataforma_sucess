@@ -9,14 +9,14 @@ import { RouteBoundary } from './RouteBoundary.tsx'
 const HomePage = lazyNamed(pageLoaders['/'], 'HomePage')
 const ExplorePage = lazyNamed(pageLoaders['/explorar'], 'ExplorePage')
 const RestaurantsPage = lazyNamed(pageLoaders['/restaurantes'], 'RestaurantsPage')
-const RestaurantPage = lazyNamed(pageLoaders['/restaurantes/:slug'], 'RestaurantPage')
+const BusinessPage = lazyNamed(pageLoaders['/restaurantes/:slug'], 'BusinessPage')
 const StoresPage = lazyNamed(pageLoaders['/lojas'], 'StoresPage')
-const StorePage = lazyNamed(pageLoaders['/lojas/:slug'], 'StorePage')
 const ServicesPage = lazyNamed(pageLoaders['/servicos'], 'ServicesPage')
 const JobsPage = lazyNamed(pageLoaders['/vagas'], 'JobsPage')
 const JobPage = lazyNamed(pageLoaders['/vagas/:id'], 'JobPage')
 const ConectaPage = lazyNamed(pageLoaders['/conecta'], 'ConectaPage')
 const PostPage = lazyNamed(pageLoaders['/conecta/:postId'], 'PostPage')
+const ConectaProfilePage = lazyNamed(pageLoaders['/conecta/u/:handle'], 'ConectaProfilePage')
 const CouriersPage = lazyNamed(pageLoaders['/entregadores'], 'CouriersPage')
 const BusinessApplicationPage = lazyNamed(pageLoaders['/cadastrar-negocio'], 'BusinessApplicationPage')
 const PrivacyPolicyPage = lazyNamed(pageLoaders['/privacidade'], 'PrivacyPolicyPage')
@@ -38,6 +38,7 @@ const ResetPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'Res
 const NewPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'NewPasswordPage')
 const AdminLoginPage = lazyNamed(() => import('../pages/AdminLoginPage.tsx'), 'AdminLoginPage')
 const AccountPage = lazyNamed(() => import('../pages/AccountPage.tsx'), 'AccountPage')
+const MerchantPanel = lazyNamed(() => import('../pages/merchant/MerchantPanel.tsx'), 'MerchantPanel')
 const AdminApp = lazyNamed(() => import('../pages/admin/AdminApp.tsx'), 'AdminApp')
 
 const PROFILE_SECTIONS = ['dados', 'enderecos', 'pagamentos', 'favoritos', 'seguidas', 'salvos', 'cupons', 'configuracoes']
@@ -87,13 +88,15 @@ export function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="explorar" element={<ExplorePage />} />
         <Route path="restaurantes" element={<RestaurantsPage />} />
-        <Route path="restaurantes/:slug" element={<RestaurantPage />} />
+        <Route path="restaurantes/:slug" element={<BusinessPage />} />
         <Route path="lojas" element={<StoresPage />} />
-        <Route path="lojas/:slug" element={<StorePage />} />
+        <Route path="lojas/:slug" element={<BusinessPage />} />
         <Route path="servicos" element={<ServicesPage />} />
+        <Route path="servicos/:slug" element={<BusinessPage />} />
         <Route path="vagas" element={<JobsPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
         <Route path="conecta" element={<ConectaPage />} />
+        <Route path="conecta/u/:handle" element={<ConectaProfilePage />} />
         <Route path="conecta/:postId" element={<PostPage />} />
         {/* Antiga Comunidade: links salvos continuam funcionando. */}
         <Route path="comunidade" element={<Navigate to="/conecta" replace />} />
@@ -119,6 +122,7 @@ export function AppRoutes() {
           <Route path="sacola/checkout" element={<CheckoutPage />} />
           <Route path="pedidos/:id" element={<OrderPage />} />
           <Route path="cadastrar-negocio" element={<BusinessApplicationPage />} />
+          <Route path="painel/*" element={<MerchantPanel />} />
 
         </Route>
         <Route path="*" element={<NotFoundPage />} />

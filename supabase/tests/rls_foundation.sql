@@ -155,7 +155,8 @@ begin
   perform tst.login(at1);
   perform tst.ok(tst.affected('update public.businesses set name = ''Atendente'' where id = ' || quote_literal(biz1)) = 0, 'atendente não edita loja (sem settings.manage)');
   perform tst.login(mg1);
-  perform tst.ok(tst.affected('update public.businesses set name = ''Gerente'' where id = ' || quote_literal(biz1)) = 0, 'gerente não edita configurações (sem settings.manage)');
+  -- 0007: gerente edita a loja (store.customize), mas o nome exige settings.manage
+  perform tst.denied('update public.businesses set name = ''Gerente'' where id = ' || quote_literal(biz1), 'gerente renomeia o negócio (sem settings.manage)');
 
   -- 8. equipe por cargo
   perform tst.login(at1);

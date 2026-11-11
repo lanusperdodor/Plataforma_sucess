@@ -17,6 +17,8 @@ interface AuthState {
   signOut: () => Promise<{ error: boolean }>
   /** Revoga as sessões em todos os dispositivos (refresh tokens invalidados no Supabase Auth). */
   signOutEverywhere: () => Promise<{ error: boolean }>
+  /** Recarrega papéis e vínculos (ex.: depois de cadastrar um negócio). */
+  refreshAuthz: () => Promise<void>
 }
 
 const Ctx = createContext<AuthState | null>(null)
@@ -98,11 +100,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: Boolean(error) }
   }, [])
 
+  const refreshAuthz = useCallback(async () => {
+    const userId = currentUser.current
+    if (!userId) return
+    try {
+      const a = await loadAuthz(userId)
+      if (currentUser.current === userId) {
+        setAuthz(a)
+        setAuthzError(false)
+      }
+    } catch {
+      if (currentUser.current === userId) setAuthzError(true)
+    }
+  }, [])
+
   const finishRecovery = useCallback(() => setRecovering(false), [])
 
   const value = useMemo(
-    () => ({ loading, session, authz, authzError, recovering, finishRecovery, signOut, signOutEverywhere }),
-    [loading, session, authz, authzError, recovering, finishRecovery, signOut, signOutEverywhere],
+    () => ({ loading, session, authz, authzError, recovering, finishRecovery, signOut, signOutEverywhere, refreshAuthz }),
+    [loading, session, authz, authzError, recovering, finishRecovery, signOut, signOutEverywhere, refreshAuthz],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

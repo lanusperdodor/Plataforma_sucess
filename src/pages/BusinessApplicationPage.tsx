@@ -54,12 +54,17 @@ function MyBusinesses({ items }: { items: MyBusiness[] }) {
               {b.reviewNote && (b.status === 'rejected' || b.status === 'suspended') && (
                 <p className="text-sm text-ink">Motivo informado: {b.reviewNote}</p>
               )}
-              {b.status === 'active' && (
+              {b.status !== 'rejected' && (
                 <p className="text-sm text-ink-muted">
-                  O painel do estabelecimento (cardápio, horários e personalização) está em implementação.{' '}
-                  <Link to={`/${b.businessType === 'restaurante' ? 'restaurantes' : b.businessType === 'loja' ? 'lojas' : 'servicos'}/${b.slug}`} className="font-semibold text-brand underline">
-                    Ver página pública
-                  </Link>
+                  <Link to={`/painel/${b.id}`} className="font-semibold text-brand underline">Abrir painel do estabelecimento</Link>
+                  {b.status === 'active' && (
+                    <>
+                      {' · '}
+                      <Link to={`/${b.businessType === 'restaurante' ? 'restaurantes' : b.businessType === 'loja' ? 'lojas' : 'servicos'}/${b.slug}`} className="font-semibold text-brand underline">
+                        Ver página pública
+                      </Link>
+                    </>
+                  )}
                 </p>
               )}
             </li>
@@ -72,6 +77,7 @@ function MyBusinesses({ items }: { items: MyBusiness[] }) {
 
 function ApplicationForm() {
   const qc = useQueryClient()
+  const { refreshAuthz } = useAuth()
   const toast = useToast()
   const cities = useCities()
   const [values, setValues] = useState<ApplicationInput>({ name: '', businessType: 'restaurante', cityId: '', categoryId: '', phone: '', addressLine: '', description: '' })
@@ -85,6 +91,8 @@ function ApplicationForm() {
       toast.success('Solicitação enviada! Você será avisado do resultado nesta página.')
       setValues((p) => ({ ...p, name: '', phone: '', addressLine: '', description: '', categoryId: '' }))
       void qc.invalidateQueries({ queryKey: ['business', 'mine'] })
+      void qc.invalidateQueries({ queryKey: ['merchant'] })
+      void refreshAuthz()
     },
     onError: (e) => setServerError(e instanceof Error ? e.message : 'Não foi possível enviar.'),
   })

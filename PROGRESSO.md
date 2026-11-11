@@ -60,3 +60,9 @@ Limitações: interações da Comunidade/Vagas/Pedidos são só visuais; carrega
 - Central de privacidade (`/perfil/privacidade`), atendimento no Painel (`/admin/privacidade`), páginas `/privacidade`, `/termos`, `/armazenamento` (minutas; dados institucionais pendentes).
 - CI (`.github/workflows/ci.yml`), Dependabot, `npm run check-secrets`; `npm audit` 0.
 - Verificado: 247 testes Vitest, build, testes SQL foundation/experiência/admin/security em PostgreSQL 16 local, controles negativos. Não verificado: Supabase/Cloudflare reais.
+
+## Cliente/Empresa corrigidos e Conecta (feed) — 11/11/2026
+- Auditoria: página do estabelecimento quebrada ("em construção"/404) e painel da empresa inexistente.
+- Corrigido: página pública real para restaurantes, lojas e serviços; painel `/painel` (loja, horários, cardápio) com RLS por cargo (0007); permissões recarregadas após cadastrar negócio.
+- Conecta (0008): feed por cidade/seguindo/salvos, publicações de pessoas e estabelecimentos ligadas a produtos, comentários e respostas, curtidas, salvos, compartilhar, seguir (aprovação em perfil fechado), bloqueio, denúncia, moderação humana com contestação, suspensão, notificações reais; Conecta incluído na exportação e na exclusão LGPD.
+- Verificado: 273+ testes Vitest, build, testes SQL (merchant e conecta novos, com controle negativo); navegador 390 px e 1280 px sem rolagem horizontal nem erros, com CSP (API interceptada só para checar layout). Não verificado em Supabase real.

@@ -13,6 +13,8 @@ export type FakeFilter =
   | { kind: 'in'; column: string; value: readonly unknown[] }
   | { kind: 'gte'; column: string; value: unknown }
   | { kind: 'lte'; column: string; value: unknown }
+  | { kind: 'lt'; column: string; value: unknown }
+  | { kind: 'is'; column: string; value: unknown }
   | { kind: 'ilike'; column: string; value: string }
   | { kind: 'or'; expression: string }
 
@@ -53,6 +55,8 @@ export interface FakeBuilder extends PromiseLike<FakeResult> {
   in(column: string, value: readonly unknown[]): FakeBuilder
   gte(column: string, value: unknown): FakeBuilder
   lte(column: string, value: unknown): FakeBuilder
+  lt(column: string, value: unknown): FakeBuilder
+  is(column: string, value: unknown): FakeBuilder
   ilike(column: string, value: string): FakeBuilder
   or(expression: string): FakeBuilder
   order(column: string, options?: { ascending?: boolean }): FakeBuilder
@@ -156,6 +160,14 @@ export function createFakeSupabase(initial?: FakeHandler): FakeSupabase {
       },
       gte(column, value) {
         q.filters.push({ kind: 'gte', column, value })
+        return b
+      },
+      lt(column, value) {
+        q.filters.push({ kind: 'lt', column, value })
+        return b
+      },
+      is(column, value) {
+        q.filters.push({ kind: 'is', column, value })
         return b
       },
       lte(column, value) {

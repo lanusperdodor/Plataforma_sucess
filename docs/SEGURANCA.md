@@ -48,6 +48,12 @@ Legenda: ✅ implementado e testado · 🟡 parcial · ⏳ pendente · 🔌 depe
 | Idempotência e webhooks assinados | ⏳ | pagamentos não existem | Sprint 6 |
 | CORS | 🔌 | API é do Supabase (gerenciado); site é estático | — |
 | CSRF | ✅ (N/A) | autenticação por token no cabeçalho, não por cookie | — |
+| Painel do comerciante: isolamento entre negócios, cargos, colunas protegidas | ✅ | 0007 (RLS por permissão, grants por coluna, gatilhos de nome e categoria) | `rls_merchant.sql` |
+| Preço: limites, auditoria de alteração, "mais vendido" só com dados | ✅ | 0007 (`product.price` na auditoria; `is_popular` não gravável) | `rls_merchant.sql` |
+| Conecta: autoria, visibilidade, perfil fechado, bloqueio, suspensão | ✅ | 0008 (RLS + gatilhos) | `rls_conecta.sql` §1–7, §11 (+ controle negativo) |
+| Conecta: limite anti-automação e texto duplicado | ✅ | `conecta.post` 10/10 min; duplicado em 10 min | `rls_conecta.sql` §8 |
+| Moderação humana, decisão motivada, contestação, auditoria | ✅ | `admin_moderate`, `admin_resolve_appeal` | `rls_conecta.sql` §9–11 |
+| Patrocínio só pela plataforma | ✅ | `is_sponsored` não gravável pelo autor | `rls_conecta.sql` §2, `PostCard.test.tsx` |
 | Manipulação de preços, concorrência de pedidos, aceite simultâneo de entregas | ⏳ | pedidos/entregas não existem | Sprints 4–5 (testes obrigatórios) |
 
 ## 3. Configuração do Supabase Auth (painel — depende de você)

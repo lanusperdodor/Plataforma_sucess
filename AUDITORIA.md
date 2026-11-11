@@ -39,9 +39,9 @@ Nada aqui foi testado em produção.
 
 | # | Módulo | Estado | Observação |
 |---|---|---|---|
-| 1 | Delivery | NÃO INICIADO | Catálogo de leitura existe; carrinho, checkout e pedidos não. |
-| 2 | Loja personalizada | PARCIAL | Colunas (logo, capa, descrição, horários) e cardápio no banco; página pública da loja ainda "em construção"; sem cores. |
-| 3 | Painel do restaurante | NÃO INICIADO | RBAC por empresa existe no banco (`business_members`, `role_permissions`). |
+| 1 | Delivery | NÃO INICIADO | Catálogo e cardápio públicos reais; carrinho, checkout e pedidos não (a loja informa isso ao cliente). |
+| 2 | Loja personalizada | PARCIAL | Página pública real (`/restaurantes|lojas|servicos/:slug`): dados, cardápio, horários, contato, avaliações reais, publicações. Falta cores personalizadas e upload de imagens. |
+| 3 | Painel do restaurante | PARCIAL — FUNCIONAL (local) no escopo | `/painel`: loja, entrega/retirada, horários, categorias e produtos (preço, disponibilidade), por cargo (RLS 0007). Falta pedidos, vendas, adicionais na interface, equipe, relatórios. |
 | 4 | Meu Lucro | NÃO INICIADO | |
 | 5 | Entregadores | NÃO INICIADO | Entrada clara criada (menu lateral, Explorar) informando que o cadastro ainda não abriu. |
 | 6 | Distribuição de entregas | NÃO INICIADO | |
@@ -51,7 +51,7 @@ Nada aqui foi testado em produção.
 | 10 | Multicidades | PARCIAL | Seleção manual + gestão de cidades pelo Master (FUNCIONAL local). Sem geolocalização e raio de 200 km. |
 | 11 | Shopping regional | PARCIAL | Listagem de lojas por categoria; sem produtos/carrinho. |
 | 12 | Serviços e agenda | PARCIAL | Listagem; sem agenda/reservas. |
-| 13 | Tucaí Conecta | NÃO INICIADO | Renomeado (rota `/conecta`, `/comunidade` redireciona); sem backend. |
+| 13 | Tucaí Conecta | PARCIAL — feed FUNCIONAL (local) | 0008: perfis sociais, publicações (pessoa ou estabelecimento, ligadas a produto), comentários e respostas, curtidas, salvos, compartilhar, seguir (com aprovação em perfil fechado), bloqueio, denúncia, moderação humana, suspensão, contestação, notificações. Falta: comunidades, amizades, recados, depoimentos, imagens/vídeos. |
 | 14 | Vagas | NÃO INICIADO | |
 | 15 | Publicidade | NÃO INICIADO | |
 | 16 | Segurança e LGPD | PARCIAL | Auth, RLS, auditoria imutável, MFA preparado, testes SQL; sem rate limit de API, storage de documentos, rotinas LGPD. |

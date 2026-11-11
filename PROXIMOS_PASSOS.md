@@ -5,7 +5,7 @@ Estado completo em `AUDITORIA.md`. Roteiro técnico: Sprints 1–12 do briefing.
 ## Precisa da sua ação (bloqueia validação real)
 
 1. **Aplicar as migrations no Supabase** — autorização sua. Diga se o projeto em `.env.local` é de teste ou produção.
-   Ordem: `0001` → `0005` (`supabase link` + `supabase db push`, ou SQL Editor arquivo por arquivo).
+   Ordem: `0001` → `0008` (`supabase link` + `supabase db push`, ou SQL Editor arquivo por arquivo).
    Os testes SQL (`supabase/tests`) são para o PostgreSQL local descartável; no Supabase real aplique apenas as migrations.
 2. **Primeiro Master**: cadastre-se pelo app em `/cadastro`, confirme o e-mail, edite e execute `supabase/admin/bootstrap_first_master.sql` no SQL Editor. Depois: `/admin/entrar` → Segurança → cadastrar autenticador → ativar "Exigir MFA".
 3. **Se o seed fictício antigo foi aplicado no remoto**: a 0003 já o esconde do público. Para apagar (irreversível, peço autorização):
@@ -19,6 +19,10 @@ Estado completo em `AUDITORIA.md`. Roteiro técnico: Sprints 1–12 do briefing.
 9. **Deploy**: confirmar que a hospedagem aplica `public/_headers` (Cloudflare Workers Static Assets/Pages aplicam).
 
 ## Próxima execução (independente de credenciais)
+
+- Conecta etapa 2: comunidades (públicas/privadas, moderadores, tópicos, enquetes, regras), amizades, recados (mural) e depoimentos com aprovação.
+- Imagens/vídeos e logos/capas por upload: exige Supabase Storage com políticas de tipo/tamanho (hoje só endereço https).
+- Painel: adicionais (option_groups) na interface, equipe e permissões, respostas a avaliações.
 
 - Segurança etapa 2: Storage com políticas de upload (tipo/tamanho) antes de qualquer envio de imagem/documento; validar `NOT VALID` das URLs após conferir dados remotos.
 - Módulo 22 (efeito chamariz) só depois do catálogo real e do motor de preços no backend.

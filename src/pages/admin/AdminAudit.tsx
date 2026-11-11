@@ -25,6 +25,14 @@ const ACTION_LABEL: Record<string, string> = {
   'privacy.completed': 'Privacidade: concluída',
   'privacy.rejected': 'Privacidade: não atendida',
   bootstrap_master: 'Primeiro Master criado',
+  'moderation.hide': 'Conteúdo ocultado',
+  'moderation.dismiss': 'Denúncia sem violação',
+  'moderation.suspend': 'Usuário suspenso no Conecta',
+  'moderation.unsuspend': 'Suspensão encerrada',
+  'moderation.appeal_reverse': 'Contestação aceita',
+  'moderation.appeal_uphold': 'Contestação negada',
+  'product.create': 'Produto cadastrado',
+  'product.price': 'Preço alterado',
 }
 
 /** Logs de auditoria (somente leitura; o banco impede alteração e exclusão). */

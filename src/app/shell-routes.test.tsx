@@ -12,7 +12,7 @@ vi.mock('../components/shell/useShellData.ts', async (orig) => ({
   useUnreadCount: () => 0,
 }))
 vi.mock('../components/shell/LocationPicker.tsx', () => ({ LocationPicker: () => <button>Cidade</button> }))
-vi.mock('../pages/RestaurantPage.tsx', () => ({ RestaurantPage: () => <h1>Detalhe do restaurante</h1> }))
+vi.mock('../pages/BusinessPage.tsx', () => ({ BusinessPage: () => <h1>Detalhe do restaurante</h1> }))
 vi.mock('../pages/ServicesPage.tsx', () => ({ ServicesPage: () => <h1>Serviços</h1> }))
 vi.mock('../pages/NotFoundPage.tsx', () => ({ NotFoundPage: () => <h1>Não encontrada</h1> }))
 vi.mock('../pages/ConectaPage.tsx', () => ({ ConectaPage: () => <h1>Tucaí Conecta</h1> }))

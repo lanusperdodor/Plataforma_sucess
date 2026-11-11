@@ -89,6 +89,8 @@ async function main() {
       ...one('supabase/tests/rls_conecta.sql'),
       ...one('supabase/tests/rls_couriers.sql'),
       ...one('supabase/tests/rls_conectuai.sql'),
+      ...one('supabase/tests/rls_orders.sql'),
+      ...one('supabase/tests/rls_jobs.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

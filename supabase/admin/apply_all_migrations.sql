@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0010) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0013) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -3830,5 +3830,917 @@ $tucai_sql$;
     raise notice 'Tucaí 0010: aplicada agora';
   end if;
 end $tucai_0010$;
+
+-- ===================== supabase/migrations/0011_orders.sql =====================
+do $tucai_0011$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0011') then
+    raise notice 'Tucaí 0011: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0011_orders: pedidos reais (delivery e retirada) com preço calculado no servidor.
+--  * O navegador envia só ids e quantidades; preços, adicionais, frete e comissão saem do banco
+--    e da configuração de preços versionada (pricing_configs), gravados como snapshot imutável.
+--  * Idempotência por chave do cliente (evita pedido duplicado em clique duplo ou rede instável).
+--  * Verifica loja ativa e aberta, disponibilidade, grupos de adicionais, pedido mínimo e modalidade.
+--  * Pagamento na entrega ou na retirada (dinheiro, Pix ou cartão na maquininha do estabelecimento):
+--    nenhum pagamento online é simulado enquanto o provedor não for contratado.
+--  * Transições de status autorizadas por papel, com histórico e notificações.
+--  * Avaliação verificada: só quem recebeu o pedido avalia, uma vez por pedido; o estabelecimento responde.
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values
+  ('order.place', 10, 600), ('order.status', 300, 600), ('order.review', 10, 86400), ('order.reply', 60, 600);
+
+create type public.order_status as enum
+  ('placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'picked_up', 'rejected', 'cancelled');
+create type public.order_fulfillment as enum ('delivery_own', 'delivery_partner', 'pickup');
+create type public.order_payment as enum ('cash', 'pix_on_delivery', 'card_on_delivery');
+
+-- notificações de pedidos
+alter table public.notifications drop constraint notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check check (kind in (
+  'like', 'comment', 'reply', 'follow', 'moderation',
+  'friend_request', 'friend_accept', 'scrap', 'testimonial', 'community_request', 'community_accept', 'topic_reply',
+  'order_new', 'order_update', 'delivery_offer'));
+alter table public.notifications drop constraint notifications_link_check;
+alter table public.notifications add constraint notifications_link_check
+  check (link is null or link ~ '^/(conectuai|pedidos|painel|entregador)/[A-Za-z0-9/_-]*$');
+
+create table public.orders (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6)),
+  customer_id uuid not null references auth.users(id),
+  business_id uuid not null references public.businesses(id),
+  status public.order_status not null default 'placed',
+  fulfillment public.order_fulfillment not null,
+  payment_method public.order_payment not null,
+  change_for_cents integer check (change_for_cents is null or change_for_cents > 0),
+  customer_name text not null check (char_length(customer_name) between 2 and 120),
+  customer_phone text not null check (customer_phone ~ '^[0-9+() -]{8,20}$'),
+  delivery_address text check (delivery_address is null or char_length(delivery_address) between 5 and 300),
+  delivery_reference text check (delivery_reference is null or char_length(delivery_reference) <= 200),
+  notes text check (notes is null or char_length(notes) <= 500),
+  subtotal_cents integer not null check (subtotal_cents >= 0),
+  delivery_fee_cents integer not null default 0 check (delivery_fee_cents >= 0),
+  discount_cents integer not null default 0 check (discount_cents >= 0),
+  total_cents integer not null check (total_cents >= 0),
+  commission_cents integer not null default 0 check (commission_cents >= 0),
+  merchant_delivery_contribution_cents integer not null default 0 check (merchant_delivery_contribution_cents >= 0),
+  courier_pay_cents integer not null default 0 check (courier_pay_cents >= 0),
+  platform_delivery_fee_cents integer not null default 0 check (platform_delivery_fee_cents >= 0),
+  pricing_config_id uuid not null references public.pricing_configs(id),
+  pricing_snapshot jsonb not null,
+  idempotency_key text not null check (char_length(idempotency_key) between 8 and 80),
+  rejection_reason text check (rejection_reason is null or char_length(rejection_reason) <= 300),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (customer_id, idempotency_key),
+  check (total_cents = subtotal_cents + delivery_fee_cents - discount_cents),
+  check ((fulfillment = 'pickup') = (delivery_address is null)),
+  check (change_for_cents is null or payment_method = 'cash')
+);
+create index orders_customer_idx on public.orders(customer_id, created_at desc);
+create index orders_business_idx on public.orders(business_id, status, created_at desc);
+create index orders_pricing_idx on public.orders(pricing_config_id);
+create trigger orders_updated before update on public.orders for each row execute function public.set_updated_at();
+
+create table public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid references public.products(id) on delete set null,
+  name text not null,
+  unit_price_cents integer not null check (unit_price_cents >= 0),
+  quantity smallint not null check (quantity between 1 and 50),
+  options jsonb not null default '[]'::jsonb,
+  line_total_cents integer not null check (line_total_cents >= 0),
+  notes text check (notes is null or char_length(notes) <= 200)
+);
+create index order_items_order_idx on public.order_items(order_id);
+create index order_items_product_idx on public.order_items(product_id);
+
+create table public.order_events (
+  id bigint generated always as identity primary key,
+  order_id uuid not null references public.orders(id) on delete cascade,
+  status public.order_status not null,
+  actor_id uuid references auth.users(id),
+  note text check (note is null or char_length(note) <= 300),
+  created_at timestamptz not null default now()
+);
+create index order_events_order_idx on public.order_events(order_id, created_at);
+create index order_events_actor_idx on public.order_events(actor_id);
+
+-- quem pode ver um pedido (cliente, equipe do estabelecimento, equipe da plataforma; entregador na 0012)
+create or replace function public.can_view_order(_order uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.orders o where o.id = _order and (
+    o.customer_id = auth.uid()
+    or public.has_business_permission(o.business_id, 'orders.view')
+    or public.has_platform_permission('orders.view')))
+$$;
+
+create or replace function private.notify_order_staff(_order public.orders, _kind text, _message text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare m uuid;
+begin
+  for m in select bm.user_id from public.business_members bm
+             join public.role_permissions rp on rp.member_role = bm.member_role and rp.permission = 'orders.view'
+            where bm.business_id = _order.business_id loop
+    perform private.notify_link(m, _kind, _order.customer_id, '/painel/' || _order.business_id || '/pedidos', _message);
+  end loop;
+end $$;
+
+-- ---------- criar pedido ----------
+create or replace function public.place_order(
+  _business uuid,
+  _items jsonb,
+  _fulfillment public.order_fulfillment,
+  _payment public.order_payment,
+  _customer_name text,
+  _customer_phone text,
+  _delivery_address text default null,
+  _delivery_reference text default null,
+  _notes text default null,
+  _change_for_cents integer default null,
+  _idempotency_key text default null
+) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid();
+  existing uuid;
+  b public.businesses%rowtype;
+  cfg public.pricing_configs%rowtype;
+  item jsonb;
+  p public.products%rowtype;
+  qty int;
+  opt_ids uuid[];
+  opt record;
+  grp record;
+  unit int;
+  sub int := 0;
+  lines jsonb := '[]'::jsonb;
+  opts jsonb;
+  fee int := 0; merchant_contrib int := 0; courier_pay int := 0; platform_fee int := 0; commission int := 0;
+  new_id uuid;
+  o public.orders%rowtype;
+begin
+  if uid is null then raise exception 'Entre na sua conta para fazer o pedido.' using errcode = '42501'; end if;
+  if _idempotency_key is null or char_length(_idempotency_key) not between 8 and 80 then
+    raise exception 'Chave de pedido inválida.' using errcode = 'P0001';
+  end if;
+  select id into existing from public.orders where customer_id = uid and idempotency_key = _idempotency_key;
+  if existing is not null then return existing; end if;  -- mesmo pedido reenviado
+  perform private.limit_for('order.place');
+
+  select * into b from public.businesses where id = _business;
+  if not found or b.status <> 'active' or b.is_demo then raise exception 'Estabelecimento indisponível.' using errcode = 'P0001'; end if;
+  if not private.is_open(b.id, now()) then raise exception 'O estabelecimento está fechado agora.' using errcode = 'P0001'; end if;
+  if (_fulfillment = 'delivery_own' and b.delivery_offer <> 'own')
+     or (_fulfillment = 'delivery_partner' and b.delivery_offer <> 'partner')
+     or (_fulfillment = 'pickup' and not b.accepts_pickup) then
+    raise exception 'Modalidade de entrega indisponível neste estabelecimento.' using errcode = 'P0001';
+  end if;
+  if char_length(btrim(coalesce(_customer_name, ''))) < 2 or coalesce(_customer_phone, '') !~ '^[0-9+() -]{8,20}$' then
+    raise exception 'Informe nome e telefone para contato.' using errcode = 'P0001';
+  end if;
+  if _fulfillment <> 'pickup' and char_length(btrim(coalesce(_delivery_address, ''))) < 5 then
+    raise exception 'Informe o endereço de entrega.' using errcode = 'P0001';
+  end if;
+  if _change_for_cents is not null and _payment <> 'cash' then
+    raise exception 'Troco só para pagamento em dinheiro.' using errcode = 'P0001';
+  end if;
+  if jsonb_typeof(_items) <> 'array' or jsonb_array_length(_items) not between 1 and 50 then
+    raise exception 'O pedido precisa ter de 1 a 50 itens.' using errcode = 'P0001';
+  end if;
+
+  for item in select * from jsonb_array_elements(_items) loop
+    select * into p from public.products where id = (item->>'product_id')::uuid and business_id = b.id;
+    if not found or p.is_demo then raise exception 'Produto indisponível.' using errcode = 'P0001'; end if;
+    if not p.is_available or not exists (select 1 from public.menu_categories c where c.id = p.category_id and c.is_active) then
+      raise exception '% está indisponível no momento.', p.name using errcode = 'P0001';
+    end if;
+    qty := coalesce((item->>'quantity')::int, 0);
+    if qty not between 1 and 50 then raise exception 'Quantidade inválida para %.', p.name using errcode = 'P0001'; end if;
+    select coalesce(array_agg(distinct x::uuid), '{}') into opt_ids
+      from jsonb_array_elements_text(coalesce(item->'option_ids', '[]'::jsonb)) x;
+    unit := p.price_cents;
+    opts := '[]'::jsonb;
+    -- cada adicional pertence a um grupo do produto e está disponível
+    for opt in
+      select o2.id, o2.name, o2.price_delta_cents, o2.is_available, g.id as group_id, g.name as group_name
+        from public.options o2 join public.option_groups g on g.id = o2.group_id
+       where o2.id = any(opt_ids) and g.product_id = p.id and o2.business_id = b.id loop
+      if not opt.is_available then raise exception '% está indisponível.', opt.name using errcode = 'P0001'; end if;
+      unit := unit + opt.price_delta_cents;
+      opts := opts || jsonb_build_object('group', opt.group_name, 'option', opt.name, 'price_delta_cents', opt.price_delta_cents);
+    end loop;
+    if jsonb_array_length(opts) <> coalesce(array_length(opt_ids, 1), 0) then
+      raise exception 'Adicional inválido para %.', p.name using errcode = 'P0001';
+    end if;
+    -- mínimos e máximos de cada grupo
+    for grp in
+      select g.name, g.min_select, g.max_select,
+             (select count(*) from public.options o3 where o3.group_id = g.id and o3.id = any(opt_ids)) as chosen
+        from public.option_groups g where g.product_id = p.id loop
+      if grp.chosen < grp.min_select or grp.chosen > grp.max_select then
+        raise exception 'Escolha entre % e % opção(ões) em "%".', grp.min_select, grp.max_select, grp.name using errcode = 'P0001';
+      end if;
+    end loop;
+    sub := sub + unit * qty;
+    lines := lines || jsonb_build_object('product_id', p.id, 'name', p.name, 'unit', unit, 'qty', qty, 'options', opts,
+                                         'notes', nullif(left(btrim(coalesce(item->>'notes', '')), 200), ''));
+  end loop;
+
+  if sub < b.min_order_cents then
+    raise exception 'Pedido mínimo deste estabelecimento: R$ %.', to_char(b.min_order_cents / 100.0, 'FM999990D00') using errcode = 'P0001';
+  end if;
+
+  select * into cfg from public.pricing_configs where is_current;
+  if not found then raise exception 'Configuração de preços indisponível.' using errcode = 'P0001'; end if;
+  if sub > (cfg.config->>'commissionThresholdCents')::int then
+    commission := round(sub * (cfg.config->>'commissionBps')::numeric / 10000);
+  end if;
+  if _fulfillment = 'delivery_own' then
+    fee := b.own_delivery_fee_cents;
+    platform_fee := (cfg.config->'ownDelivery'->>'platformFeeCents')::int;
+  elsif _fulfillment = 'delivery_partner' then
+    fee := (cfg.config->'partnerDelivery'->>'customerFeeCents')::int;
+    merchant_contrib := (cfg.config->'partnerDelivery'->>'merchantContributionCents')::int;
+    courier_pay := (cfg.config->'partnerDelivery'->>'courierPayCents')::int;
+    platform_fee := (cfg.config->'partnerDelivery'->>'platformFeeCents')::int;
+  end if;
+  if _change_for_cents is not null and _change_for_cents < sub + fee then
+    raise exception 'O valor para troco precisa ser maior que o total.' using errcode = 'P0001';
+  end if;
+
+  insert into public.orders(customer_id, business_id, fulfillment, payment_method, change_for_cents, customer_name, customer_phone,
+                            delivery_address, delivery_reference, notes, subtotal_cents, delivery_fee_cents, total_cents,
+                            commission_cents, merchant_delivery_contribution_cents, courier_pay_cents, platform_delivery_fee_cents,
+                            pricing_config_id, pricing_snapshot, idempotency_key)
+  values (uid, b.id, _fulfillment, _payment, _change_for_cents, btrim(_customer_name), btrim(_customer_phone),
+          case when _fulfillment = 'pickup' then null else btrim(_delivery_address) end,
+          case when _fulfillment = 'pickup' then null else nullif(btrim(coalesce(_delivery_reference, '')), '') end,
+          nullif(btrim(coalesce(_notes, '')), ''), sub, fee, sub + fee, commission, merchant_contrib, courier_pay, platform_fee,
+          cfg.id, jsonb_build_object('version', cfg.version, 'config', cfg.config), _idempotency_key)
+  returning * into o;
+  new_id := o.id;
+  insert into public.order_items(order_id, product_id, name, unit_price_cents, quantity, options, line_total_cents, notes)
+  select new_id, (l->>'product_id')::uuid, l->>'name', (l->>'unit')::int, (l->>'qty')::int, l->'options',
+         (l->>'unit')::int * (l->>'qty')::int, l->>'notes'
+    from jsonb_array_elements(lines) l;
+  insert into public.order_events(order_id, status, actor_id) values (new_id, 'placed', uid);
+  perform private.mark_pricing_config_used(cfg.id);
+  perform private.notify_order_staff(o, 'order_new', 'Novo pedido #' || o.code || '.');
+  return new_id;
+end $$;
+
+-- ---------- mudar status ----------
+-- Estabelecimento (orders.update_status): placed->accepted|rejected; accepted->preparing; preparing->ready;
+--   ready->out_for_delivery (entrega própria) | picked_up (retirada); out_for_delivery->delivered (entrega própria);
+--   accepted|preparing|ready -> cancelled (com motivo). Entrega parceira segue pelas funções do entregador (0012).
+-- Cliente: placed -> cancelled (antes do aceite).
+create or replace function public.update_order_status(_order uuid, _status public.order_status, _note text default null)
+returns public.order_status
+language plpgsql security definer set search_path = '' as $$
+declare o public.orders%rowtype; staff boolean; ok boolean := false; note text := nullif(btrim(coalesce(_note, '')), '');
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('order.status');
+  select * into o from public.orders where id = _order for update;
+  if not found then raise exception 'Pedido não encontrado.' using errcode = 'P0001'; end if;
+  staff := public.has_business_permission(o.business_id, 'orders.update_status');
+  if not staff and o.customer_id <> auth.uid() then raise exception 'forbidden' using errcode = '42501'; end if;
+
+  if staff then
+    ok := (o.status = 'placed' and _status in ('accepted', 'rejected'))
+       or (o.status = 'accepted' and _status = 'preparing')
+       or (o.status = 'preparing' and _status = 'ready')
+       or (o.status = 'ready' and o.fulfillment = 'delivery_own' and _status = 'out_for_delivery')
+       or (o.status = 'ready' and o.fulfillment = 'pickup' and _status = 'picked_up')
+       or (o.status = 'out_for_delivery' and o.fulfillment = 'delivery_own' and _status = 'delivered')
+       or (o.status in ('accepted', 'preparing', 'ready') and _status = 'cancelled');
+  end if;
+  if not ok and o.customer_id = auth.uid() then
+    ok := o.status = 'placed' and _status = 'cancelled';
+  end if;
+  if not ok then raise exception 'Mudança de status não permitida (% → %).', o.status, _status using errcode = 'P0001'; end if;
+  if _status in ('rejected') and note is null then raise exception 'Informe o motivo da recusa.' using errcode = 'P0001'; end if;
+  if _status = 'cancelled' and staff and note is null then raise exception 'Informe o motivo do cancelamento.' using errcode = 'P0001'; end if;
+
+  update public.orders set status = _status, rejection_reason = case when _status in ('rejected', 'cancelled') then note else rejection_reason end
+   where id = o.id;
+  insert into public.order_events(order_id, status, actor_id, note) values (o.id, _status, auth.uid(), note);
+  if staff then
+    perform private.notify_link(o.customer_id, 'order_update', null, '/pedidos/' || o.id,
+      'Pedido #' || o.code || ': ' || case _status
+        when 'accepted' then 'aceito pelo estabelecimento.'
+        when 'rejected' then 'recusado. ' || coalesce(note, '')
+        when 'preparing' then 'em preparo.'
+        when 'ready' then case when o.fulfillment = 'pickup' then 'pronto para retirada.' else 'pronto, aguardando entrega.' end
+        when 'out_for_delivery' then 'saiu para entrega.'
+        when 'delivered' then 'entregue. Bom apetite!'
+        when 'picked_up' then 'retirado.'
+        when 'cancelled' then 'cancelado pelo estabelecimento. ' || coalesce(note, '')
+        else _status::text end);
+  else
+    perform private.notify_order_staff(o, 'order_update', 'Pedido #' || o.code || ' cancelado pelo cliente.');
+  end if;
+  return _status;
+end $$;
+
+-- ---------- avaliação verificada ----------
+alter table public.reviews
+  add column reply text check (reply is null or char_length(reply) <= 1000),
+  add column replied_at timestamptz;
+create unique index reviews_order_unique_idx on public.reviews(order_id);
+alter table public.reviews add constraint reviews_order_fk foreign key (order_id) references public.orders(id) on delete set null;
+revoke select on public.reviews from anon, authenticated;
+grant select (id, business_id, rating, comment, author_name, created_at, reply, replied_at) on public.reviews to anon, authenticated;
+
+create or replace function public.submit_review(_order uuid, _rating integer, _comment text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare o public.orders%rowtype; rid uuid; author text;
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('order.review');
+  select * into o from public.orders where id = _order and customer_id = auth.uid();
+  if not found then raise exception 'Pedido não encontrado.' using errcode = 'P0001'; end if;
+  if o.status not in ('delivered', 'picked_up') then raise exception 'Avalie depois de receber o pedido.' using errcode = 'P0001'; end if;
+  if _rating not between 1 and 5 then raise exception 'Nota de 1 a 5.' using errcode = 'P0001'; end if;
+  if char_length(coalesce(_comment, '')) > 1000 then raise exception 'Comentário muito longo.' using errcode = 'P0001'; end if;
+  select split_part(btrim(o.customer_name), ' ', 1) into author;
+  insert into public.reviews(business_id, user_id, order_id, rating, comment, author_name)
+  values (o.business_id, auth.uid(), o.id, _rating, nullif(btrim(coalesce(_comment, '')), ''), author)
+  returning id into rid;
+  return rid;
+exception when unique_violation then
+  raise exception 'Este pedido já foi avaliado.' using errcode = 'P0001';
+end $$;
+
+create or replace function public.reply_review(_review uuid, _reply text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare r public.reviews%rowtype;
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('order.reply');
+  select * into r from public.reviews where id = _review;
+  if not found or not (public.has_business_permission(r.business_id, 'store.customize') or public.has_business_permission(r.business_id, 'settings.manage')) then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  if char_length(btrim(coalesce(_reply, ''))) not between 1 and 1000 then raise exception 'Resposta de 1 a 1000 caracteres.' using errcode = 'P0001'; end if;
+  update public.reviews set reply = btrim(_reply), replied_at = now() where id = r.id;
+end $$;
+
+create or replace function public.my_order_review(_order uuid) returns table (rating smallint, comment text, reply text)
+language sql stable security definer set search_path = '' as $$
+  select v.rating, v.comment, v.reply from public.reviews v join public.orders o on o.id = v.order_id
+   where v.order_id = _order and o.customer_id = auth.uid()
+$$;
+
+-- ---------- painel: vendas ----------
+create or replace function public.business_sales_summary(_business uuid, _days integer default 30)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.has_business_permission(_business, 'reports.view') then raise exception 'forbidden' using errcode = '42501'; end if;
+  return (
+    with o as (select * from public.orders where business_id = _business and created_at > now() - make_interval(days => least(greatest(coalesce(_days, 30), 1), 366)))
+    select jsonb_build_object(
+      'orders_total', (select count(*) from o),
+      'orders_completed', (select count(*) from o where status in ('delivered', 'picked_up')),
+      'orders_cancelled', (select count(*) from o where status in ('rejected', 'cancelled')),
+      'gross_cents', coalesce((select sum(subtotal_cents) from o where status in ('delivered', 'picked_up')), 0),
+      'commission_cents', coalesce((select sum(commission_cents) from o where status in ('delivered', 'picked_up')), 0),
+      'delivery_costs_cents', coalesce((select sum(merchant_delivery_contribution_cents + platform_delivery_fee_cents) from o where status in ('delivered', 'picked_up')), 0),
+      'top_products', coalesce((select jsonb_agg(t) from (
+          select i.name, sum(i.quantity)::int as qty, sum(i.line_total_cents)::int as total_cents
+            from public.order_items i join o on o.id = i.order_id where o.status in ('delivered', 'picked_up')
+           group by i.name order by qty desc limit 5) t), '[]'::jsonb)));
+end $$;
+
+-- ---------- RLS ----------
+alter table public.orders enable row level security;
+alter table public.order_items enable row level security;
+alter table public.order_events enable row level security;
+create policy orders_select on public.orders for select to authenticated using (public.can_view_order(id));
+create policy order_items_select on public.order_items for select to authenticated using (public.can_view_order(order_id));
+create policy order_events_select on public.order_events for select to authenticated using (public.can_view_order(order_id));
+revoke all on public.orders, public.order_items, public.order_events from public, anon, authenticated;
+grant select on public.orders, public.order_items, public.order_events to authenticated;
+
+do $$
+declare f text;
+begin
+  revoke all on function private.notify_order_staff(public.orders, text, text) from public, anon, authenticated;
+  foreach f in array array[
+    'public.can_view_order(uuid)',
+    'public.place_order(uuid, jsonb, public.order_fulfillment, public.order_payment, text, text, text, text, text, integer, text)',
+    'public.update_order_status(uuid, public.order_status, text)',
+    'public.submit_review(uuid, integer, text)', 'public.reply_review(uuid, text)', 'public.my_order_review(uuid)',
+    'public.business_sales_summary(uuid, integer)'
+  ] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0011', '0011_orders.sql', 'applied');
+    raise notice 'Tucaí 0011: aplicada agora';
+  end if;
+end $tucai_0011$;
+
+-- ===================== supabase/migrations/0012_deliveries.sql =====================
+do $tucai_0012$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0012') then
+    raise notice 'Tucaí 0012: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0012_deliveries: distribuição de entregas para entregadores parceiros.
+--  * Pedido com entrega parceira marcado "pronto" vira oferta para entregadores aprovados,
+--    disponíveis e da mesma cidade do estabelecimento.
+--  * Aceite atômico: um único UPDATE condicional garante que só um entregador fica com a entrega.
+--  * Coleta e entrega confirmadas pelo entregador; a entrega exige o código de 4 dígitos que só o
+--    cliente vê. Liberar a entrega antes da coleta devolve a oferta.
+--  * Ganho do entregador = courier_pay_cents do snapshot do pedido (regra aprovada, sem valor fictício).
+--  * Distância e tempo não são estimados: não há serviço de rotas contratado.
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values
+  ('delivery.action', 120, 600), ('delivery.code', 10, 600);
+
+create type public.delivery_status as enum ('offered', 'accepted', 'picked_up', 'delivered', 'cancelled');
+
+create table public.deliveries (
+  order_id uuid primary key references public.orders(id) on delete cascade,
+  business_id uuid not null references public.businesses(id),
+  city_id uuid references public.cities(id),
+  status public.delivery_status not null default 'offered',
+  -- referência à conta (não ao cadastro): a anonimização apaga o cadastro e mantém o histórico
+  courier_id uuid references auth.users(id),
+  courier_pay_cents integer not null check (courier_pay_cents >= 0),
+  confirmation_code text not null default lpad((floor(random() * 10000))::int::text, 4, '0') check (confirmation_code ~ '^[0-9]{4}$'),
+  failed_code_attempts smallint not null default 0,
+  offered_at timestamptz not null default now(),
+  accepted_at timestamptz,
+  picked_up_at timestamptz,
+  delivered_at timestamptz,
+  check (status <> 'offered' or courier_id is null),
+  check (status not in ('accepted', 'picked_up') or courier_id is not null)
+);
+create index deliveries_offer_idx on public.deliveries(city_id, status, offered_at);
+create index deliveries_courier_idx on public.deliveries(courier_id, status);
+create index deliveries_business_idx on public.deliveries(business_id);
+
+-- pronto + entrega parceira -> oferta; cancelado/recusado -> cancela a entrega
+create or replace function private.orders_delivery_sync() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare c uuid; cour uuid;
+begin
+  if new.fulfillment = 'delivery_partner' and new.status = 'ready' and old.status <> 'ready' then
+    select city_id into c from public.businesses where id = new.business_id;
+    insert into public.deliveries(order_id, business_id, city_id, courier_pay_cents)
+    values (new.id, new.business_id, c, new.courier_pay_cents) on conflict (order_id) do nothing;
+    for cour in select user_id from public.couriers where status = 'approved' and is_online and city_id = c loop
+      perform private.notify_link(cour, 'delivery_offer', null, '/entregador/ofertas', 'Nova entrega disponível perto de você.');
+    end loop;
+  elsif new.status in ('cancelled', 'rejected') and old.status <> new.status then
+    update public.deliveries set status = 'cancelled' where order_id = new.id and status in ('offered', 'accepted');
+  end if;
+  return null;
+end $$;
+create trigger orders_delivery_sync after update of status on public.orders
+  for each row execute function private.orders_delivery_sync();
+
+-- entregador vê o pedido que está entregando
+create or replace function public.can_view_order(_order uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.orders o where o.id = _order and (
+    o.customer_id = auth.uid()
+    or public.has_business_permission(o.business_id, 'orders.view')
+    or public.has_platform_permission('orders.view')
+    or exists (select 1 from public.deliveries d where d.order_id = o.id and d.courier_id = auth.uid())))
+$$;
+
+create or replace function private.require_active_courier() returns public.couriers
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype;
+begin
+  select * into c from public.couriers where user_id = auth.uid();
+  if not found or c.status <> 'approved' then raise exception 'Cadastro de entregador não aprovado.' using errcode = '42501'; end if;
+  return c;
+end $$;
+
+-- ofertas abertas na cidade do entregador (sem dados do cliente antes do aceite)
+create or replace function public.courier_list_offers()
+returns table (order_id uuid, business_name text, business_address text, courier_pay_cents integer, offered_at timestamptz,
+               neighborhood_hint text, items_count bigint)
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  if not c.is_online then return; end if;
+  return query
+    select d.order_id, b.name, b.address_line, d.courier_pay_cents, d.offered_at,
+           -- só a parte final do endereço (bairro/cidade) antes do aceite
+           nullif(btrim(split_part(o.delivery_address, ',', -1)), ''),
+           (select count(*) from public.order_items i where i.order_id = o.id)
+      from public.deliveries d
+      join public.orders o on o.id = d.order_id
+      join public.businesses b on b.id = d.business_id
+     where d.status = 'offered' and d.city_id = c.city_id
+     order by d.offered_at;
+end $$;
+
+create or replace function public.courier_accept_delivery(_order uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier(); n int;
+begin
+  perform private.limit_for('delivery.action');
+  if not c.is_online then raise exception 'Fique disponível para aceitar entregas.' using errcode = 'P0001'; end if;
+  if exists (select 1 from public.deliveries where courier_id = c.user_id and status in ('accepted', 'picked_up')) then
+    raise exception 'Conclua a entrega atual antes de aceitar outra.' using errcode = 'P0001';
+  end if;
+  update public.deliveries set status = 'accepted', courier_id = c.user_id, accepted_at = now()
+   where order_id = _order and status = 'offered' and courier_id is null and city_id = c.city_id;
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'Esta entrega já foi aceita por outro entregador ou não está mais disponível.' using errcode = 'P0001'; end if;
+  perform private.audit('delivery.accept', 'deliveries', _order::text, '{}'::jsonb);
+end $$;
+
+create or replace function public.courier_release_delivery(_order uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier(); n int;
+begin
+  perform private.limit_for('delivery.action');
+  update public.deliveries set status = 'offered', courier_id = null, accepted_at = null
+   where order_id = _order and courier_id = c.user_id and status = 'accepted';
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'Só é possível liberar antes da coleta.' using errcode = 'P0001'; end if;
+  perform private.audit('delivery.release', 'deliveries', _order::text, '{}'::jsonb);
+end $$;
+
+create or replace function public.courier_pickup_delivery(_order uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier(); o public.orders%rowtype;
+begin
+  perform private.limit_for('delivery.action');
+  update public.deliveries set status = 'picked_up', picked_up_at = now()
+   where order_id = _order and courier_id = c.user_id and status = 'accepted';
+  if not found then raise exception 'Entrega não está aceita por você.' using errcode = 'P0001'; end if;
+  update public.orders set status = 'out_for_delivery' where id = _order returning * into o;
+  insert into public.order_events(order_id, status, actor_id, note) values (_order, 'out_for_delivery', c.user_id, 'Coletado pelo entregador parceiro');
+  perform private.notify_link(o.customer_id, 'order_update', null, '/pedidos/' || o.id, 'Pedido #' || o.code || ' saiu para entrega.');
+end $$;
+
+create or replace function public.courier_complete_delivery(_order uuid, _code text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier(); d public.deliveries%rowtype; o public.orders%rowtype;
+begin
+  perform private.limit_for('delivery.code');
+  select * into d from public.deliveries where order_id = _order and courier_id = c.user_id and status = 'picked_up' for update;
+  if not found then raise exception 'Entrega não está em rota com você.' using errcode = 'P0001'; end if;
+  if d.failed_code_attempts >= 5 then raise exception 'Muitas tentativas de código. Fale com o suporte.' using errcode = 'P0001'; end if;
+  if coalesce(btrim(_code), '') <> d.confirmation_code then
+    update public.deliveries set failed_code_attempts = failed_code_attempts + 1 where order_id = _order;
+    return;  -- registra a tentativa; a interface informa código incorreto
+  end if;
+  update public.deliveries set status = 'delivered', delivered_at = now() where order_id = _order;
+  update public.orders set status = 'delivered' where id = _order returning * into o;
+  insert into public.order_events(order_id, status, actor_id, note) values (_order, 'delivered', c.user_id, 'Entregue com código de confirmação');
+  perform private.notify_link(o.customer_id, 'order_update', null, '/pedidos/' || o.id, 'Pedido #' || o.code || ' entregue. Bom apetite!');
+  perform private.audit('delivery.complete', 'deliveries', _order::text, jsonb_build_object('pay_cents', d.courier_pay_cents));
+end $$;
+
+-- entrega do próprio entregador (ativa e histórico) com o necessário para entregar
+create or replace function public.courier_my_deliveries(_active boolean default true)
+returns table (order_id uuid, order_code text, status public.delivery_status, business_name text, business_address text,
+               business_phone text, customer_name text, customer_phone text, delivery_address text, delivery_reference text,
+               payment_method public.order_payment, total_cents integer, change_for_cents integer, courier_pay_cents integer,
+               accepted_at timestamptz, delivered_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  return query
+    select d.order_id, o.code, d.status, b.name, b.address_line, b.phone,
+           o.customer_name, o.customer_phone, o.delivery_address, o.delivery_reference,
+           o.payment_method, o.total_cents, o.change_for_cents, d.courier_pay_cents, d.accepted_at, d.delivered_at
+      from public.deliveries d join public.orders o on o.id = d.order_id join public.businesses b on b.id = d.business_id
+     where d.courier_id = c.user_id
+       and ((_active and d.status in ('accepted', 'picked_up')) or (not _active and d.status = 'delivered'))
+     order by coalesce(d.delivered_at, d.accepted_at) desc
+     limit 100;
+end $$;
+
+create or replace function public.courier_earnings() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  return jsonb_build_object(
+    'today_cents', coalesce((select sum(courier_pay_cents) from public.deliveries where courier_id = c.user_id and status = 'delivered'
+                               and delivered_at >= date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'), 0),
+    'week_cents', coalesce((select sum(courier_pay_cents) from public.deliveries where courier_id = c.user_id and status = 'delivered'
+                              and delivered_at >= now() - interval '7 days'), 0),
+    'total_cents', coalesce((select sum(courier_pay_cents) from public.deliveries where courier_id = c.user_id and status = 'delivered'), 0),
+    'deliveries', (select count(*) from public.deliveries where courier_id = c.user_id and status = 'delivered'));
+end $$;
+
+-- cliente: andamento da entrega e código de confirmação
+create or replace function public.my_delivery(_order uuid)
+returns table (status public.delivery_status, confirmation_code text, courier_first_name text, courier_vehicle public.courier_vehicle)
+language sql stable security definer set search_path = '' as $$
+  select d.status, case when d.status in ('accepted', 'picked_up') then d.confirmation_code end,
+         split_part(c.full_name, ' ', 1), c.vehicle
+    from public.deliveries d join public.orders o on o.id = d.order_id left join public.couriers c on c.user_id = d.courier_id
+   where d.order_id = _order and o.customer_id = auth.uid()
+$$;
+
+-- ---------- RLS ----------
+alter table public.deliveries enable row level security;
+-- leitura direta só pela equipe do estabelecimento (sem o código); entregador e cliente usam as funções
+create policy deliveries_select on public.deliveries for select to authenticated
+  using (public.has_business_permission(business_id, 'orders.view') or public.has_platform_permission('orders.view'));
+revoke all on public.deliveries from public, anon, authenticated;
+grant select (order_id, business_id, city_id, status, courier_id, courier_pay_cents, offered_at, accepted_at, picked_up_at, delivered_at)
+  on public.deliveries to authenticated;
+
+do $$
+declare f text;
+begin
+  revoke all on function private.orders_delivery_sync() from public, anon, authenticated;
+  revoke all on function private.require_active_courier() from public, anon, authenticated;
+  foreach f in array array[
+    'public.can_view_order(uuid)', 'public.courier_list_offers()', 'public.courier_accept_delivery(uuid)',
+    'public.courier_release_delivery(uuid)', 'public.courier_pickup_delivery(uuid)', 'public.courier_complete_delivery(uuid, text)',
+    'public.courier_my_deliveries(boolean)', 'public.courier_earnings()', 'public.my_delivery(uuid)'
+  ] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0012', '0012_deliveries.sql', 'applied');
+    raise notice 'Tucaí 0012: aplicada agora';
+  end if;
+end $tucai_0012$;
+
+-- ===================== supabase/migrations/0013_jobs.sql =====================
+do $tucai_0013$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0013') then
+    raise notice 'Tucaí 0013: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0013_jobs: vagas de emprego publicadas por estabelecimentos ativos e candidaturas.
+--  * Publicação e gestão exigem a permissão de empresa jobs.manage (dono e gerente).
+--  * Vaga pública só enquanto aberta, dentro da validade e de estabelecimento ativo.
+--  * Candidatura única por vaga; a pessoa acompanha o andamento e pode desistir.
+--  * Equipe da plataforma com jobs.manage pode encerrar vagas irregulares.
+--  * Currículo em texto (sem upload de arquivo: armazenamento de arquivos ainda não contratado).
+--  * LGPD: pedidos, entregas e candidaturas entram na exportação; a anonimização apaga contato e endereço.
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values
+  ('job.save', 30, 3600), ('job.apply', 20, 3600), ('job.application_update', 200, 600);
+
+insert into public.permissions(code) values ('jobs.manage') on conflict do nothing;
+insert into public.role_permissions(member_role, permission) values ('owner', 'jobs.manage'), ('manager', 'jobs.manage')
+  on conflict do nothing;
+
+create type public.job_employment as enum ('clt', 'pj', 'temporario', 'estagio', 'freelancer', 'meio_periodo');
+create type public.job_work_mode as enum ('presencial', 'hibrido', 'remoto');
+create type public.job_status as enum ('open', 'paused', 'closed');
+create type public.job_application_status as enum ('submitted', 'reviewing', 'interview', 'rejected', 'hired', 'withdrawn');
+
+create table public.jobs (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  city_id uuid references public.cities(id) on delete set null,
+  title text not null check (char_length(btrim(title)) between 3 and 120),
+  area text not null check (area in ('atendimento', 'cozinha', 'entregas', 'vendas', 'administrativo', 'servicos_gerais', 'tecnologia', 'outros')),
+  description text not null check (char_length(btrim(description)) between 20 and 4000),
+  requirements text check (requirements is null or char_length(requirements) <= 2000),
+  benefits text check (benefits is null or char_length(benefits) <= 1000),
+  employment_type public.job_employment not null,
+  work_mode public.job_work_mode not null default 'presencial',
+  salary_min_cents integer check (salary_min_cents is null or salary_min_cents > 0),
+  salary_max_cents integer check (salary_max_cents is null or salary_max_cents > 0),
+  openings smallint not null default 1 check (openings between 1 and 100),
+  status public.job_status not null default 'open',
+  expires_at timestamptz not null default now() + interval '30 days',
+  created_by uuid references auth.users(id) on delete set null,
+  closed_reason text check (closed_reason is null or char_length(closed_reason) <= 300),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (salary_max_cents is null or salary_min_cents is null or salary_max_cents >= salary_min_cents)
+);
+create index jobs_public_idx on public.jobs(city_id, status, created_at desc);
+create index jobs_business_idx on public.jobs(business_id, created_at desc);
+create index jobs_created_by_idx on public.jobs(created_by);
+create trigger jobs_updated before update on public.jobs for each row execute function public.set_updated_at();
+
+create table public.job_applications (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  applicant_id uuid not null references auth.users(id) on delete cascade,
+  full_name text not null check (char_length(btrim(full_name)) between 3 and 120),
+  phone text not null check (phone ~ '^[0-9+() -]{8,20}$'),
+  message text check (message is null or char_length(message) <= 1500),
+  experience text check (experience is null or char_length(experience) <= 3000),
+  status public.job_application_status not null default 'submitted',
+  employer_note text check (employer_note is null or char_length(employer_note) <= 500),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (job_id, applicant_id)
+);
+create index job_applications_applicant_idx on public.job_applications(applicant_id, created_at desc);
+create trigger job_applications_updated before update on public.job_applications for each row execute function public.set_updated_at();
+
+-- notificações de vagas
+alter table public.notifications drop constraint notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check check (kind in (
+  'like', 'comment', 'reply', 'follow', 'moderation',
+  'friend_request', 'friend_accept', 'scrap', 'testimonial', 'community_request', 'community_accept', 'topic_reply',
+  'order_new', 'order_update', 'delivery_offer', 'job_application', 'job_update'));
+alter table public.notifications drop constraint notifications_link_check;
+alter table public.notifications add constraint notifications_link_check
+  check (link is null or link ~ '^/(conectuai|pedidos|painel|entregador|vagas)/[A-Za-z0-9/_-]*$');
+
+create or replace function public.job_is_public(_job uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.jobs j where j.id = _job and j.status = 'open' and j.expires_at > now()
+                   and public.is_active_business(j.business_id))
+$$;
+
+-- criar/editar vaga
+create or replace function public.save_job(
+  _business uuid, _title text, _area text, _description text, _employment public.job_employment,
+  _work_mode public.job_work_mode default 'presencial', _requirements text default null, _benefits text default null,
+  _salary_min_cents integer default null, _salary_max_cents integer default null, _openings integer default 1,
+  _days integer default 30, _job uuid default null
+) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare b public.businesses%rowtype; jid uuid;
+begin
+  if not public.has_business_permission(_business, 'jobs.manage') then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('job.save');
+  select * into b from public.businesses where id = _business;
+  if b.status <> 'active' then raise exception 'Só estabelecimentos ativos publicam vagas.' using errcode = 'P0001'; end if;
+  if coalesce(_days, 30) not between 1 and 90 then raise exception 'Validade de 1 a 90 dias.' using errcode = 'P0001'; end if;
+  if _job is null then
+    insert into public.jobs(business_id, city_id, title, area, description, requirements, benefits, employment_type, work_mode,
+                            salary_min_cents, salary_max_cents, openings, expires_at, created_by)
+    values (b.id, b.city_id, btrim(_title), _area, btrim(_description), nullif(btrim(coalesce(_requirements, '')), ''),
+            nullif(btrim(coalesce(_benefits, '')), ''), _employment, coalesce(_work_mode, 'presencial'), _salary_min_cents, _salary_max_cents,
+            coalesce(_openings, 1), now() + make_interval(days => coalesce(_days, 30)), auth.uid())
+    returning id into jid;
+  else
+    update public.jobs set title = btrim(_title), area = _area, description = btrim(_description),
+           requirements = nullif(btrim(coalesce(_requirements, '')), ''), benefits = nullif(btrim(coalesce(_benefits, '')), ''),
+           employment_type = _employment, work_mode = coalesce(_work_mode, 'presencial'),
+           salary_min_cents = _salary_min_cents, salary_max_cents = _salary_max_cents, openings = coalesce(_openings, 1),
+           expires_at = now() + make_interval(days => coalesce(_days, 30)), city_id = b.city_id
+     where id = _job and business_id = b.id and status <> 'closed'
+    returning id into jid;
+    if jid is null then raise exception 'Vaga não encontrada ou encerrada.' using errcode = 'P0001'; end if;
+  end if;
+  perform private.audit('job.save', 'jobs', jid::text, jsonb_build_object('business', b.id));
+  return jid;
+end $$;
+
+create or replace function public.set_job_status(_job uuid, _status public.job_status, _reason text default null) returns void
+language plpgsql security definer set search_path = '' as $$
+declare j public.jobs%rowtype; platform boolean;
+begin
+  select * into j from public.jobs where id = _job;
+  if not found then raise exception 'forbidden' using errcode = '42501'; end if;
+  platform := public.has_platform_permission('jobs.manage');
+  if not public.has_business_permission(j.business_id, 'jobs.manage') and not (platform and _status = 'closed') then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  perform private.limit_for('job.save');
+  if j.status = 'closed' then raise exception 'Vaga encerrada não pode ser reaberta. Publique uma nova.' using errcode = 'P0001'; end if;
+  update public.jobs set status = _status, closed_reason = case when _status = 'closed' then nullif(btrim(coalesce(_reason, '')), '') end
+   where id = j.id;
+  perform private.audit('job.status', 'jobs', j.id::text, jsonb_build_object('status', _status, 'platform', platform));
+end $$;
+
+-- candidatar-se
+create or replace function public.apply_to_job(_job uuid, _full_name text, _phone text, _message text default null, _experience text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare j public.jobs%rowtype; aid uuid; m uuid;
+begin
+  if auth.uid() is null then raise exception 'Entre na sua conta para se candidatar.' using errcode = '42501'; end if;
+  perform private.limit_for('job.apply');
+  if not public.job_is_public(_job) then raise exception 'Vaga indisponível.' using errcode = 'P0001'; end if;
+  select * into j from public.jobs where id = _job;
+  if public.has_business_permission(j.business_id, 'orders.view') then
+    raise exception 'A equipe do estabelecimento não pode se candidatar à própria vaga.' using errcode = 'P0001';
+  end if;
+  insert into public.job_applications(job_id, applicant_id, full_name, phone, message, experience)
+  values (_job, auth.uid(), btrim(_full_name), btrim(_phone), nullif(btrim(coalesce(_message, '')), ''), nullif(btrim(coalesce(_experience, '')), ''))
+  returning id into aid;
+  for m in select bm.user_id from public.business_members bm join public.role_permissions rp on rp.member_role = bm.member_role and rp.permission = 'jobs.manage'
+            where bm.business_id = j.business_id loop
+    perform private.notify_link(m, 'job_application', null, '/painel/' || j.business_id || '/vagas', 'Nova candidatura para "' || left(j.title, 60) || '".');
+  end loop;
+  return aid;
+exception when unique_violation then
+  raise exception 'Você já se candidatou a esta vaga.' using errcode = 'P0001';
+end $$;
+
+create or replace function public.withdraw_application(_application uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.job_applications set status = 'withdrawn'
+   where id = _application and applicant_id = auth.uid() and status not in ('hired', 'rejected', 'withdrawn');
+  if not found then raise exception 'Candidatura não pode ser retirada.' using errcode = 'P0001'; end if;
+end $$;
+
+create or replace function public.update_application_status(_application uuid, _status public.job_application_status, _note text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare a public.job_applications%rowtype; j public.jobs%rowtype;
+begin
+  select * into a from public.job_applications where id = _application;
+  if not found then raise exception 'forbidden' using errcode = '42501'; end if;
+  select * into j from public.jobs where id = a.job_id;
+  if not public.has_business_permission(j.business_id, 'jobs.manage') then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('job.application_update');
+  if _status in ('submitted', 'withdrawn') then raise exception 'Status inválido.' using errcode = 'P0001'; end if;
+  if a.status = 'withdrawn' then raise exception 'A pessoa retirou a candidatura.' using errcode = 'P0001'; end if;
+  update public.job_applications set status = _status, employer_note = nullif(btrim(coalesce(_note, '')), '') where id = a.id;
+  perform private.notify_link(a.applicant_id, 'job_update', null, '/vagas/' || j.id,
+    'Sua candidatura para "' || left(j.title, 60) || '": ' || case _status
+      when 'reviewing' then 'em análise.' when 'interview' then 'chamada para entrevista.'
+      when 'rejected' then 'não seguiu no processo.' when 'hired' then 'aprovada!' else _status::text end);
+end $$;
+
+-- ---------- RLS ----------
+alter table public.jobs enable row level security;
+alter table public.job_applications enable row level security;
+create policy jobs_select_public on public.jobs for select to anon using (public.job_is_public(id));
+create policy jobs_select on public.jobs for select to authenticated
+  using (public.job_is_public(id) or public.has_business_permission(business_id, 'jobs.manage') or public.has_platform_permission('jobs.manage'));
+create policy job_applications_select on public.job_applications for select to authenticated
+  using (applicant_id = (select auth.uid())
+         or exists (select 1 from public.jobs j where j.id = job_id and public.has_business_permission(j.business_id, 'jobs.manage')));
+revoke all on public.jobs, public.job_applications from public, anon, authenticated;
+grant select on public.jobs to anon, authenticated;
+grant select on public.job_applications to authenticated;
+
+-- ---------- LGPD ----------
+create or replace function private.commerce_export(_uid uuid) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'orders', coalesce((select jsonb_agg(jsonb_build_object('code', o.code, 'status', o.status, 'created_at', o.created_at,
+                          'total_cents', o.total_cents, 'customer_name', o.customer_name, 'customer_phone', o.customer_phone,
+                          'delivery_address', o.delivery_address,
+                          'items', (select jsonb_agg(jsonb_build_object('name', i.name, 'qty', i.quantity)) from public.order_items i where i.order_id = o.id))
+                          order by o.created_at) from public.orders o where o.customer_id = _uid), '[]'::jsonb),
+    'deliveries_made', (select count(*) from public.deliveries d where d.courier_id = _uid and d.status = 'delivered'),
+    'job_applications', coalesce((select jsonb_agg(jsonb_build_object('job', j.title, 'status', a.status, 'created_at', a.created_at,
+                          'full_name', a.full_name, 'phone', a.phone, 'message', a.message, 'experience', a.experience))
+                          from public.job_applications a join public.jobs j on j.id = a.job_id where a.applicant_id = _uid), '[]'::jsonb))
+$$;
+revoke all on function private.commerce_export(uuid) from public, anon, authenticated;
+
+do $$
+declare src text;
+begin
+  select pg_get_functiondef('public.my_data_export()'::regprocedure) into src;
+  if strpos(src, '''notes'', jsonb_build_array(') = 0 then raise exception 'my_data_export: ponto de extensão não encontrado'; end if;
+  src := replace(src, '''notes'', jsonb_build_array(', '''commerce'', private.commerce_export(uid),
+    ''notes'', jsonb_build_array(');
+  execute src;
+
+  select pg_get_functiondef('private.anonymize_user(uuid)'::regprocedure) into src;
+  if strpos(src, 'delete from public.notifications where user_id = _user;') = 0 then raise exception 'anonymize_user: ponto de extensão não encontrado'; end if;
+  src := replace(src, 'delete from public.notifications where user_id = _user;', 'delete from public.notifications where user_id = _user;
+  -- pedidos ficam para a contabilidade do estabelecimento, sem dados pessoais
+  update public.orders set customer_name = ''Cliente removido'', customer_phone = ''00000000'', notes = null,
+         delivery_address = case when delivery_address is null then null else ''Endereço removido'' end, delivery_reference = null
+   where customer_id = _user;
+  delete from public.job_applications where applicant_id = _user;');
+  execute src;
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array[
+    'public.job_is_public(uuid)',
+    'public.save_job(uuid, text, text, text, public.job_employment, public.job_work_mode, text, text, integer, integer, integer, integer, uuid)',
+    'public.set_job_status(uuid, public.job_status, text)',
+    'public.apply_to_job(uuid, text, text, text, text)', 'public.withdraw_application(uuid)',
+    'public.update_application_status(uuid, public.job_application_status, text)'
+  ] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+  grant execute on function public.job_is_public(uuid) to anon;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0013', '0013_jobs.sql', 'applied');
+    raise notice 'Tucaí 0013: aplicada agora';
+  end if;
+end $tucai_0013$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

@@ -48,6 +48,7 @@ const businessSchema = z
     logo_url: z.string().nullable(),
     delivery_offer: z.enum(['partner', 'own', 'none']),
     own_delivery_fee_cents: z.number().int(),
+    delivery_radius_km: z.number().nullish(),
     accepts_pickup: z.boolean(),
     estimated_min_minutes: z.number().nullable(),
     estimated_max_minutes: z.number().nullable(),
@@ -69,6 +70,8 @@ const businessSchema = z
     logoUrl: r.logo_url,
     deliveryOffer: r.delivery_offer,
     ownDeliveryFeeCents: r.own_delivery_fee_cents,
+    /** Área efetiva de entrega a partir do endereço da loja (km). Não é o raio regional de descoberta. */
+    deliveryRadiusKm: r.delivery_radius_km ?? null,
     acceptsPickup: r.accepts_pickup,
     estimatedMinMinutes: r.estimated_min_minutes,
     estimatedMaxMinutes: r.estimated_max_minutes,
@@ -79,7 +82,7 @@ export type MerchantBusiness = z.output<typeof businessSchema>
 
 const BUSINESS_COLS =
   'id,name,slug,status,business_type,category_id,description,phone,whatsapp,address_line,cover_url,logo_url,' +
-  'delivery_offer,own_delivery_fee_cents,accepts_pickup,estimated_min_minutes,estimated_max_minutes,min_order_cents,review_note'
+  'delivery_offer,own_delivery_fee_cents,delivery_radius_km,accepts_pickup,estimated_min_minutes,estimated_max_minutes,min_order_cents,review_note'
 
 /** Negócios dos quais o usuário é membro (consulta o vínculo no banco, não o cache da sessão). */
 export async function listMyBusinesses(userId: string): Promise<MerchantBusiness[]> {
@@ -113,6 +116,12 @@ export const storeFormSchema = z
     categoryId: z.string(),
     deliveryOffer: z.enum(['partner', 'own', 'none']),
     ownDeliveryFee: z.string().trim(),
+    deliveryRadius: z
+      .string()
+      .trim()
+      .optional()
+      .default('')
+      .refine((v) => v === '' || (/^\d{1,3}([.,]\d)?$/.test(v) && Number(v.replace(',', '.')) > 0 && Number(v.replace(',', '.')) <= 100), 'Raio de entrega: de 0,1 a 100 km.'),
     acceptsPickup: z.boolean(),
     minOrder: z.string().trim(),
     estimatedMin: optionalMinutes,
@@ -150,6 +159,7 @@ export function storeFormToPatch(input: StoreForm) {
     category_id: nul(v.categoryId),
     delivery_offer: v.deliveryOffer,
     own_delivery_fee_cents: v.deliveryOffer === 'own' && v.ownDeliveryFee ? parseBRL(v.ownDeliveryFee) : 0,
+    delivery_radius_km: v.deliveryOffer === 'own' && v.deliveryRadius ? Number(v.deliveryRadius.replace(',', '.')) : null,
     accepts_pickup: v.acceptsPickup,
     min_order_cents: v.minOrder ? parseBRL(v.minOrder) : 0,
     estimated_min_minutes: v.estimatedMin ? Number(v.estimatedMin) : null,

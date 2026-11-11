@@ -67,6 +67,7 @@ function StoreTab({ b }: { b: MerchantBusiness }) {
     categoryId: b.categoryId ?? '',
     deliveryOffer: b.deliveryOffer,
     ownDeliveryFee: centsText(b.ownDeliveryFeeCents),
+    deliveryRadius: b.deliveryRadiusKm != null ? String(b.deliveryRadiusKm).replace('.', ',') : '',
     acceptsPickup: b.acceptsPickup,
     minOrder: centsText(b.minOrderCents),
     estimatedMin: b.estimatedMinMinutes?.toString() ?? '',
@@ -93,7 +94,7 @@ function StoreTab({ b }: { b: MerchantBusiness }) {
   const text = (k: keyof StoreForm, label: string, props: Record<string, unknown> = {}) => (
     <div>
       <Label htmlFor={`st-${k}`}>{label}</Label>
-      <input id={`st-${k}`} value={v[k] as string} onChange={(e) => set(k, e.target.value as never)} aria-invalid={!!errors[k]} className={field} {...props} />
+      <input id={`st-${k}`} value={(v[k] as string | undefined) ?? ''} onChange={(e) => set(k, e.target.value as never)} aria-invalid={!!errors[k]} className={field} {...props} />
       <FieldError text={errors[k]} />
     </div>
   )
@@ -135,10 +136,17 @@ function StoreTab({ b }: { b: MerchantBusiness }) {
           <FieldError text={errors.acceptsPickup} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             {v.deliveryOffer === 'own' && text('ownDeliveryFee', 'Taxa de entrega (R$)', { inputMode: 'decimal', placeholder: '0,00' })}
+            {v.deliveryOffer === 'own' && text('deliveryRadius', 'Raio de entrega (km)', { inputMode: 'decimal', placeholder: 'Ex.: 5' })}
             {text('minOrder', 'Pedido mínimo (R$)', { inputMode: 'decimal', placeholder: '0,00' })}
             {text('estimatedMin', 'Tempo mín. (min)', { inputMode: 'numeric' })}
             {text('estimatedMax', 'Tempo máx. (min)', { inputMode: 'numeric' })}
           </div>
+          {v.deliveryOffer === 'own' && (
+            <p className="text-xs text-ink-muted">
+              O raio de entrega vale a partir do endereço da loja e define até onde você entrega. Ele é separado do raio
+              regional de descoberta (200 km), que só controla quais cidades os clientes enxergam.
+            </p>
+          )}
         </fieldset>
       )}
       <div className="md:col-span-2">

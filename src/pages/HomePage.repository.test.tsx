@@ -35,6 +35,8 @@ const city: City = {
   slug: "itau-de-minas",
   centerLat: null,
   centerLng: null,
+  ibgeCode: null,
+  distanceFromHqKm: null,
 };
 const category: Category = {
   id: "k1",

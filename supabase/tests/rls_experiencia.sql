@@ -125,10 +125,11 @@ begin
 
   -- nenhuma política using (true)/with check (true) fora da lista pública explícita.
   -- permissions/role_permissions (0001) são catálogos estáticos legíveis só por authenticated.
+  -- regional_settings (0010): sede e raios da plataforma, informação pública de linha única.
   select string_agg(tablename || '.' || policyname, ', ') into bad
     from pg_policies
    where schemaname = 'public'
-     and tablename not in ('cities', 'categories', 'permissions', 'role_permissions')
+     and tablename not in ('cities', 'categories', 'permissions', 'role_permissions', 'regional_settings')
      and (lower(regexp_replace(coalesce(qual, ''), '[()\s]', '', 'g')) = 'true'
           or lower(regexp_replace(coalesce(with_check, ''), '[()\s]', '', 'g')) = 'true');
   perform tstx.ok(bad is null, 'política aberta (true) em: ' || coalesce(bad, ''));
@@ -146,7 +147,9 @@ begin
                            'privacy_requests',
                            -- Conecta (0008): conteúdo de pessoas; business_id é opcional em posts
                            'social_profiles', 'follows', 'user_blocks', 'post_comments', 'post_likes', 'post_saves',
-                           'notifications', 'content_reports', 'moderation_appeals')
+                           'notifications', 'content_reports', 'moderation_appeals',
+                           -- multicidades (0010): configuração regional da plataforma
+                           'regional_settings')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

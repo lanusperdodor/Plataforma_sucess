@@ -160,23 +160,32 @@ begin
   b_r := public.submit_business_application('Negócio do Revisor', 'loja', city);
   perform tsta.denied(format($q$select public.admin_review_business(%L, 'approve')$q$, b_r), 'revisor aprova o próprio negócio');
 
-  -- 7. cidades
+  -- 7. cidades (0010: cadastro vem da base IBGE; Master só muda a situação)
   perform tsta.login(o);
-  perform tsta.denied($q$select public.admin_save_city(null, 'Nova', 'MG')$q$, 'operador sem permissão cria cidade');
   perform tsta.denied('select * from public.admin_list_cities()', 'operador sem permissão lista cidades');
+  perform tsta.denied('select public.admin_city_coverage()', 'operador sem permissão vê cobertura');
+  perform tsta.denied('select public.admin_sync_eligible_cities()', 'operador sem permissão sincroniza');
+  perform tsta.denied(format($q$select public.admin_set_city_status(%L, 'active')$q$, city), 'operador sem permissão muda situação');
   perform tsta.login(r);
-  new_city := public.admin_save_city(null, 'Cássia', 'mg', -20.6, -46.9, false);
-  perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and slug = 'cassia-mg' and state = 'MG'$q$, new_city)) = 1,
-                  'cidade criada com slug e UF normalizada');
-  perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and not is_active$q$, new_city)) = 1, 'admin vê cidade inativa');
-  perform tsta.denied($q$select public.admin_save_city(null, 'Outra', 'MGX')$q$, 'UF inválida', array['P0001']);
-  perform tsta.denied($q$select public.admin_save_city(null, 'Outra', 'MG', -20.1, null)$q$, 'latitude sem longitude', array['P0001']);
-  perform tsta.denied($q$select public.admin_save_city(null, 'Cássia', 'MG')$q$, 'cidade duplicada', array['23505']);
-  perform public.admin_save_city(new_city, 'Cássia', 'MG', null, null, true);
+  new_city := (select id from public.admin_list_cities('cassia', 'mg') where ibge_code = 3115102);
+  perform tsta.ok(new_city is not null, 'Cássia/MG (IBGE 3115102) cadastrada pela carga');
+  perform tsta.ok(tsta.count(format($q$select 1 from public.admin_list_cities() where id = %L and status = 'planned' and not is_active and slug = 'cassia-mg'$q$, new_city)) = 1,
+                  'cidade carregada nasce planejada');
+  perform tsta.anon();
+  perform tsta.ok(tsta.count(format($q$select 1 from public.cities where id = %L$q$, new_city)) = 0, 'cidade planejada invisível ao público');
+  perform tsta.login(r);
+  perform public.admin_set_city_status(new_city, 'active');
   perform tsta.anon();
   perform tsta.ok(tsta.count(format($q$select 1 from public.cities where id = %L$q$, new_city)) = 1, 'cidade ativada visível ao público');
+  perform tsta.login(r);
+  perform tsta.denied(format($q$select public.admin_set_city_status(%L, 'suspended')$q$, new_city), 'suspensão sem motivo', array['P0001']);
+  perform tsta.denied($q$select public.admin_set_city_status('88889000-0000-0000-0000-000000000002', 'active')$q$, 'ativa cidade sem IBGE', array['P0001']);
+  perform public.admin_set_city_status(new_city, 'suspended', 'teste');
+  perform tsta.anon();
+  perform tsta.ok(tsta.count(format($q$select 1 from public.cities where id = %L$q$, new_city)) = 0, 'cidade suspensa some do público');
   perform tsta.login(c);
   perform tsta.denied(format($q$update public.cities set is_active = false where id = %L$q$, new_city), 'cliente altera cidade');
+  perform tsta.denied(format($q$update public.cities set status = 'active' where id = %L$q$, new_city), 'cliente altera situação');
 
   -- 8. equipe: só o Master concede permissões; sem autoelevação
   perform tsta.login(r);

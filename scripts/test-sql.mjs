@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -79,7 +79,12 @@ async function main() {
     const files = [
       ...one('supabase/tests/local_auth_stub.sql'),
       ...one('supabase/tests/supabase_default_privileges.sql'),
-      ...sqlFiles('supabase/migrations'),
+      // supabase/tests/upgrade/before_<migration>.sql e after_<migration>.sql rodam ao redor da
+      // migration correspondente: simulam dados já existentes no banco antes dela.
+      ...sqlFiles('supabase/migrations').flatMap((m) => {
+        const base = basename(m)
+        return [...one(`supabase/tests/upgrade/before_${base}`), m, ...one(`supabase/tests/upgrade/after_${base}`)]
+      }),
       ...sqlFiles('supabase/seed'),
       ...one('supabase/tests/rls_foundation.sql'),
       ...one('supabase/tests/rls_experiencia.sql'),
@@ -87,6 +92,7 @@ async function main() {
       ...one('supabase/tests/rls_security.sql'),
       ...one('supabase/tests/rls_merchant.sql'),
       ...one('supabase/tests/rls_conecta.sql'),
+      ...one('supabase/tests/rls_multicidades.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

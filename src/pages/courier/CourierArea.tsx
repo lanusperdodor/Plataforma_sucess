@@ -217,7 +217,7 @@ export function CourierArea() {
               ))}
             </ul>
           )}
-          <p className="text-xs text-ink-muted">Distância e tempo não são estimados: a Tucaí ainda não usa serviço de mapas. Endereço completo e contato do cliente aparecem após aceitar.</p>
+          <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, quando o estabelecimento marca como pronto. Retiradas e entregas feitas pela própria loja não geram oferta. Distância e tempo não são estimados: a Tucaí ainda não usa serviço de mapas. Endereço completo e contato do cliente aparecem após aceitar.</p>
         </section>
       )}
 

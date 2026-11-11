@@ -10,6 +10,35 @@ Data da avaliação: 11/11/2026. Branch `feat/fundacao-fase-1`, migração nova 
 | **Depois de rodar `apply_all_migrations.sql` (22 migrações)** | **PRONTA PARA HOMOLOGAÇÃO** | O fluxo completo, do cliente ao Master, funciona no banco com papéis e RLS reais. Teste e produção ficam isolados, e o despacho tem aceite atômico, recusa, expiração, redistribuição e alerta. Um teste automatizado cobre o cenário obrigatório e as falhas. |
 | **Piloto com clientes reais** | Ainda não | Faltam: rodar o roteiro na interface com evidência no ambiente publicado, ativar o MFA dos administradores, decidir a forma de pagamento do piloto e configurar o envio de e-mails de recuperação de senha. |
 
+## Pedido do Mercadinho que "não apareceu" (investigação de 12/11/2026)
+
+Causas encontradas (verificadas no banco publicado, só leitura):
+1. **Existem dois "[Teste] Mercadinho Teste"** na mesma cidade (lotes `6e9b5d` e `94090e`, criados em horários diferentes). Cada lojista só vê o próprio. Se o cliente comprou no Mercadinho de um lote e o lojista entrou com o login do outro lote, o pedido existe, mas não aparece para ele. A 0023 passa a acrescentar o código do lote ao nome ("· lote 6e9b5d") e a 0022 deixa de criar lotes duplicados na mesma cidade. Para confirmar qual Mercadinho recebeu o pedido, rode `supabase/admin/diagnostico_pedidos.sql` (só leitura).
+2. **O Mercadinho usa entrega própria.** Esses pedidos, como os de retirada, nunca vão para entregadores parceiros. Isso está correto pela regra. Para testar o entregador, use a "[Teste] Lanchonete do Tuca" (entregador parceiro), aceite, prepare e marque como pronto. As telas agora explicam isso no checkout, no painel da loja e na área do entregador.
+3. **O banco publicado está na 0015.** As migrações 0016–0023 não foram aplicadas, então tempo real, alertas, aba Pedidos do Master, financeiro novo e pagamentos não existem lá. É a mesma causa do "Banco de dados desatualizado" no Financeiro e em Pagamentos: as funções `admin_finance_summary` e `admin_payment_gateway_get` respondem 404 no projeto publicado.
+
+O teste automatizado reproduz o caso do Mercadinho e passa:
+- o pedido é gravado com a loja, o cliente, a modalidade e os valores certos;
+- o lojista correto vê o pedido e outra loja não vê;
+- o Master vê o pedido;
+- a entrega própria não vira oferta;
+- a loja leva o pedido até o fim e o cliente vê "entregue".
+
+## Painel Master (0023)
+
+| Área | O que mudou | Testes |
+|---|---|---|
+| Logins | Detalhes da conta (papéis, vínculos, entregador, pedidos, auditoria da conta). **Enviar recuperação de senha**: link do Supabase Auth, registrado na auditoria. **Senha temporária**: conta de teste pelo suporte; conta real só pelo Master com MFA; troca obrigatória no primeiro acesso; a senha nunca vai para logs | SQL + interface |
+| Equipe | Convite por e-mail (sem senha, link seguro); conta existente é vinculada sem duplicar; permissões granulares; Master exige MFA e a confirmação "CONCEDER MASTER"; o último Master não pode ser removido; entregador e lojista só pelos próprios cadastros | SQL + interface |
+| Financeiro | Relatório por período, cidade e estabelecimento: confirmado, previsto, recebido, devido aos entregadores (repasse sem registro), cancelamentos; histórico paginado; exportação CSV | SQL + interface |
+| Pagamentos | Transações reais (cobranças) com filtros, origem (Mercado Pago × manual), ID do provedor e eventos; nada é marcado como pago sem confirmação do provedor ou baixa manual registrada; estornos dependem do aviso do provedor (ainda não integrado) | SQL + interface |
+| Auditoria | 20 por página no banco, Anterior/Próxima, página e total, filtros por data, ação e usuário | SQL + interface |
+| Entregadores | A tela abria filtrada em "Pendentes" e escondia os aprovados (os 2 entregadores de teste estão aprovados). Agora abre em "Todos", com busca, situação, online/offline, entregas reais e histórico | SQL + interface |
+| Estabelecimentos | Cards responsivos (1/2/3–4 por linha), imagem, cidade, tipo, status; filtros por situação, cidade, categoria e tipo; detalhes com aprovar, recusar, suspender e reativar | SQL + interface |
+| Cidades | Busca no banco sem acento e sem diferenciar maiúsculas, filtro MG/SP, limite de resultados, espera de 250 ms entre teclas, botão de limpar, aviso de "sem resultados"; coluna `ibge_code` única (sem inventar códigos) | SQL + interface |
+| Privacidade, Configurações, Segurança | Sem mudança funcional; testes existentes seguem passando | — |
+| Conta e tema | Menu de conta único no site e no Master: inicial, primeiro nome real, perfil ativo e atalhos. Sem sessão: "Entrar / Criar conta". Modo claro, escuro ou automático | Interface |
+
 ## Etapa 1 — Auditoria (bloqueios encontrados)
 
 | # | Bloqueio | Gravidade | Situação |

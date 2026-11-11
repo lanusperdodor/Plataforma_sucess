@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
+import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { StateShell } from '../../components/feedback/StateShell.tsx'
+import { AccountMenu } from '../../components/account/AccountMenu.tsx'
 import { BRAND } from '../../config/brand.ts'
-import { canAdmin, getMyAccess, type AdminAccess, type PlatformPermissionCode, getMyName } from '../../features/admin/repository.ts'
+import { canAdmin, getMyAccess, type AdminAccess, type PlatformPermissionCode } from '../../features/admin/repository.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { AdminAudit } from './AdminAudit.tsx'
 import { AdminBusinesses } from './AdminBusinesses.tsx'
@@ -71,10 +72,7 @@ function Guard({ access, item, children }: { access: AdminAccess; item: NavItem;
 }
 
 function Layout({ access, children }: { access: AdminAccess; children: ReactNode }) {
-  const { session, signOut } = useAuth()
   const items = NAV.filter((i) => allowed(access, i) || !i.permission)
-  const userId = session?.user.id ?? ''
-  const myName = useQuery({ queryKey: ['admin', 'my-name', userId], queryFn: () => getMyName(userId), enabled: !!userId })
   return (
     <div className="flex min-h-dvh flex-col bg-muted">
       <header className="sticky top-0 z-[var(--z-nav)] border-b border-line bg-surface">
@@ -86,15 +84,9 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
           <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-ink-muted sm:inline">
             {access.isMaster ? 'Master' : 'Operador'}
           </span>
-          <span className="ml-auto hidden truncate text-sm font-medium text-ink md:inline">{myName.data ?? (session?.user.email?.endsWith('@tucai.example.com') ? session.user.email.split('@')[0] : session?.user.email)}</span>
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink"
-          >
-            <LogOut aria-hidden="true" className="size-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
+          <div className="ml-auto">
+            <AccountMenu />
+          </div>
         </div>
         <nav aria-label="Seções do painel" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 md:hidden">
           {items.map((i) => (

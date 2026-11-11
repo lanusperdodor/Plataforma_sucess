@@ -41,6 +41,38 @@
   --z-toast: 60;
 }
 
+/* Modo escuro: mesmos tokens, outros valores. Contraste AA mantido (texto claro sobre laranja escuro). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --brand-primary: #f2f2f0;
+  --brand-accent: #fb923c;
+  --surface: #1c1e21;
+  --surface-muted: #111214;
+  --text: #f2f2f0;
+  --brand-orange: #c2410c;
+  --success: #4ade80;
+  --danger: #f87171;
+  --accent-warm: #fb923c;
+  --accent-warm-soft: #3a2116;
+  --text-muted: #a8adb4;
+  --border-subtle: rgb(242 242 240 / 0.14);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+/* Logotipo com fundo branco: no escuro fica num selo claro, preservando as cores da marca. */
+:root[data-theme='dark'] .brand-logo {
+  background: #ffffff;
+  border-radius: 0.625rem;
+  padding: 0.125rem 0.375rem;
+}
+/* Campo de busca com botão próprio de limpar: esconde o "x" nativo para não duplicar. */
+.no-native-clear::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 @theme inline {
   --color-brand: var(--brand-primary);
   --color-accent: var(--brand-accent);

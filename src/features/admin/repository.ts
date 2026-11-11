@@ -560,3 +560,146 @@ export function cancelOrderAsPlatform(id: string, reason: string): Promise<void>
 export function redispatchOrder(id: string): Promise<void> {
   return rpc('admin_redispatch', { _order: id }, z.any()).then(() => undefined)
 }
+
+// ---------- Painel Master (0023) ----------
+const auditRowSchema = z
+  .object({
+    id: z.number(), actor_id: z.string().nullable(), actor_email: z.string().nullable(), actor_name: z.string().nullable(), action: z.string(),
+    entity: z.string(), entity_id: z.string().nullable(), details: z.record(z.string(), z.unknown()).nullable(), created_at: z.string(), total: z.number(),
+  })
+  .transform((r) => ({ id: r.id, actorEmail: r.actor_email, actorName: r.actor_name, action: r.action, entity: r.entity, entityId: r.entity_id, details: r.details ?? {}, createdAt: r.created_at, total: r.total }))
+export type AuditRow = z.output<typeof auditRowSchema>
+export interface AuditFilters { action: string; actor: string; from: string; to: string }
+export const AUDIT_PAGE_SIZE = 20
+export function auditPage(page: number, f: AuditFilters): Promise<AuditRow[]> {
+  return rpc('admin_audit_page', { _page: page, _action: f.action || null, _actor: f.actor.trim() || null, _from: f.from || null, _to: f.to || null }, z.array(auditRowSchema))
+}
+export function auditActions(): Promise<string[]> {
+  return rpc('admin_audit_actions', undefined, z.array(z.string()))
+}
+
+const courierRowSchema = z
+  .object({
+    user_id: z.string(), email: z.string().nullable(), full_name: z.string(), phone: z.string(), city_name: z.string().nullable(),
+    vehicle: z.enum(['moto', 'bicicleta', 'carro', 'a_pe']), vehicle_plate: z.string().nullable(), cnh_category: z.string().nullable(),
+    status: z.enum(['pending', 'approved', 'rejected', 'suspended']), is_online: z.boolean(), review_note: z.string().nullable(),
+    submitted_at: z.string(), reviewed_at: z.string().nullable(), deliveries_done: z.number(), deliveries_active: z.number(),
+    last_delivery_at: z.string().nullable(), is_test: z.boolean(), total: z.number(),
+  })
+  .transform((r) => ({
+    userId: r.user_id, email: r.email, fullName: r.full_name, phone: r.phone, city: r.city_name, vehicle: r.vehicle, plate: r.vehicle_plate,
+    cnh: r.cnh_category, status: r.status, isOnline: r.is_online, reviewNote: r.review_note, submittedAt: r.submitted_at, reviewedAt: r.reviewed_at,
+    deliveriesDone: r.deliveries_done, deliveriesActive: r.deliveries_active, lastDeliveryAt: r.last_delivery_at, isTest: r.is_test, total: r.total,
+  }))
+export type CourierRow = z.output<typeof courierRowSchema>
+export type CourierFilter = 'todos' | 'pending' | 'approved' | 'rejected' | 'suspended'
+export function couriersPage(status: CourierFilter, search: string, page: number): Promise<CourierRow[]> {
+  return rpc('admin_couriers_page', { _status: status, _search: search.trim() || null, _page: page }, z.array(courierRowSchema))
+}
+const courierHistorySchema = z
+  .object({ order_id: z.string(), order_code: z.string(), business_name: z.string(), status: z.string(), courier_pay_cents: z.number(), accepted_at: z.string().nullable(), delivered_at: z.string().nullable(), is_test: z.boolean() })
+  .transform((r) => ({ orderId: r.order_id, code: r.order_code, business: r.business_name, status: r.status, payCents: r.courier_pay_cents, acceptedAt: r.accepted_at, deliveredAt: r.delivered_at, isTest: r.is_test }))
+export function courierHistory(userId: string) {
+  return rpc('admin_courier_history', { _user: userId }, z.array(courierHistorySchema))
+}
+
+const bizCardSchema = z
+  .object({
+    id: z.string(), name: z.string(), slug: z.string(), status: z.enum(['pending', 'active', 'suspended', 'rejected']),
+    business_type: z.enum(['restaurante', 'loja', 'servico']), city_id: z.string().nullable(), city_name: z.string().nullable(), city_state: z.string().nullable(),
+    category_id: z.string().nullable(), category_label: z.string().nullable(), owner_id: z.string().nullable(), owner_email: z.string().nullable(),
+    owner_name: z.string().nullable(), phone: z.string().nullable(), description: z.string().nullable(), address_line: z.string().nullable(),
+    logo_url: z.string().nullable(), cover_url: z.string().nullable(), submitted_at: z.string().nullable(), reviewed_at: z.string().nullable(),
+    review_note: z.string().nullable(), created_at: z.string(), is_test: z.boolean(), total: z.number(),
+  })
+  .transform((r) => ({
+    id: r.id, name: r.name, slug: r.slug, status: r.status, type: r.business_type, cityId: r.city_id, city: r.city_name, state: r.city_state,
+    categoryId: r.category_id, category: r.category_label, ownerEmail: r.owner_email, ownerName: r.owner_name, phone: r.phone,
+    description: r.description, address: r.address_line, logoUrl: r.logo_url, coverUrl: r.cover_url, submittedAt: r.submitted_at,
+    reviewedAt: r.reviewed_at, reviewNote: r.review_note, createdAt: r.created_at, isTest: r.is_test, total: r.total,
+  }))
+export type BusinessCard = z.output<typeof bizCardSchema>
+export interface BusinessFilters { status: string; search: string; city: string; category: string; type: string }
+export const BUSINESS_PAGE_SIZE = 12
+export function businessesPage(f: BusinessFilters, page: number): Promise<BusinessCard[]> {
+  return rpc('admin_businesses_page', {
+    _status: f.status || null, _search: f.search.trim() || null, _city: f.city || null, _category: f.category || null, _type: f.type || null, _page: page,
+  }, z.array(bizCardSchema))
+}
+
+const accountDetailSchema = z.object({
+  id: z.string(), email: z.string().nullable(), full_name: z.string().nullable(), username: z.string().nullable(), phone: z.string().nullable(),
+  created_at: z.string(), last_sign_in_at: z.string().nullable(), email_confirmed: z.boolean(), blocked: z.boolean(), is_test: z.boolean(),
+  must_change_password: z.boolean(), roles: z.array(z.string()), permissions: z.array(z.string()),
+  memberships: z.array(z.object({ business_id: z.string(), business: z.string(), role: z.string(), status: z.string() })),
+  courier: z.object({ status: z.string(), city: z.string().nullable(), vehicle: z.string(), is_online: z.boolean() }).nullable(),
+  orders: z.number(),
+  audit: z.array(z.object({ action: z.string(), created_at: z.string(), actor: z.string().nullable() }).passthrough()),
+})
+export type AccountDetail = z.infer<typeof accountDetailSchema>
+export function accountDetail(userId: string): Promise<AccountDetail> {
+  return rpc('admin_account_detail', { _user: userId }, accountDetailSchema)
+}
+/** Registra a recuperação na auditoria e devolve o e-mail; o envio do link é do Supabase Auth (fluxo público de "esqueci a senha"). */
+export function startPasswordRecovery(userId: string): Promise<string> {
+  return rpc('admin_password_recovery', { _user: userId }, z.string())
+}
+
+export type StaffRole = 'platform_operator' | 'platform_master'
+export function inviteStaff(email: string, role: StaffRole, permissions: string[], confirm: string): Promise<'vinculado' | 'convidado'> {
+  return rpc('admin_invite_staff', { _email: email.trim(), _role: role, _permissions: permissions, _confirm: confirm || null }, z.enum(['vinculado', 'convidado']))
+}
+const inviteSchema = z
+  .object({ id: z.string(), email: z.string(), role: z.string(), permissions: z.array(z.string()), created_at: z.string(), expires_at: z.string(), status: z.string() })
+  .transform((r) => ({ id: r.id, email: r.email, role: r.role, permissions: r.permissions, createdAt: r.created_at, expiresAt: r.expires_at, status: r.status }))
+export type StaffInvite = z.output<typeof inviteSchema>
+export function listInvites(): Promise<StaffInvite[]> {
+  return rpc('admin_list_invites', undefined, z.array(inviteSchema))
+}
+export function revokeInvite(id: string): Promise<void> {
+  return rpc('admin_revoke_invite', { _id: id }, z.any()).then(() => undefined)
+}
+export function grantMaster(userId: string): Promise<void> {
+  return rpc('grant_role', { _user: userId, _role: 'platform_master' }, z.any()).then(() => undefined)
+}
+export function revokeMaster(userId: string): Promise<void> {
+  return rpc('revoke_role', { _user: userId, _role: 'platform_master' }, z.any()).then(() => undefined)
+}
+
+const cents = z.number()
+const financeReportSchema = z.object({
+  confirmado: z.object({ pedidos: z.number(), volume_bruto_cents: cents, produtos_cents: cents, comissao_cents: cents, taxas_plataforma_cents: cents, devido_entregadores_cents: cents, logistica_estabelecimentos_cents: cents }),
+  previsto: z.object({ pedidos: z.number(), volume_bruto_cents: cents, comissao_cents: cents, taxas_plataforma_cents: cents }),
+  cancelados: z.object({ pedidos: z.number(), volume_cents: cents }),
+  mensalidades: z.object({ recebido_cents: cents, recebido_online_cents: cents, a_receber_cents: cents, vencido_cents: cents }),
+  repassado: z.object({ entregadores_cents: cents, registrado: z.boolean() }),
+  reembolsos: z.object({ cents, registrado: z.boolean() }),
+  por_estabelecimento: z.array(z.object({ estabelecimento: z.string(), pedidos: z.number(), volume_cents: cents, plataforma_cents: cents })),
+  por_cidade: z.array(z.object({ cidade: z.string(), pedidos: z.number(), volume_cents: cents })),
+})
+export type FinanceReport = z.infer<typeof financeReportSchema>
+export interface FinanceFilters { from: string; to: string; city: string; business: string; includeTest: boolean }
+export function financeReport(f: FinanceFilters): Promise<FinanceReport> {
+  return rpc('admin_finance_report', { _from: f.from, _to: f.to, _city: f.city || null, _business: f.business || null, _include_test: f.includeTest }, financeReportSchema)
+}
+const txSchema = z
+  .object({ kind: z.string(), ref: z.string(), occurred_at: z.string(), business_name: z.string(), city_name: z.string().nullable(), description: z.string(),
+    status: z.string(), amount_cents: z.number(), platform_cents: z.number(), courier_cents: z.number(), method: z.string().nullable(), total: z.number() })
+  .transform((r) => ({ kind: r.kind, ref: r.ref, at: r.occurred_at, business: r.business_name, city: r.city_name, description: r.description, status: r.status,
+    amountCents: r.amount_cents, platformCents: r.platform_cents, courierCents: r.courier_cents, method: r.method, total: r.total }))
+export type FinanceTx = z.output<typeof txSchema>
+export function financeTransactions(f: FinanceFilters, kind: 'todos' | 'pedido' | 'cobranca', page: number): Promise<FinanceTx[]> {
+  return rpc('admin_finance_transactions', { _from: f.from, _to: f.to, _city: f.city || null, _business: f.business || null, _kind: kind, _include_test: f.includeTest, _page: page }, z.array(txSchema))
+}
+
+const paymentSchema = z
+  .object({ id: z.string(), business_name: z.string(), kind: z.string(), description: z.string(), amount_cents: z.number(), due_on: z.string(),
+    status: z.enum(['aberta', 'paga', 'cancelada']), paid_at: z.string().nullable(), paid_method: z.string().nullable(), provider: z.string().nullable(),
+    provider_payment_id: z.string().nullable(), created_at: z.string(), events: z.array(z.object({ action: z.string(), at: z.string() })), total: z.number() })
+  .transform((r) => ({ id: r.id, business: r.business_name, kind: r.kind, description: r.description, amountCents: r.amount_cents, dueOn: r.due_on,
+    status: r.status, paidAt: r.paid_at, paidMethod: r.paid_method, provider: r.provider, providerPaymentId: r.provider_payment_id, createdAt: r.created_at,
+    events: r.events, total: r.total }))
+export type PaymentRow = z.output<typeof paymentSchema>
+export function paymentsPage(status: string, search: string, origin: 'todos' | 'online' | 'manual', page: number): Promise<PaymentRow[]> {
+  return rpc('admin_payments_page', { _status: status || null, _search: search.trim() || null, _origin: origin, _page: page }, z.array(paymentSchema))
+}

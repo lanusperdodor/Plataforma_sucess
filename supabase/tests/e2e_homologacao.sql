@@ -291,5 +291,81 @@ begin
                              brest, jsonb_build_array(jsonb_build_object('product_id', refri, 'quantity', 2))), 'sessão perdida: não pede');
 end $$;
 
+-- ======================= Mercadinho (entrega própria), retirada e casos extras =======================
+do $$
+declare
+  c1 uuid := tste.uid('cliente1'); lojista uuid := tste.uid('lojista'); dono uuid := tste.uid('restaurante');
+  k1 uuid := tste.uid('entregador'); k2 uuid := tste.uid('entregador2'); m uuid;
+  bl uuid; br uuid; cafe text; arroz text; refri text; salada text; o uuid; o2 uuid; o3 uuid;
+begin
+  perform tste.su();
+  select id into m from auth.users where email = 'e2e-master@teste.invalid';
+  select id into bl from public.businesses where owner_id = lojista;
+  select id into br from public.businesses where owner_id = dono;
+  select id::text into cafe from public.products where business_id = bl and name = 'Café 500 g';
+  select id::text into arroz from public.products where business_id = bl and name = 'Arroz 5 kg';
+  select id::text into refri from public.products where business_id = br and name = 'Refrigerante lata';
+  select id::text into salada from public.products where business_id = br and name = 'X-Salada';
+
+  -- o caso relatado: cliente compra no Mercadinho (entrega própria)
+  perform tste.login(c1);
+  o := public.place_order(bl, jsonb_build_array(jsonb_build_object('product_id', cafe, 'quantity', 2)), 'delivery_own', 'cash',
+                          'Cliente Teste Um', '35999990000', 'Rua das Flores, 100, Centro', null, null, null, 'e2e-merc-0001');
+  perform tste.su();
+  perform tste.ok((select business_id = bl and customer_id = c1 and status = 'placed' and fulfillment = 'delivery_own' and delivery_fee_cents = 500
+                     and total_cents = 3880 and is_test from public.orders where id = o), 'pedido do Mercadinho gravado com loja, cliente, modalidade e valores');
+  perform tste.ok((select count(*) from public.order_items where order_id = o) = 1, 'itens gravados');
+  perform tste.login(lojista);
+  perform tste.ok(tste.count(format('select 1 from public.orders where id = %L', o)) = 1, 'lojista do Mercadinho vê o pedido');
+  perform tste.login(dono);
+  perform tste.ok(tste.count(format('select 1 from public.orders where id = %L', o)) = 0, 'outro estabelecimento não vê o pedido do Mercadinho');
+  perform tste.login(m);
+  perform tste.ok(tste.count(format($q$select 1 from public.admin_list_orders('abertos') where id = %L$q$, o)) = 1, 'Master vê o pedido do Mercadinho');
+  perform tste.login(lojista);
+  perform public.merchant_accept_order(o, 15);
+  perform public.update_order_status(o, 'preparing');
+  perform public.update_order_status(o, 'ready');
+  perform tste.su();
+  perform tste.ok(not exists (select 1 from public.deliveries where order_id = o), 'entrega própria não vira oferta para entregador parceiro');
+  perform tste.login(lojista);
+  perform public.update_order_status(o, 'out_for_delivery');
+  perform public.update_order_status(o, 'delivered');
+  perform tste.login(c1);
+  perform tste.ok((select status from public.orders where id = o) = 'delivered', 'cliente vê o Mercadinho entregar');
+
+  -- retirada no balcão: também sem entregador
+  o2 := public.place_order(br, jsonb_build_array(jsonb_build_object('product_id', refri, 'quantity', 2)), 'pickup', 'card_on_delivery',
+                           'Cliente Teste Um', '35999990000', null, null, null, null, 'e2e-ret-0001');
+  perform tste.login(dono);
+  perform public.merchant_accept_order(o2, 10);
+  perform public.update_order_status(o2, 'preparing');
+  perform public.update_order_status(o2, 'ready');
+  perform public.update_order_status(o2, 'picked_up');
+  perform tste.su();
+  perform tste.ok(not exists (select 1 from public.deliveries where order_id = o2) and (select status from public.orders where id = o2) = 'picked_up', 'retirada concluída sem entregador');
+
+  -- produto indisponível
+  update public.products set is_available = false where id = arroz::uuid;
+  perform tste.login(c1);
+  perform tste.denied(format($q$select public.place_order(%L, %L, 'pickup', 'cash', 'Cliente', '35999990000', null, null, null, null, 'e2e-indisp-01')$q$,
+                             bl, jsonb_build_array(jsonb_build_object('product_id', arroz, 'quantity', 1))), 'produto indisponível', array['P0001']);
+
+  -- nenhum entregador disponível: a oferta fica aberta e, esgotadas as rodadas, gera alerta
+  perform tste.login(k1); perform public.set_courier_online(false);
+  perform tste.login(k2); perform public.set_courier_online(false);
+  perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'entregador offline não recebe ofertas');
+  perform tste.login(c1);
+  o3 := public.place_order(br, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',
+                           'Cliente Teste Um', '35999990000', 'Rua D, 4, Centro', null, null, null, 'e2e-semk-0001');
+  perform tste.login(dono);
+  perform public.merchant_accept_order(o3, 10);
+  perform public.update_order_status(o3, 'preparing');
+  perform public.update_order_status(o3, 'ready');
+  perform tste.su();
+  update public.deliveries set offer_round = 3, offer_expires_at = now() - interval '1 minute' where order_id = o3;
+  perform private.sweep_deliveries();
+  perform tste.ok((select status = 'offered' and attention_reason is not null from public.deliveries where order_id = o3), 'sem entregador elegível: alerta operacional');
+end $$;
+
 do $$ begin raise notice 'E2E_HOMOLOGACAO_OK'; end $$;
 rollback;

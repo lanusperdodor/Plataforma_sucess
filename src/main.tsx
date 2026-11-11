@@ -7,6 +7,7 @@ import { SessionCacheGuard } from './app/SessionCacheGuard.tsx'
 import { ToastProvider } from './components/feedback/Toast.tsx'
 import { AuthProvider } from './features/auth/AuthProvider.tsx'
 import { LiveUpdates } from './features/realtime/LiveUpdates.tsx'
+import { PasswordChangeGate } from './components/account/PasswordChangeGate.tsx'
 import './styles/tokens.css'
 
 // Prévia estática (página hospedada sem servidor de rotas): VITE_HASH_ROUTER=1 usa rotas por '#'.
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')!).render(
           <ToastProvider>
             <SessionCacheGuard />
             <LiveUpdates />
+            <PasswordChangeGate />
             <App />
           </ToastProvider>
         </AuthProvider>

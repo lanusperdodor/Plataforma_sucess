@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -45,9 +46,9 @@ describe('AppShell + rotas reais', () => {
   ])('mobile: %s ativa só Explorar na BottomNav', async (path, heading) => {
     setWidth(375)
     render(
-      <MemoryRouter initialEntries={[path]}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Navegação principal' })
@@ -57,9 +58,9 @@ describe('AppShell + rotas reais', () => {
   it('desktop: /restaurantes/x ativa Explorar na SideNav e o link do próprio item', async () => {
     setWidth(1280)
     render(
-      <MemoryRouter initialEntries={['/restaurantes/x']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/restaurantes/x']}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: 'Detalhe do restaurante' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Menu lateral' })
@@ -70,9 +71,9 @@ describe('AppShell + rotas reais', () => {
   it('rota desconhecida renderiza 404 sem destino ativo', async () => {
     setWidth(375)
     render(
-      <MemoryRouter initialEntries={['/nada-aqui']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/nada-aqui']}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: 'Não encontrada' })).toBeInTheDocument()
     expect(currentLabels(screen.getByRole('navigation', { name: 'Navegação principal' }))).toEqual([])
@@ -85,12 +86,12 @@ describe('AppShell + rotas reais', () => {
       return <p data-testid="from">{String((l.state as { from?: string } | null)?.from)}</p>
     }
     render(
-      <MemoryRouter initialEntries={['/sacola/checkout?cupom=X']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/sacola/checkout?cupom=X']}>
         <Routes>
           <Route path="/entrar" element={<Login />} />
           <Route path="*" element={<AppRoutes />} />
         </Routes>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByTestId('from')).toHaveTextContent('/sacola/checkout?cupom=X')
   })
@@ -98,9 +99,9 @@ describe('AppShell + rotas reais', () => {
   it('antiga /comunidade redireciona para /conecta (Conectuaí ativo)', async () => {
     setWidth(375)
     render(
-      <MemoryRouter initialEntries={['/comunidade']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/comunidade']}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: 'Conectuaí' })).toBeInTheDocument()
     expect(currentLabels(screen.getByRole('navigation', { name: 'Navegação principal' }))).toEqual(['Conectuaí'])
@@ -109,9 +110,9 @@ describe('AppShell + rotas reais', () => {
   it('a prévia visual /previa não existe mais', async () => {
     setWidth(375)
     render(
-      <MemoryRouter initialEntries={['/previa']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/previa']}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: 'Não encontrada' })).toBeInTheDocument()
   })
@@ -119,9 +120,9 @@ describe('AppShell + rotas reais', () => {
   it('desktop: menu lateral tem entrada clara para Entregadores', async () => {
     setWidth(1280)
     render(
-      <MemoryRouter initialEntries={['/entregadores']}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/entregadores']}>
         <AppRoutes />
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     )
     expect(await screen.findByRole('heading', { name: 'Entregadores parceiros' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Menu lateral' })

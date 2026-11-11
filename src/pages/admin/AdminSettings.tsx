@@ -21,6 +21,7 @@ function MyNameSection() {
       toast.success('Nome atualizado.')
       setName(null)
       void qc.invalidateQueries({ queryKey: ['admin', 'my-name'] })
+      void qc.invalidateQueries({ queryKey: ['me', 'identity'] })
       void qc.invalidateQueries({ queryKey: ['admin', 'staff'] })
     },
     onError: (e) => toast.error(errorMessage(e)),

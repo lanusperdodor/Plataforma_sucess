@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -23,9 +24,9 @@ import { formatBadge } from './useShellData.ts'
 
 const view = (layout: 'mobile' | 'desktop' = 'mobile') =>
   render(
-    <MemoryRouter>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>
       <TopBar layout={layout} />
-    </MemoryRouter>,
+    </MemoryRouter></QueryClientProvider>,
   )
 
 afterEach(() => {
@@ -40,14 +41,16 @@ describe('formatBadge', () => {
 })
 
 describe('TopBar', () => {
-  it('mostra "Entrar" sem sessão e perfil com sessão', () => {
-    view()
+  it('sem sessão mostra Entrar / Criar conta; com sessão mostra quem está conectado', () => {
+    view('desktop')
     expect(screen.getByText('Entrar')).toBeInTheDocument()
+    expect(screen.getByText('Criar conta')).toBeInTheDocument()
     cleanup()
-    mocks.session = { user: { id: 'u1' } }
+    mocks.session = { user: { id: 'u1', email: 'joao@exemplo.com' } }
     view('desktop')
     expect(screen.queryByText('Entrar')).toBeNull()
-    expect(screen.getByLabelText('Perfil')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Conta de joao/ })).toBeInTheDocument()
+    expect(screen.getByText('joao')).toBeInTheDocument()
   })
 
   it('expõe contadores nos aria-labels', () => {

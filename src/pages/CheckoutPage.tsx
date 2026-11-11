@@ -111,6 +111,8 @@ export function CheckoutPage() {
               </label>
             ))}
             {mode === 'pickup' && b.addressLine && <p className="text-sm text-ink-muted">Retirar em: {b.addressLine}</p>}
+            {mode === 'delivery_own' && <p className="text-sm text-ink-muted">O próprio estabelecimento leva o pedido até você.</p>}
+            {mode === 'delivery_partner' && <p className="text-sm text-ink-muted">Um entregador parceiro da Tucaí coleta no estabelecimento quando o pedido ficar pronto.</p>}
           </fieldset>
 
           <fieldset className="grid grid-cols-1 gap-3 rounded-card border border-line bg-surface p-4 sm:grid-cols-2">

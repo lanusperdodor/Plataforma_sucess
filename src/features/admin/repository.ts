@@ -473,3 +473,32 @@ export type FinanceByPlan = z.output<typeof byPlanSchema>
 export function getFinanceByPlan(): Promise<FinanceByPlan[]> {
   return rpc('admin_finance_by_plan', undefined, z.array(byPlanSchema))
 }
+
+// ---------- logins / suporte às contas (0021) ----------
+const accountSchema = z
+  .object({
+    id: z.string(), email: z.string().nullable(), full_name: z.string().nullable(), username: z.string().nullable(), phone: z.string().nullable(),
+    roles: z.array(z.string()), is_test: z.boolean(), blocked: z.boolean(), created_at: z.string().nullable(), last_sign_in_at: z.string().nullable(), total: num,
+  })
+  .transform((r) => ({
+    id: r.id, email: r.email, fullName: r.full_name, username: r.username, phone: r.phone, roles: r.roles, isTest: r.is_test,
+    blocked: r.blocked, createdAt: r.created_at, lastSignInAt: r.last_sign_in_at, total: r.total,
+  }))
+export type Account = z.output<typeof accountSchema>
+export type AccountKind = 'todos' | 'reais' | 'teste'
+
+export function listAccounts(search: string, kind: AccountKind, limit = 50, offset = 0): Promise<Account[]> {
+  return rpc('admin_list_accounts', { _search: search.trim() || null, _kind: kind, _limit: limit, _offset: offset }, z.array(accountSchema))
+}
+export function setAccountName(userId: string, name: string): Promise<void> {
+  return rpc('admin_set_account_name', { _user: userId, _name: name }, z.any()).then(() => undefined)
+}
+export function setAccountUsername(userId: string, username: string): Promise<string | null> {
+  return rpc('admin_set_account_username', { _user: userId, _username: username }, z.string().nullable())
+}
+export function setAccountPassword(userId: string, password: string): Promise<void> {
+  return rpc('admin_set_account_password', { _user: userId, _password: password }, z.any()).then(() => undefined)
+}
+export function setAccountBlocked(userId: string, blocked: boolean): Promise<void> {
+  return rpc('admin_set_account_blocked', { _user: userId, _blocked: blocked }, z.any()).then(() => undefined)
+}

@@ -68,6 +68,43 @@ function UsernameForm({ userId }: { userId: string }) {
   )
 }
 
+/** Troca da própria senha (o Supabase exige a sessão atual; nada passa pelo nosso banco). */
+function PasswordForm() {
+  const [pw, setPw] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [msg, setMsg] = useState<Msg>()
+  const [busy, setBusy] = useState(false)
+  const save = async () => {
+    setMsg(undefined)
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return setMsg({ kind: 'error', text: 'Use pelo menos 8 caracteres, com letras e números.' })
+    if (pw !== confirm) return setMsg({ kind: 'error', text: 'As senhas não conferem.' })
+    setBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    setBusy(false)
+    if (error) return setMsg({ kind: 'error', text: /reauth|recent/i.test(error.message) ? 'Por segurança, saia e entre de novo antes de trocar a senha.' : error.message || 'Não foi possível trocar a senha.' })
+    setPw('')
+    setConfirm('')
+    setMsg({ kind: 'success', text: 'Senha alterada. Use a nova senha no próximo login.' })
+  }
+  return (
+    <form
+      className="mt-6 space-y-3 border-t border-line pt-4"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void save()
+      }}
+      noValidate
+    >
+      <h2 className="text-sm font-semibold text-ink">Alterar senha</h2>
+      <Field label="Nova senha" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+      <Field label="Repita a nova senha" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+      <Button type="submit" variant="ghost" className="w-full" disabled={busy}>{busy ? 'Salvando…' : 'Alterar senha'}</Button>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      <p className="text-xs text-ink/70">Não conseguiu trocar a senha ou o usuário? Fale com o suporte da Tucaí, que faz a alteração para você.</p>
+    </form>
+  )
+}
+
 export function AccountPage() {
   const { session, authz, authzError, signOut } = useAuth()
   const location = useLocation()
@@ -131,6 +168,7 @@ export function AccountPage() {
       </form>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
       {userId && <UsernameForm userId={userId} />}
+      {userId && <PasswordForm />}
       <Button variant="ghost" className="mt-4 w-full" onClick={() => void onSignOut()}>Sair</Button>
     </Card>
   )

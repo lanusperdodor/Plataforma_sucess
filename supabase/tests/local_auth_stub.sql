@@ -16,6 +16,7 @@ create table if not exists auth.users (
   email_change text,
   email_change_token_new text,
   banned_until timestamptz,
+  last_sign_in_at timestamptz,
   created_at timestamptz,
   updated_at timestamptz
 );

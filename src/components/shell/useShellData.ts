@@ -15,7 +15,7 @@ export function useCartSummary(): CartSummary {
   return EMPTY_CART
 }
 
-/** Notificações não lidas do Conecta (0 sem sessão). Atualiza a cada minuto. */
+/** Notificações não lidas do Conectuaí (0 sem sessão). Atualiza a cada minuto. */
 export function useUnreadCount(): number {
   const { session } = useAuth()
   const me = session?.user.id

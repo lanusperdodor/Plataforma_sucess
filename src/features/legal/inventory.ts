@@ -108,7 +108,7 @@ export const PROCESSING: readonly ProcessingActivity[] = [
     access: 'Você; equipe com permissão “Atender solicitações de privacidade”',
   },
   {
-    data: 'Tucaí Conecta: perfil social (nome de exibição, @usuário, bio, foto e cidade opcionais), publicações, comentários, curtidas, salvos, seguidas e bloqueios',
+    data: 'Conectuaí: perfil social (nome de exibição, @usuário, bio, foto e cidade opcionais), publicações, comentários, curtidas, salvos, seguidas e bloqueios',
     purpose: 'Rede social regional escolhida por você',
     legalBasis: 'Execução de contrato (art. 7º, V); o conteúdo público é publicado por sua decisão',
     systems: 'Supabase',
@@ -121,7 +121,7 @@ export const PROCESSING: readonly ProcessingActivity[] = [
     legalBasis: 'Legítimo interesse (art. 7º, IX)',
     systems: 'Supabase',
     retention: 'Enquanto necessárias para defesa de direitos (prazo a validar)',
-    access: 'Quem denunciou ou foi moderado; equipe com permissão “Moderação do Conecta”',
+    access: 'Quem denunciou ou foi moderado; equipe com permissão “Moderação do Conectuaí”',
   },
   {
     data: 'Endereço IP, navegador e horários de requisição (registros técnicos)',

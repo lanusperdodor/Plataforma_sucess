@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+vi.mock('../../features/auth/AuthProvider.tsx', () => ({ useAuth: () => ({ session: null, authz: null }) }))
+
 import { BottomNav } from './BottomNav.tsx'
 import { CartFab } from './CartFab.tsx'
 import { SideNav } from './SideNav.tsx'

@@ -129,10 +129,10 @@ function FollowBusiness({ businessId }: { businessId: string }) {
   const following = useQuery({ queryKey: ['conecta', 'bizfollow', me ?? '', businessId], queryFn: () => isFollowingBusiness(me!, businessId), enabled: !!me && !!profile.data })
   const m = useMutation({ mutationFn: () => setBusinessFollow(me!, businessId, !following.data), onSuccess: () => void qc.invalidateQueries({ queryKey: ['conecta', 'bizfollow'] }) })
   if (!me) return <Link to="/entrar" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Entre para seguir</Link>
-  if (profile.data === null) return <Link to="/conecta" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Crie seu perfil no Conecta para seguir</Link>
+  if (profile.data === null) return <Link to="/conectuai" className="pressable inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-ink">Crie seu perfil no Conectuaí para seguir</Link>
   return (
     <button type="button" disabled={m.isPending || following.isLoading} onClick={() => m.mutate()} className={`pressable inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${following.data ? 'border border-line text-ink' : 'bg-orange text-ink'}`}>
-      {following.data ? 'Seguindo' : 'Seguir no Conecta'}
+      {following.data ? 'Seguindo' : 'Seguir no Conectuaí'}
     </button>
   )
 }
@@ -212,7 +212,7 @@ export function BusinessPage() {
         )}
       </section>
       <section aria-labelledby="loja-conecta" className="flex flex-col gap-3">
-        <h2 id="loja-conecta" className="text-lg font-semibold text-ink">No Conecta</h2>
+        <h2 id="loja-conecta" className="text-lg font-semibold text-ink">No Conectuaí</h2>
         <Feed scope={{ kind: 'business', businessId: b.id }} me={session?.user.id ?? null} empty={{ title: 'Sem publicações ainda', description: 'Novidades e ofertas do estabelecimento aparecem aqui.' }} />
       </section>
       <Link to={b.businessType === 'restaurante' ? '/restaurantes' : b.businessType === 'loja' ? '/lojas' : '/servicos'} className="text-sm font-semibold text-brand underline">

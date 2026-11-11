@@ -22,12 +22,12 @@ function text(n: ConectaNotification): string {
 }
 
 function href(n: ConectaNotification): string {
-  if (n.postId) return `/conecta/${n.postId}`
-  if (n.kind === 'follow' && n.actor) return `/conecta/u/${n.actor.handle}`
-  return '/conecta'
+  if (n.postId) return `/conectuai/${n.postId}`
+  if (n.kind === 'follow' && n.actor) return `/conectuai/u/${n.actor.handle}`
+  return '/conectuai'
 }
 
-/** Notificações reais do Conecta (pedidos entram quando o módulo de pedidos existir). */
+/** Notificações reais do Conectuaí (pedidos entram quando o módulo de pedidos existir). */
 export function NotificationsPage() {
   const { session } = useAuth()
   const me = session?.user.id
@@ -41,7 +41,7 @@ export function NotificationsPage() {
   }, [hasUnread, read])
   return (
     <Page>
-      <PageHeader icon={Bell} title="Notificações" subtitle="Interações no Conecta e avisos da moderação." />
+      <PageHeader icon={Bell} title="Notificações" subtitle="Interações no Conectuaí e avisos da moderação." />
       {!session ? (
         <LoginInvite icon={Bell} title="Receba avisos das suas interações" description="Entre para ver curtidas, comentários e novos seguidores." />
       ) : q.isError ? (

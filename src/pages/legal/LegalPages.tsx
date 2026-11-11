@@ -105,7 +105,7 @@ export function TermsPage() {
       <section aria-labelledby="t-ent"><h2 id="t-ent">Entregadores parceiros</h2><p>Entregadores são parceiros independentes. As condições de parceria (valores, aceite de entregas, documentos exigidos) serão publicadas após validação jurídica e antes da abertura do cadastro.</p></section>
       <section aria-labelledby="t-serv"><h2 id="t-serv">Prestadores de serviços</h2><p>Cada prestador é responsável pelos serviços, preços, agenda e cancelamentos que oferece. Regras de agendamento serão publicadas com o módulo de serviços.</p></section>
       <section aria-labelledby="t-con">
-        <h2 id="t-con">Tucaí Conecta</h2>
+        <h2 id="t-con">Conectuaí</h2>
         <ul>
           <li>Elogios e críticas são bem-vindos, com respeito. Ofensas, ameaças, assédio, discriminação e spam são proibidos e podem levar à remoção do conteúdo e à suspensão da conta, com direito a contestação.</li>
           <li>Conteúdo patrocinado é sempre identificado. Avaliações e depoimentos devem refletir experiências reais; a Tucaí não fabrica avaliações.</li>

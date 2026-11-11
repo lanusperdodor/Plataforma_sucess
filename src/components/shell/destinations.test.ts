@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NAV_DESTINATIONS, SECONDARY_DESTINATIONS, resolveActiveDestination } from './destinations.ts'
+import { NAV_DESTINATIONS, SECONDARY_DESTINATIONS, audienceOf, resolveActiveDestination, visibleGroups } from './destinations.ts'
 
 describe('resolveActiveDestination', () => {
   it.each([
@@ -12,8 +12,8 @@ describe('resolveActiveDestination', () => {
     ['/servicos', 'explorar'],
     ['/vagas/42', 'explorar'],
     ['/busca', 'explorar'],
-    ['/conecta', 'conecta'],
-    ['/conecta/post/1', 'conecta'],
+    ['/conectuai', 'conectuai'],
+    ['/conectuai/post/1', 'conectuai'],
     ['/pedidos', 'pedidos'],
     ['/pedidos/9', 'pedidos'],
     ['/perfil', 'perfil'],
@@ -32,14 +32,32 @@ describe('resolveActiveDestination', () => {
 })
 
 describe('destinos', () => {
-  it('tem 5 destinos primários e 5 secundários', () => {
-    expect(NAV_DESTINATIONS.map((d) => d.id)).toEqual(['inicio', 'explorar', 'conecta', 'pedidos', 'perfil'])
-    expect(SECONDARY_DESTINATIONS.map((d) => d.label)).toEqual([
-      'Restaurantes',
-      'Lojas',
-      'Serviços',
-      'Vagas',
-      'Notificações',
-    ])
+  it('tem 5 destinos primários e os atalhos de descoberta', () => {
+    expect(NAV_DESTINATIONS.map((d) => d.id)).toEqual(['inicio', 'explorar', 'conectuai', 'pedidos', 'perfil'])
+    expect(SECONDARY_DESTINATIONS.map((d) => d.label)).toEqual(['Restaurantes', 'Lojas', 'Serviços'])
+  })
+})
+
+describe('visibilidade por perfil', () => {
+  const labels = (a: Parameters<typeof visibleGroups>[0]) => visibleGroups(a).flatMap((g) => g.items.map((i) => i.label))
+  it('visitante não vê áreas pessoais nem de trabalho', () => {
+    const l = labels(audienceOf(false, null))
+    expect(l).toEqual(['Restaurantes', 'Lojas', 'Serviços', 'Seja entregador', 'Cadastrar negócio'])
+  })
+  it('cliente vê a própria conta', () => {
+    const l = labels(audienceOf(true, { userId: 'u', roles: ['customer'], memberships: [] }))
+    expect(l).toContain('Notificações')
+    expect(l).not.toContain('Painel Master')
+    expect(l).not.toContain('Meu estabelecimento')
+  })
+  it('comerciante, entregador e equipe veem só a própria área', () => {
+    const merchant = labels(audienceOf(true, { userId: 'u', roles: ['customer'], memberships: [{ businessId: 'b', role: 'owner' }] }))
+    expect(merchant).toContain('Meu estabelecimento')
+    expect(merchant).not.toContain('Cadastrar negócio')
+    const courier = labels(audienceOf(true, { userId: 'u', roles: ['customer', 'courier_partner'], memberships: [] }))
+    expect(courier).toContain('Área do entregador')
+    expect(courier).not.toContain('Seja entregador')
+    const admin = labels(audienceOf(true, { userId: 'u', roles: ['customer', 'platform_operator'], memberships: [] }))
+    expect(admin).toContain('Painel Master')
   })
 })

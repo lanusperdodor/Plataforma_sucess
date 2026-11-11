@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Briefcase, ShieldCheck, Bookmark, ChevronRight, CreditCard, Heart, LogOut, MapPin, Receipt, Settings, Store, Ticket, User, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Bell, Briefcase, ShieldCheck, Bookmark, ChevronRight, LogOut, Receipt, Store, User, type LucideIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { LoginInvite } from '../components/feedback/LoginInvite.tsx'
@@ -15,16 +15,10 @@ interface Item {
 
 const ITEMS: Item[] = [
   { slug: 'dados', to: '/conta', label: 'Dados da conta', text: 'Nome, telefone e e-mail', icon: User },
-  { slug: 'enderecos', to: '/perfil/enderecos', label: 'Endereços', text: 'Onde você recebe seus pedidos', icon: MapPin },
-  { slug: 'pagamentos', to: '/perfil/pagamentos', label: 'Formas de pagamento', text: 'Pagamentos online ainda não ativados', icon: CreditCard },
   { slug: 'pedidos', to: '/pedidos', label: 'Pedidos', text: 'Em andamento e anteriores', icon: Receipt },
-  { slug: 'favoritos', to: '/perfil/favoritos', label: 'Favoritos', text: 'Restaurantes e lojas que você ama', icon: Heart },
-  { slug: 'seguidas', to: '/perfil/seguidas', label: 'Empresas seguidas', text: 'Novidades do Conecta', icon: Store },
-  { slug: 'salvos', to: '/perfil/salvos', label: 'Publicações salvas', text: 'Promoções e eventos guardados', icon: Bookmark },
-  { slug: 'cupons', to: '/perfil/cupons', label: 'Cupons', text: 'Descontos oferecidos pelos comércios', icon: Ticket },
+  { slug: 'conectuai', to: '/conectuai', label: 'Conectuaí', text: 'Seu perfil social, amigos, recados e comunidades', icon: Bookmark },
   { slug: 'notificacoes', to: '/notificacoes', label: 'Notificações', text: 'Avisos de pedidos e novidades', icon: Bell },
   { slug: 'privacidade', to: '/perfil/privacidade', label: 'Privacidade e dados', text: 'Baixar dados, solicitações LGPD e sessões', icon: ShieldCheck },
-  { slug: 'configuracoes', to: '/perfil/configuracoes', label: 'Configurações', text: 'Privacidade, notificações e conta', icon: Settings },
 ]
 
 /** Perfil: menu da conta. Subseções sem backend ainda mostram o que vai existir ali. */

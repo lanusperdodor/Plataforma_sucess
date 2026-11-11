@@ -1,10 +1,12 @@
 import { Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import {
   NAV_DESTINATIONS,
-  PARTNER_DESTINATIONS,
   SECONDARY_DESTINATIONS,
+  audienceOf,
+  visibleGroups,
   resolveActiveDestination,
 } from './destinations.ts'
 
@@ -22,6 +24,8 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
   const { pathname } = useLocation()
   const active = resolveActiveDestination(pathname)
   const [open, setOpen] = useState(false)
+  const { session, authz } = useAuth()
+  const groups = visibleGroups(audienceOf(!!session, authz))
   const rail = mode === 'rail'
   const drawerOpen = rail && open
 
@@ -58,7 +62,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
             onFocus={() => onPrefetch?.(item.to)}
             className={itemClass(isActive, showLabel)}
           >
-            <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.5 : 2} />
+            <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.25 : 1.75} />
             {showLabel ? <span>{item.label}</span> : null}
           </Link>
         </li>
@@ -93,14 +97,12 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         style={{ ...stickyStyle, width: 'var(--sidenav-w)', zIndex: 'var(--z-nav)' }}
       >
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
-          Descobrir
-        </h2>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary()}</ul>
-        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
-          Parceiros
-        </h2>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(PARTNER_DESTINATIONS)}</ul>
+        {groups.map((g) => (
+          <section key={g.id} aria-label={g.title}>
+            <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
       </nav>
     )
   }
@@ -156,14 +158,12 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
           <X aria-hidden="true" size={20} />
         </button>
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
-          Descobrir
-        </h2>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary()}</ul>
-        <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">
-          Parceiros
-        </h2>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(PARTNER_DESTINATIONS)}</ul>
+        {groups.map((g) => (
+          <section key={g.id} aria-label={g.title}>
+            <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
       </aside>
     </>
   )

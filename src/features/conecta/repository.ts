@@ -3,7 +3,7 @@ import { RepositoryError, backendUnavailable, mapPostgrestError } from '../../li
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 
 /**
- * Tucaí Conecta (0008). Leitura e escrita direto nas tabelas, sob RLS e gatilhos que validam
+ * Conectuaí (0008). Leitura e escrita direto nas tabelas, sob RLS e gatilhos que validam
  * autoria, visibilidade, bloqueios, suspensão e limites. Nenhum dado é simulado.
  */
 
@@ -48,6 +48,10 @@ const profileSchema = z
     city_id: z.string().nullable(),
     is_public: z.boolean(),
     created_at: z.string(),
+    wall_enabled: z.boolean().optional(),
+    wall_audience: z.enum(['everyone', 'friends']).optional(),
+    show_connections: z.boolean().optional(),
+    testimonials_enabled: z.boolean().optional(),
   })
   .transform((r) => ({
     userId: r.user_id,
@@ -58,9 +62,13 @@ const profileSchema = z
     cityId: r.city_id,
     isPublic: r.is_public,
     createdAt: r.created_at,
+    wallEnabled: r.wall_enabled ?? true,
+    wallAudience: r.wall_audience ?? 'everyone',
+    showConnections: r.show_connections ?? true,
+    testimonialsEnabled: r.testimonials_enabled ?? true,
   }))
 export type SocialProfile = z.output<typeof profileSchema>
-const PROFILE_COLS = 'user_id,handle,display_name,bio,avatar_url,city_id,is_public,created_at'
+const PROFILE_COLS = 'user_id,handle,display_name,bio,avatar_url,city_id,is_public,created_at,wall_enabled,wall_audience,show_connections,testimonials_enabled'
 
 export async function getProfileByUser(userId: string): Promise<SocialProfile | null> {
   return exec(supabase.from('social_profiles').select(PROFILE_COLS).eq('user_id', userId).maybeSingle(), profileSchema.nullable())
@@ -70,7 +78,7 @@ export async function getProfileByHandle(handle: string): Promise<SocialProfile 
   return exec(supabase.from('social_profiles').select(PROFILE_COLS).eq('handle', handle.toLowerCase()).maybeSingle(), profileSchema.nullable())
 }
 
-async function profilesByIds(userIds: string[]): Promise<Map<string, SocialProfile>> {
+export async function profilesByIds(userIds: string[]): Promise<Map<string, SocialProfile>> {
   const unique = [...new Set(userIds)].filter(Boolean)
   if (unique.length === 0) return new Map()
   const rows = await exec(supabase.from('social_profiles').select(PROFILE_COLS).in('user_id', unique), z.array(profileSchema))
@@ -84,6 +92,10 @@ export const profileFormSchema = z.object({
   avatarUrl: z.string().trim().refine((v) => v === '' || /^https:\/\/[^\s<>"']+$/.test(v), 'Use um endereço https://'),
   cityId: z.string(),
   isPublic: z.boolean(),
+  wallEnabled: z.boolean().default(true),
+  wallAudience: z.enum(['everyone', 'friends']).default('everyone'),
+  showConnections: z.boolean().default(true),
+  testimonialsEnabled: z.boolean().default(true),
 })
 export type ProfileForm = z.input<typeof profileFormSchema>
 
@@ -96,6 +108,10 @@ export async function saveMyProfile(userId: string, input: ProfileForm, exists: 
     avatar_url: v.avatarUrl || null,
     city_id: v.cityId || null,
     is_public: v.isPublic,
+    wall_enabled: v.wallEnabled,
+    wall_audience: v.wallAudience,
+    show_connections: v.showConnections,
+    testimonials_enabled: v.testimonialsEnabled,
   }
   if (exists) {
     const rows = await exec(supabase.from('social_profiles').update(row).eq('user_id', userId).select('user_id'), z.array(z.object({ user_id: z.string() })))
@@ -365,7 +381,9 @@ export const REPORT_REASONS = {
 } as const
 export type ReportReason = keyof typeof REPORT_REASONS
 
-export async function reportContent(type: 'post' | 'comment' | 'profile', id: string, reason: ReportReason, details = ''): Promise<void> {
+export type ReportTarget = 'post' | 'comment' | 'profile' | 'community' | 'topic' | 'reply' | 'scrap' | 'testimonial'
+
+export async function reportContent(type: ReportTarget, id: string, reason: ReportReason, details = ''): Promise<void> {
   if (details.length > 1000) throw new RepositoryError('validation', 'Máximo de 1000 caracteres.')
   await exec(supabase.rpc('report_content', { _target_type: type, _target_id: id, _reason: reason, _details: details.trim() || null }), z.string())
 }

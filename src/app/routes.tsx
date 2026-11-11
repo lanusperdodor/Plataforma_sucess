@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '../components/shell/AppShell.tsx'
 import { RequireAuth } from '../features/auth/RequireAuth.tsx'
 import { AuthShell } from './AuthShell.tsx'
@@ -14,9 +14,13 @@ const StoresPage = lazyNamed(pageLoaders['/lojas'], 'StoresPage')
 const ServicesPage = lazyNamed(pageLoaders['/servicos'], 'ServicesPage')
 const JobsPage = lazyNamed(pageLoaders['/vagas'], 'JobsPage')
 const JobPage = lazyNamed(pageLoaders['/vagas/:id'], 'JobPage')
-const ConectaPage = lazyNamed(pageLoaders['/conecta'], 'ConectaPage')
-const PostPage = lazyNamed(pageLoaders['/conecta/:postId'], 'PostPage')
-const ConectaProfilePage = lazyNamed(pageLoaders['/conecta/u/:handle'], 'ConectaProfilePage')
+const ConectaPage = lazyNamed(pageLoaders['/conectuai'], 'ConectaPage')
+const PostPage = lazyNamed(pageLoaders['/conectuai/:postId'], 'PostPage')
+const ConectaProfilePage = lazyNamed(pageLoaders['/conectuai/u/:handle'], 'ConectaProfilePage')
+const CommunitiesPage = lazyNamed(pageLoaders['/conectuai/c'], 'CommunitiesPage')
+const CommunityPage = lazyNamed(pageLoaders['/conectuai/c/:slug'], 'CommunityPage')
+const TopicPage = lazyNamed(pageLoaders['/conectuai/c/:slug/t/:topicId'], 'TopicPage')
+const FriendsPage = lazyNamed(pageLoaders['/conectuai/amigos'], 'FriendsPage')
 const CouriersPage = lazyNamed(pageLoaders['/entregadores'], 'CouriersPage')
 const BusinessApplicationPage = lazyNamed(pageLoaders['/cadastrar-negocio'], 'BusinessApplicationPage')
 const PrivacyPolicyPage = lazyNamed(pageLoaders['/privacidade'], 'PrivacyPolicyPage')
@@ -38,10 +42,11 @@ const ResetPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'Res
 const NewPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'NewPasswordPage')
 const AdminLoginPage = lazyNamed(() => import('../pages/AdminLoginPage.tsx'), 'AdminLoginPage')
 const AccountPage = lazyNamed(() => import('../pages/AccountPage.tsx'), 'AccountPage')
+const CourierArea = lazyNamed(pageLoaders['/entregador'], 'CourierArea')
 const MerchantPanel = lazyNamed(() => import('../pages/merchant/MerchantPanel.tsx'), 'MerchantPanel')
 const AdminApp = lazyNamed(() => import('../pages/admin/AdminApp.tsx'), 'AdminApp')
 
-const PROFILE_SECTIONS = ['dados', 'enderecos', 'pagamentos', 'favoritos', 'seguidas', 'salvos', 'cupons', 'configuracoes']
+const PROFILE_SECTIONS = ['dados']
 
 function ShellLayout() {
   return (
@@ -53,9 +58,9 @@ function ShellLayout() {
   )
 }
 
-function LegacyPostRedirect() {
-  const { postId } = useParams()
-  return <Navigate to={`/conecta/${postId ?? ''}`} replace />
+function LegacyRedirect({ from }: { from: string }) {
+  const { pathname, search } = useLocation()
+  return <Navigate to={`/conectuai${pathname.slice(from.length)}${search}`} replace />
 }
 
 function PrivateLayout() {
@@ -95,12 +100,16 @@ export function AppRoutes() {
         <Route path="servicos/:slug" element={<BusinessPage />} />
         <Route path="vagas" element={<JobsPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
-        <Route path="conecta" element={<ConectaPage />} />
-        <Route path="conecta/u/:handle" element={<ConectaProfilePage />} />
-        <Route path="conecta/:postId" element={<PostPage />} />
-        {/* Antiga Comunidade: links salvos continuam funcionando. */}
-        <Route path="comunidade" element={<Navigate to="/conecta" replace />} />
-        <Route path="comunidade/:postId" element={<LegacyPostRedirect />} />
+        <Route path="conectuai" element={<ConectaPage />} />
+        <Route path="conectuai/amigos" element={<FriendsPage />} />
+        <Route path="conectuai/c" element={<CommunitiesPage />} />
+        <Route path="conectuai/c/:slug" element={<CommunityPage />} />
+        <Route path="conectuai/c/:slug/t/:topicId" element={<TopicPage />} />
+        <Route path="conectuai/u/:handle" element={<ConectaProfilePage />} />
+        <Route path="conectuai/:postId" element={<PostPage />} />
+        {/* Nomes antigos (Comunidade, Conecta): links salvos continuam funcionando. */}
+        <Route path="conecta/*" element={<LegacyRedirect from="/conecta" />} />
+        <Route path="comunidade/*" element={<LegacyRedirect from="/comunidade" />} />
         <Route path="entregadores" element={<CouriersPage />} />
         <Route path="privacidade" element={<PrivacyPolicyPage />} />
         <Route path="termos" element={<TermsPage />} />
@@ -123,6 +132,7 @@ export function AppRoutes() {
           <Route path="pedidos/:id" element={<OrderPage />} />
           <Route path="cadastrar-negocio" element={<BusinessApplicationPage />} />
           <Route path="painel/*" element={<MerchantPanel />} />
+          <Route path="entregador" element={<CourierArea />} />
 
         </Route>
         <Route path="*" element={<NotFoundPage />} />

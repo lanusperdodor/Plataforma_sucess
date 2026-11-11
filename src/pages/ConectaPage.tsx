@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { HeartHandshake, MessagesSquare, ShieldCheck, Users } from 'lucide-react'
+import { ConectuaiNav } from './conectuai/ConectuaiNav.tsx'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
@@ -50,12 +51,16 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
     avatarUrl: existing?.avatarUrl ?? '',
     cityId: existing?.cityId ?? '',
     isPublic: existing?.isPublic ?? true,
+    wallEnabled: existing?.wallEnabled ?? true,
+    wallAudience: existing?.wallAudience ?? 'everyone',
+    showConnections: existing?.showConnections ?? true,
+    testimonialsEnabled: existing?.testimonialsEnabled ?? true,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const save = useMutation({
     mutationFn: () => saveMyProfile(session!.user.id, v, !!existing),
     onSuccess: () => {
-      toast.success(existing ? 'Perfil atualizado.' : 'Bem-vindo ao Tucaí Conecta!')
+      toast.success(existing ? 'Perfil atualizado.' : 'Bem-vindo ao Conectuaí!')
       refresh()
       onDone?.()
     },
@@ -72,7 +77,7 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
   const err = (k: string) => (errors[k] ? <p role="alert" className="mt-1 text-xs text-danger">{errors[k]}</p> : null)
   return (
     <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-3 rounded-card border border-line bg-surface p-4 md:grid-cols-2 md:p-6">
-      <h2 className="text-lg font-semibold text-ink md:col-span-2">{existing ? 'Editar perfil social' : 'Crie seu perfil no Conecta'}</h2>
+      <h2 className="text-lg font-semibold text-ink md:col-span-2">{existing ? 'Editar perfil social' : 'Crie seu perfil no Conectuaí'}</h2>
       {!existing && <p className="text-sm text-ink-muted md:col-span-2">Seu perfil social é público e separado dos dados da sua conta (e-mail e telefone nunca aparecem).</p>}
       <div>
         <label htmlFor="sp-handle" className="mb-1 block text-sm font-medium text-ink">Nome de usuário</label>
@@ -104,6 +109,27 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
         <input type="checkbox" className="mt-0.5 size-5" checked={!v.isPublic} onChange={(e) => set('isPublic', !e.target.checked)} />
         <span>Perfil fechado <span className="block text-ink-muted">Suas publicações e sua lista de seguidores ficam visíveis só para quem segue você.</span></span>
       </label>
+      <fieldset className="flex flex-col gap-1 md:col-span-2">
+        <legend className="mb-1 text-sm font-medium text-ink">Quem pode ver e interagir</legend>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
+          <input type="checkbox" className="size-5" checked={v.wallEnabled} onChange={(e) => set('wallEnabled', e.target.checked)} />
+          Ativar meu mural de recados
+        </label>
+        {v.wallEnabled && (
+          <label className="flex min-h-11 items-center gap-2 pl-7 text-sm text-ink">
+            <input type="checkbox" className="size-5" checked={v.wallAudience === 'friends'} onChange={(e) => set('wallAudience', e.target.checked ? 'friends' : 'everyone')} />
+            Só amigos podem ver e deixar recados
+          </label>
+        )}
+        <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
+          <input type="checkbox" className="size-5" checked={v.showConnections} onChange={(e) => set('showConnections', e.target.checked)} />
+          Mostrar minha lista de amigos e comunidades
+        </label>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
+          <input type="checkbox" className="size-5" checked={v.testimonialsEnabled} onChange={(e) => set('testimonialsEnabled', e.target.checked)} />
+          Receber depoimentos de amigos (sempre com minha aprovação)
+        </label>
+      </fieldset>
       <div className="flex gap-2 md:col-span-2">
         <button type="submit" disabled={save.isPending} className={`${btn} bg-brand text-surface`}>{save.isPending ? 'Salvando…' : 'Salvar perfil'}</button>
         {onDone && existing && <button type="button" onClick={onDone} className={`${btn} border border-line text-ink`}>Cancelar</button>}
@@ -200,7 +226,7 @@ export function Feed({ scope, me, empty }: { scope: FeedScope; me: string | null
   )
 }
 
-/** Tucaí Conecta: rede social regional com feed, comentários, curtidas e moderação humana. */
+/** Conectuaí: rede social regional com feed, comentários, curtidas e moderação humana. */
 export function ConectaPage() {
   const { session } = useAuth()
   const me = session?.user.id ?? null
@@ -216,11 +242,12 @@ export function ConectaPage() {
 
   return (
     <Page>
-      <PageHeader icon={Users} title="Tucaí Conecta" subtitle={`A rede social de ${city?.name ?? 'sua região'}.`} actions={profile.data ? <Link to={`/conecta/u/${profile.data.handle}`} className={`${btn} border border-line text-ink`}>Meu perfil</Link> : undefined} />
+      <PageHeader icon={MessagesSquare} title="Conectuaí" subtitle={`A rede social de ${city?.name ?? 'sua região'}.`} actions={profile.data ? <Link to={`/conectuai/u/${profile.data.handle}`} className={`${btn} border border-line text-ink`}>Meu perfil</Link> : undefined} />
+      <ConectuaiNav />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {!session ? (
-            <LoginInvite icon={Users} title="Participe do Conecta" description="Entre para publicar, comentar e seguir pessoas e comércios da região." />
+            <LoginInvite icon={Users} title="Participe do Conectuaí" description="Entre para publicar, comentar e seguir pessoas e comércios da região." />
           ) : profile.isError ? (
             <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />
           ) : profile.data === null ? (

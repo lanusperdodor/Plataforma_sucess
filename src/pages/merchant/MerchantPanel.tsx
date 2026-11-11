@@ -396,7 +396,7 @@ function BusinessPanel() {
       </Routes>
       {b.status === 'active' && (
         <p className="text-sm text-ink">
-          Publique novidades e ofertas ligadas ao cardápio no <Link to="/conecta" className="font-semibold text-brand underline">Tucaí Conecta</Link> escolhendo “Publicar como {b.name}”.
+          Publique novidades e ofertas ligadas ao cardápio no <Link to="/conectuai" className="font-semibold text-brand underline">Conectuaí</Link> escolhendo “Publicar como {b.name}”.
         </p>
       )}
       <p className="text-xs text-ink-muted">Pedidos, vendas e relatórios entram no painel quando o módulo de pedidos for liberado.</p>

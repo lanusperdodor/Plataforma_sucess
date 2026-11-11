@@ -26,7 +26,7 @@ export const PERMISSION_LABEL: Record<(typeof PLATFORM_PERMISSION_CODES)[number]
   'couriers.review': 'Analisar entregadores',
   'orders.view': 'Consultar pedidos',
   'finance.view': 'Consultar financeiro',
-  'moderation.manage': 'Moderação do Conecta',
+  'moderation.manage': 'Moderação do Conectuaí',
   'support.manage': 'Chamados',
   'campaigns.manage': 'Campanhas',
   'jobs.manage': 'Vagas',

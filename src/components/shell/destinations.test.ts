@@ -34,7 +34,7 @@ describe('resolveActiveDestination', () => {
 describe('destinos', () => {
   it('tem 5 destinos primários e os atalhos de descoberta', () => {
     expect(NAV_DESTINATIONS.map((d) => d.id)).toEqual(['inicio', 'explorar', 'conectuai', 'pedidos', 'perfil'])
-    expect(SECONDARY_DESTINATIONS.map((d) => d.label)).toEqual(['Restaurantes', 'Lojas', 'Serviços'])
+    expect(SECONDARY_DESTINATIONS.map((d) => d.label)).toEqual(['Restaurantes', 'Lojas', 'Serviços', 'Vagas'])
   })
 })
 
@@ -42,7 +42,7 @@ describe('visibilidade por perfil', () => {
   const labels = (a: Parameters<typeof visibleGroups>[0]) => visibleGroups(a).flatMap((g) => g.items.map((i) => i.label))
   it('visitante não vê áreas pessoais nem de trabalho', () => {
     const l = labels(audienceOf(false, null))
-    expect(l).toEqual(['Restaurantes', 'Lojas', 'Serviços', 'Seja entregador', 'Cadastrar negócio'])
+    expect(l).toEqual(['Restaurantes', 'Lojas', 'Serviços', 'Vagas', 'Seja entregador', 'Cadastrar negócio'])
   })
   it('cliente vê a própria conta', () => {
     const l = labels(audienceOf(true, { userId: 'u', roles: ['customer'], memberships: [] }))

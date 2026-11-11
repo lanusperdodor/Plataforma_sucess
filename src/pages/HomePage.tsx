@@ -25,6 +25,7 @@ const CTAS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/restaurantes', label: 'Restaurantes', icon: UtensilsCrossed },
   { to: '/lojas', label: 'Lojas', icon: Store },
   { to: '/servicos', label: 'Serviços', icon: Wrench },
+  { to: '/vagas', label: 'Vagas', icon: Briefcase },
 ]
 
 export function categoryHref(c: Pick<Category, 'kind' | 'slug'>): string {

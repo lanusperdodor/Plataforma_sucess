@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon, Settings } from 'lucide-react'
+import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, LogOut, MapPinned, ShieldCheck, Users, type LucideIcon, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { StateShell } from '../../components/feedback/StateShell.tsx'
 import { BRAND } from '../../config/brand.ts'
-import { canAdmin, getMyAccess, type AdminAccess, type PlatformPermissionCode } from '../../features/admin/repository.ts'
+import { canAdmin, getMyAccess, type AdminAccess, type PlatformPermissionCode, getMyName } from '../../features/admin/repository.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { AdminAudit } from './AdminAudit.tsx'
 import { AdminBusinesses } from './AdminBusinesses.tsx'
@@ -16,6 +16,7 @@ import { AdminPrivacy } from './AdminPrivacy.tsx'
 import { AdminDashboard } from './AdminDashboard.tsx'
 import { AdminSecurity } from './AdminSecurity.tsx'
 import { AdminSettings } from './AdminSettings.tsx'
+import { AdminFinance } from './AdminFinance.tsx'
 import { AdminTeam } from './AdminTeam.tsx'
 import { AdminAccessContext } from './access-context.ts'
 
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
   { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
   { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
+  { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, permission: 'finance.view' },
   { to: '/admin/equipe', label: 'Equipe', icon: Users, permission: 'master' },
   { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, permission: 'audit.view' },
   { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, permission: 'privacy.manage' },
@@ -65,6 +67,8 @@ function Guard({ access, item, children }: { access: AdminAccess; item: NavItem;
 function Layout({ access, children }: { access: AdminAccess; children: ReactNode }) {
   const { session, signOut } = useAuth()
   const items = NAV.filter((i) => allowed(access, i) || !i.permission)
+  const userId = session?.user.id ?? ''
+  const myName = useQuery({ queryKey: ['admin', 'my-name', userId], queryFn: () => getMyName(userId), enabled: !!userId })
   return (
     <div className="flex min-h-dvh flex-col bg-muted">
       <header className="sticky top-0 z-[var(--z-nav)] border-b border-line bg-surface">
@@ -76,7 +80,7 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
           <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-ink-muted sm:inline">
             {access.isMaster ? 'Master' : 'Operador'}
           </span>
-          <span className="ml-auto hidden truncate text-xs text-ink-muted md:inline">{session?.user.email}</span>
+          <span className="ml-auto hidden truncate text-sm font-medium text-ink md:inline">{myName.data ?? (session?.user.email?.endsWith('@tucai.example.com') ? session.user.email.split('@')[0] : session?.user.email)}</span>
           <button
             type="button"
             onClick={() => void signOut()}
@@ -178,6 +182,7 @@ export function AdminApp() {
           <Route path="auditoria" element={<Guard access={data} item={item('/admin/auditoria')}><AdminAudit /></Guard>} />
           <Route path="privacidade" element={<Guard access={data} item={item('/admin/privacidade')}><AdminPrivacy /></Guard>} />
           <Route path="moderacao" element={<Guard access={data} item={item('/admin/moderacao')}><AdminModeration /></Guard>} />
+          <Route path="financeiro" element={<Guard access={data} item={item('/admin/financeiro')}><AdminFinance /></Guard>} />
           <Route path="configuracoes" element={<Guard access={data} item={item('/admin/configuracoes')}><AdminSettings /></Guard>} />
           <Route path="seguranca" element={<AdminSecurity />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />

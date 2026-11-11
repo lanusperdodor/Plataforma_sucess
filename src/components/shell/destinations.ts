@@ -1,6 +1,7 @@
 import {
   Bell,
   Bike,
+  Briefcase,
   Compass,
   House,
   LayoutDashboard,
@@ -86,6 +87,7 @@ export const SECONDARY_DESTINATIONS: readonly SecondaryDestination[] = [
   { id: 'restaurantes', label: 'Restaurantes', to: '/restaurantes', icon: UtensilsCrossed },
   { id: 'lojas', label: 'Lojas', to: '/lojas', icon: ShoppingBag },
   { id: 'servicos', label: 'Serviços', to: '/servicos', icon: Wrench },
+  { id: 'vagas', label: 'Vagas', to: '/vagas', icon: Briefcase },
 ]
 
 /** Grupos do menu lateral; cada item aparece só para quem pode usá-lo. */

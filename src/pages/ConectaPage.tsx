@@ -193,7 +193,7 @@ function Composer({ profile }: { profile: SocialProfile }) {
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-ink-muted">{body.length}/2000 · imagens e vídeos em breve</span>
+        <span className="text-xs text-ink-muted">{body.length}/2000 caracteres</span>
         <button type="submit" disabled={post.isPending || !body.trim()} className={`${btn} bg-orange text-ink`}>{post.isPending ? 'Publicando…' : 'Publicar'}</button>
       </div>
     </form>

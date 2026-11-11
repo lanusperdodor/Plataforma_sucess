@@ -1,5 +1,6 @@
 import { RECENT_KEY } from '../recent/recentStore'
 import { CITY_KEY } from '../location/cityStore'
+import { CART_KEY } from '../cart/cartStore'
 
 /**
  * Inventário do que a Tucaí efetivamente trata HOJE (fonte única para a política de
@@ -41,6 +42,14 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     category: 'preferencias',
     purpose: 'Mostrar “Últimos vistos” neste aparelho (não é enviado ao servidor).',
     lifetime: 'Até 12 itens; até você apagar.',
+    clearable: true,
+  },
+  {
+    key: CART_KEY,
+    where: 'localStorage',
+    category: 'necessario',
+    purpose: 'Guardar os itens da sacola até você confirmar o pedido (não é enviado ao servidor antes disso).',
+    lifetime: 'Até concluir o pedido, esvaziar a sacola ou apagar.',
     clearable: true,
   },
   {
@@ -122,6 +131,30 @@ export const PROCESSING: readonly ProcessingActivity[] = [
     systems: 'Supabase',
     retention: 'Enquanto necessárias para defesa de direitos (prazo a validar)',
     access: 'Quem denunciou ou foi moderado; equipe com permissão “Moderação do Conectuaí”',
+  },
+  {
+    data: 'Pedidos: nome, telefone, endereço de entrega, itens, forma de pagamento e observações',
+    purpose: 'Preparar, entregar e cobrar o pedido; histórico e avaliação verificada',
+    legalBasis: 'Execução de contrato (art. 7º, V); obrigação legal fiscal (art. 7º, II)',
+    systems: 'Supabase',
+    retention: 'Enquanto a conta existir; após exclusão, o pedido fica sem dados pessoais para a contabilidade',
+    access: 'Você; equipe do estabelecimento com permissão de pedidos; entregador parceiro só após aceitar a entrega',
+  },
+  {
+    data: 'Entregadores parceiros: nome, telefone, cidade, veículo, placa, CNH e entregas realizadas',
+    purpose: 'Análise do cadastro, distribuição de entregas e repasse de ganhos',
+    legalBasis: 'Execução de contrato (art. 7º, V)',
+    systems: 'Supabase',
+    retention: 'Enquanto a parceria existir; histórico de entregas sem o cadastro após exclusão',
+    access: 'Você; equipe com permissão “Analisar entregadores”; cliente vê só o primeiro nome e o veículo',
+  },
+  {
+    data: 'Candidaturas a vagas: nome, telefone, mensagem e experiência informadas',
+    purpose: 'Processo seletivo da vaga escolhida por você',
+    legalBasis: 'Procedimentos preliminares a contrato (art. 7º, V)',
+    systems: 'Supabase',
+    retention: 'Até você excluir a conta; a vaga encerrada não apaga a candidatura automaticamente (prazo a validar)',
+    access: 'Você; dono e gerente do estabelecimento que publicou a vaga',
   },
   {
     data: 'Endereço IP, navegador e horários de requisição (registros técnicos)',

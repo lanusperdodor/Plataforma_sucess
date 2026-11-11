@@ -1,18 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { cartCount, cartSubtotal, useCart } from '../../features/cart/cartStore.ts'
 import { countUnread } from '../../features/conecta/repository.ts'
 
-/** Hooks do shell. A sacola será ligada quando o módulo de pedidos existir. */
+/** Hooks do shell. */
 
 export interface CartSummary {
   count: number
   totalCents: number
 }
 
-const EMPTY_CART: CartSummary = { count: 0, totalCents: 0 }
-
+/** Resumo da sacola deste aparelho (valores de exibição; o servidor recalcula no pedido). */
 export function useCartSummary(): CartSummary {
-  return EMPTY_CART
+  const cart = useCart()
+  return { count: cartCount(cart), totalCents: cartSubtotal(cart) }
 }
 
 /** Notificações não lidas do Conectuaí (0 sem sessão). Atualiza a cada minuto. */

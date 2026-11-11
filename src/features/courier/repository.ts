@@ -107,3 +107,64 @@ export async function adminListCouriers(status: CourierStatus | null): Promise<A
 export async function adminReviewCourier(userId: string, decision: 'approve' | 'reject' | 'suspend' | 'reactivate', note = ''): Promise<CourierStatus> {
   return exec(supabase.rpc('admin_review_courier', { _user: userId, _decision: decision, _note: note.trim() || null }), z.enum(courierStatuses))
 }
+
+// ---------- entregas (0012) ----------
+const offerSchema = z
+  .object({
+    order_id: z.string(), business_name: z.string(), business_address: z.string().nullable(), courier_pay_cents: z.number().int(),
+    offered_at: z.string(), neighborhood_hint: z.string().nullable(), items_count: z.number(),
+  })
+  .transform((r) => ({
+    orderId: r.order_id, businessName: r.business_name, businessAddress: r.business_address, payCents: r.courier_pay_cents,
+    offeredAt: r.offered_at, neighborhood: r.neighborhood_hint, itemsCount: r.items_count,
+  }))
+export type DeliveryOffer = z.output<typeof offerSchema>
+
+export async function listOffers(): Promise<DeliveryOffer[]> {
+  return exec(supabase.rpc('courier_list_offers'), z.array(offerSchema))
+}
+
+const myDeliverySchema = z
+  .object({
+    order_id: z.string(), order_code: z.string(), status: z.enum(['offered', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+    business_name: z.string(), business_address: z.string().nullable(), business_phone: z.string().nullable(), customer_name: z.string(),
+    customer_phone: z.string(), delivery_address: z.string().nullable(), delivery_reference: z.string().nullable(),
+    payment_method: z.enum(['cash', 'pix_on_delivery', 'card_on_delivery']), total_cents: z.number().int(), change_for_cents: z.number().int().nullable(),
+    courier_pay_cents: z.number().int(), accepted_at: z.string().nullable(), delivered_at: z.string().nullable(),
+  })
+  .transform((r) => ({
+    orderId: r.order_id, code: r.order_code, status: r.status, businessName: r.business_name, businessAddress: r.business_address,
+    businessPhone: r.business_phone, customerName: r.customer_name, customerPhone: r.customer_phone, address: r.delivery_address,
+    reference: r.delivery_reference, payment: r.payment_method, totalCents: r.total_cents, changeForCents: r.change_for_cents,
+    payCents: r.courier_pay_cents, acceptedAt: r.accepted_at, deliveredAt: r.delivered_at,
+  }))
+export type CourierDelivery = z.output<typeof myDeliverySchema>
+
+export async function myDeliveries(active: boolean): Promise<CourierDelivery[]> {
+  return exec(supabase.rpc('courier_my_deliveries', { _active: active }), z.array(myDeliverySchema))
+}
+
+export async function acceptDelivery(orderId: string): Promise<void> {
+  await exec(supabase.rpc('courier_accept_delivery', { _order: orderId }), z.unknown())
+}
+export async function releaseDelivery(orderId: string): Promise<void> {
+  await exec(supabase.rpc('courier_release_delivery', { _order: orderId }), z.unknown())
+}
+export async function pickupDelivery(orderId: string): Promise<void> {
+  await exec(supabase.rpc('courier_pickup_delivery', { _order: orderId }), z.unknown())
+}
+/** Devolve true se o código conferiu e a entrega foi concluída. */
+export async function completeDelivery(orderId: string, code: string): Promise<boolean> {
+  await exec(supabase.rpc('courier_complete_delivery', { _order: orderId, _code: code.trim() }), z.unknown())
+  const still = await myDeliveries(true)
+  return !still.some((d) => d.orderId === orderId)
+}
+
+const earningsSchema = z
+  .object({ today_cents: z.number(), week_cents: z.number(), total_cents: z.number(), deliveries: z.number() })
+  .transform((r) => ({ todayCents: r.today_cents, weekCents: r.week_cents, totalCents: r.total_cents, deliveries: r.deliveries }))
+export type CourierEarnings = z.output<typeof earningsSchema>
+
+export async function getEarnings(): Promise<CourierEarnings> {
+  return exec(supabase.rpc('courier_earnings'), earningsSchema)
+}

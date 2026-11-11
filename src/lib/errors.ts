@@ -25,7 +25,7 @@ export class RepositoryError extends Error {
 const MISSING_SCHEMA_CODES = new Set(['PGRST205', 'PGRST202', '42P01', '42883'])
 
 export const UNAVAILABLE_MESSAGE =
-  'Este recurso ainda não está disponível: o banco de dados da Tucaí está em configuração.'
+  'Não foi possível acessar este recurso no banco de dados da Tucaí agora. Tente novamente em instantes.'
 
 export function backendUnavailable(cause?: unknown): RepositoryError {
   return new RepositoryError('unavailable', UNAVAILABLE_MESSAGE, undefined, { cause })

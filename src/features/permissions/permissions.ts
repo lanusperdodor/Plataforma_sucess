@@ -21,6 +21,7 @@ export type BusinessPermission =
   | 'reports.view'
   | 'settings.manage'
   | 'delivery.manage_own'
+  | 'jobs.manage'
 
 export type PlatformPermission =
   | 'platform.approve_business'
@@ -40,6 +41,7 @@ export const MEMBER_PERMISSIONS: Record<MemberRole, readonly BusinessPermission[
     'reports.view',
     'settings.manage',
     'delivery.manage_own',
+    'jobs.manage',
   ],
   manager: [
     'store.customize',
@@ -48,6 +50,7 @@ export const MEMBER_PERMISSIONS: Record<MemberRole, readonly BusinessPermission[
     'orders.update_status',
     'reports.view',
     'delivery.manage_own',
+    'jobs.manage',
   ],
   attendant: ['orders.view', 'orders.update_status'],
   kitchen: ['orders.view', 'orders.update_status'],

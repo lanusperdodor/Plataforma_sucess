@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Clock, ExternalLink, LayoutGrid, Plus, Store, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Briefcase, Clock, ExternalLink, LayoutGrid, Plus, ReceiptText, Star, Store, Trash2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
 import { businessHref } from '../../components/cards/BusinessCard.tsx'
@@ -35,6 +35,7 @@ import {
 } from '../../features/merchant/repository.ts'
 import { canInBusiness, type BusinessPermission } from '../../features/permissions/permissions.ts'
 import { formatBRL } from '../../lib/money.ts'
+import { JobsTab, OrdersTab, ReviewsTab, SalesTab } from './OperationsTabs.tsx'
 
 const field = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink'
 const primary = 'pressable inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-surface disabled:opacity-50'
@@ -120,14 +121,16 @@ function StoreTab({ b }: { b: MerchantBusiness }) {
         <fieldset className="flex flex-col gap-3 md:col-span-2">
           <legend className="mb-1 text-sm font-medium text-ink">Entrega e retirada</legend>
           <div className="flex flex-wrap gap-2">
-            {([['own', 'Entrega própria'], ['none', 'Sem entrega']] as const).map(([val, label]) => (
+            {([['partner', 'Entregadores Tucaí'], ['own', 'Entrega própria'], ['none', 'Sem entrega']] as const).map(([val, label]) => (
               <label key={val} className={`pressable inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm ${v.deliveryOffer === val ? 'border-brand font-semibold text-brand' : 'border-line text-ink'}`}>
                 <input type="radio" name="st-delivery" className="sr-only" checked={v.deliveryOffer === val} onChange={() => set('deliveryOffer', val)} />
                 {label}
               </label>
             ))}
-            <span className="inline-flex min-h-11 items-center rounded-full border border-dashed border-line px-4 text-sm text-ink-muted">Entregadores Tucaí: em breve</span>
           </div>
+          {v.deliveryOffer === 'partner' && (
+            <p className="text-xs text-ink-muted">O cliente paga R$ 4,00 de entrega e você contribui com R$ 2,00; o entregador parceiro recebe R$ 5,00 e a Tucaí R$ 1,00. Ao marcar o pedido como pronto, ele é oferecido aos entregadores disponíveis da sua cidade.</p>
+          )}
           <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
             <input type="checkbox" className="size-5" checked={v.acceptsPickup} onChange={(e) => set('acceptsPickup', e.target.checked)} />
             Aceita retirada no local
@@ -357,6 +360,10 @@ const TABS: { to: string; label: string; icon: typeof Store; permission: Busines
   { to: '', label: 'Loja', icon: Store, permission: 'store.customize' },
   { to: 'horarios', label: 'Horários', icon: Clock, permission: 'store.customize' },
   { to: 'cardapio', label: 'Cardápio', icon: LayoutGrid, permission: 'menu.manage' },
+  { to: 'pedidos', label: 'Pedidos', icon: ReceiptText, permission: 'orders.view' },
+  { to: 'vendas', label: 'Vendas', icon: BarChart3, permission: 'reports.view' },
+  { to: 'avaliacoes', label: 'Avaliações', icon: Star, permission: 'store.customize' },
+  { to: 'vagas', label: 'Vagas', icon: Briefcase, permission: 'jobs.manage' },
 ]
 
 function BusinessPanel() {
@@ -389,9 +396,13 @@ function BusinessPanel() {
         ))}
       </nav>
       <Routes>
-        <Route index element={guard('store.customize', <StoreTab key={b.id} b={b} />)} />
+        <Route index element={allowed('store.customize') ? <StoreTab key={b.id} b={b} /> : allowed('orders.view') ? <Navigate to="pedidos" replace /> : guard('store.customize', null)} />
         <Route path="horarios" element={guard('store.customize', <HoursTab b={b} />)} />
         <Route path="cardapio" element={guard('menu.manage', <MenuTab b={b} />)} />
+        <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} />)} />
+        <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
+        <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />
+        <Route path="vagas" element={guard('jobs.manage', <JobsTab businessId={b.id} active={b.status === 'active'} />)} />
         <Route path="*" element={<Navigate to="" replace />} />
       </Routes>
       {b.status === 'active' && (
@@ -399,7 +410,6 @@ function BusinessPanel() {
           Publique novidades e ofertas ligadas ao cardápio no <Link to="/conectuai" className="font-semibold text-brand underline">Conectuaí</Link> escolhendo “Publicar como {b.name}”.
         </p>
       )}
-      <p className="text-xs text-ink-muted">Pedidos, vendas e relatórios entram no painel quando o módulo de pedidos for liberado.</p>
     </Page>
   )
 }

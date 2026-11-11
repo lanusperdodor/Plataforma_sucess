@@ -90,7 +90,9 @@ export function TermsPage() {
         <h2 id="t-cons">Consumidores</h2>
         <ul>
           <li>Antes de confirmar qualquer compra, você verá preço dos itens, adicionais, taxa de entrega, outras taxas, descontos, total e condições de pagamento. Não há cobranças ocultas.</li>
-          <li>Pedidos e pagamentos online ainda não estão disponíveis; nada é cobrado nesta fase.</li>
+          <li>O pagamento é feito na entrega ou na retirada (dinheiro, Pix ou cartão na maquininha), direto ao estabelecimento ou ao entregador. A Tucaí não cobra nada do consumidor pela plataforma além da taxa de entrega exibida no pedido.</li>
+          <li>Você pode cancelar o pedido enquanto o estabelecimento ainda não o aceitou. Depois disso, fale com o estabelecimento.</li>
+          <li>Só quem recebeu o pedido pode avaliá-lo, uma vez por pedido; a avaliação é pública com o primeiro nome.</li>
           <li>Cancelamentos e reembolsos seguem o Código de Defesa do Consumidor e a política de reembolso abaixo.</li>
         </ul>
       </section>

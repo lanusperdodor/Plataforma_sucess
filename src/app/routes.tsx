@@ -14,6 +14,7 @@ const StoresPage = lazyNamed(pageLoaders['/lojas'], 'StoresPage')
 const ServicesPage = lazyNamed(pageLoaders['/servicos'], 'ServicesPage')
 const JobsPage = lazyNamed(pageLoaders['/vagas'], 'JobsPage')
 const JobPage = lazyNamed(pageLoaders['/vagas/:id'], 'JobPage')
+const MyApplicationsPage = lazyNamed(pageLoaders['/vagas/:id'], 'MyApplicationsPage')
 const ConectaPage = lazyNamed(pageLoaders['/conectuai'], 'ConectaPage')
 const PostPage = lazyNamed(pageLoaders['/conectuai/:postId'], 'PostPage')
 const ConectaProfilePage = lazyNamed(pageLoaders['/conectuai/u/:handle'], 'ConectaProfilePage')
@@ -100,6 +101,7 @@ export function AppRoutes() {
         <Route path="servicos/:slug" element={<BusinessPage />} />
         <Route path="vagas" element={<JobsPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
+        <Route path="vagas/minhas-candidaturas" element={<RequireAuth><MyApplicationsPage /></RequireAuth>} />
         <Route path="conectuai" element={<ConectaPage />} />
         <Route path="conectuai/amigos" element={<FriendsPage />} />
         <Route path="conectuai/c" element={<CommunitiesPage />} />
@@ -132,7 +134,7 @@ export function AppRoutes() {
           <Route path="pedidos/:id" element={<OrderPage />} />
           <Route path="cadastrar-negocio" element={<BusinessApplicationPage />} />
           <Route path="painel/*" element={<MerchantPanel />} />
-          <Route path="entregador" element={<CourierArea />} />
+          <Route path="entregador/*" element={<CourierArea />} />
 
         </Route>
         <Route path="*" element={<NotFoundPage />} />

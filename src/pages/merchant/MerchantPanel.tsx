@@ -400,7 +400,7 @@ function BusinessPanel() {
         <Route index element={allowed('store.customize') ? <StoreTab key={b.id} b={b} /> : allowed('orders.view') ? <Navigate to="pedidos" replace /> : guard('store.customize', null)} />
         <Route path="horarios" element={guard('store.customize', <HoursTab b={b} />)} />
         <Route path="cardapio" element={guard('menu.manage', <MenuTab b={b} />)} />
-        <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} />)} />
+        <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} kitchen={authz?.memberships.find((m) => m.businessId === b.id)?.role === 'kitchen'} />)} />
         <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
         <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />
         <Route path="plano" element={guard('reports.view', <PlanTab businessId={b.id} />)} />

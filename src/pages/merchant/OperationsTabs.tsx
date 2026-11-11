@@ -28,6 +28,8 @@ import {
   PAYMENT_LABEL,
   STATUS_LABEL,
   STEP_ACTION,
+  acceptOrder,
+  dispatchTick,
   getSalesSummary,
   listBusinessDeliveries,
   listBusinessOrders,
@@ -59,10 +61,16 @@ function Label({ htmlFor, children }: { htmlFor: string; children: ReactNode }) 
 const DELIVERY_TEXT = { offered: 'Aguardando entregador parceiro', accepted: 'Entregador a caminho da loja', picked_up: 'Com o entregador', delivered: 'Entregue', cancelled: 'Entrega cancelada' } as const
 
 // ---------- Pedidos ----------
-export function OrdersTab({ businessId, canUpdate }: { businessId: string; canUpdate: boolean }) {
+const PREP_OPTIONS = [10, 15, 20, 30, 45, 60]
+const KITCHEN_STEPS: OrderStatus[] = ['preparing', 'ready']
+
+export function OrdersTab({ businessId, canUpdate, kitchen = false }: { businessId: string; canUpdate: boolean; kitchen?: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [scope, setScope] = useState<'open' | 'done'>('open')
+  const [prep, setPrep] = useState<Record<string, number>>({})
+  // expira e redistribui ofertas vencidas ao acompanhar os pedidos (o banco decide; falha aqui não bloqueia nada)
+  useQuery({ queryKey: ['merchant', 'dispatch-tick', businessId], queryFn: () => dispatchTick().catch(() => 0), refetchInterval: 60_000, enabled: scope === 'open' })
   const orders = useQuery({ queryKey: ['merchant', 'orders', businessId, scope], queryFn: () => listBusinessOrders(businessId, scope), refetchInterval: scope === 'open' ? 15_000 : false })
   const ids = (orders.data ?? []).map((o) => o.id)
   const items = useQuery({ queryKey: ['merchant', 'order-items', ids.join(',')], queryFn: () => listOrderItems(ids), enabled: ids.length > 0 })
@@ -74,6 +82,7 @@ export function OrdersTab({ businessId, canUpdate }: { businessId: string; canUp
         note = window.prompt(a.status === 'rejected' ? 'Motivo da recusa (o cliente verá):' : 'Motivo do cancelamento (o cliente verá):')?.trim() ?? ''
         if (!note) return Promise.reject(new Error('Informe o motivo.'))
       }
+      if (a.status === 'accepted') return acceptOrder(a.order.id, prep[a.order.id] ?? 20)
       return updateOrderStatus(a.order.id, a.status, note)
     },
     onSuccess: (s) => {
@@ -86,6 +95,7 @@ export function OrdersTab({ businessId, canUpdate }: { businessId: string; canUp
 
   return (
     <div className="flex flex-col gap-3">
+      {kitchen && <p className="rounded-xl bg-muted p-3 text-sm text-ink">Visão da cozinha: você inicia e conclui o preparo dos pedidos aceitos pelo atendimento.</p>}
       <div className="flex gap-2">
         {(['open', 'done'] as const).map((s) => (
           <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)} className={scope === s ? primary : secondary}>{s === 'open' ? 'Em andamento' : 'Concluídos'}</button>
@@ -115,17 +125,36 @@ export function OrdersTab({ businessId, canUpdate }: { businessId: string; canUp
                 </ul>
                 {o.notes && <p className="text-sm text-ink">Observações: {o.notes}</p>}
                 {o.address && <p className="text-sm text-ink">Entregar em: {o.address}{o.reference ? ` (${o.reference})` : ''}</p>}
-                {d && <p className="flex items-center gap-1 text-sm text-ink"><Bike aria-hidden="true" className="size-4" />{DELIVERY_TEXT[d.status]}</p>}
+                {o.estimatedReadyAt && (o.status === 'accepted' || o.status === 'preparing') && (
+                  <p className="text-sm text-ink">Previsão de pronto: <strong>{new Date(o.estimatedReadyAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong> ({o.prepMinutes} min)</p>
+                )}
+                {d && (
+                  <p className="flex flex-wrap items-center gap-1 text-sm text-ink">
+                    <Bike aria-hidden="true" className="size-4" />{DELIVERY_TEXT[d.status]}
+                    {d.status === 'offered' && d.offerRound > 1 && <span className="text-ink-muted">· {d.offerRound}ª rodada de oferta</span>}
+                  </p>
+                )}
+                {d?.attention && <p role="status" className="rounded-xl bg-orange/15 p-2 text-sm font-semibold text-ink">Atenção: {d.attention}. A equipe Tucaí foi avisada.</p>}
                 {o.rejectionReason && <p className="text-sm text-ink-muted">Motivo: {o.rejectionReason}</p>}
                 <p className="text-sm">
                   Total <strong>{formatBRL(o.totalCents)}</strong>
                   <span className="text-ink-muted"> · comissão {formatBRL(o.commissionCents)}{o.merchantDeliveryCents ? ` · logística ${formatBRL(o.merchantDeliveryCents)}` : ''}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {canUpdate && staffNextSteps(o.status, o.fulfillment).map((s) => (
-                    <button key={s} type="button" disabled={change.isPending} onClick={() => change.mutate({ order: o, status: s })} className={s === 'rejected' || s === 'cancelled' ? secondary : primary}>
-                      {STEP_ACTION[s]}
-                    </button>
+                  {canUpdate && staffNextSteps(o.status, o.fulfillment).filter((s) => !kitchen || KITCHEN_STEPS.includes(s)).map((s) => (
+                    <span key={s} className="inline-flex items-center gap-2">
+                      {s === 'accepted' && (
+                        <label className="inline-flex items-center gap-1 text-sm text-ink">
+                          Preparo
+                          <select value={prep[o.id] ?? 20} onChange={(e) => setPrep((p) => ({ ...p, [o.id]: Number(e.target.value) }))} className="min-h-11 rounded-xl border border-line bg-surface px-2 text-sm">
+                            {PREP_OPTIONS.map((m) => <option key={m} value={m}>{m} min</option>)}
+                          </select>
+                        </label>
+                      )}
+                      <button type="button" disabled={change.isPending} onClick={() => change.mutate({ order: o, status: s })} className={s === 'rejected' || s === 'cancelled' ? secondary : primary}>
+                        {STEP_ACTION[s]}
+                      </button>
+                    </span>
                   ))}
                   {tel && <a href={`tel:${tel}`} className={secondary}><Phone aria-hidden="true" className="size-4" />Ligar</a>}
                 </div>

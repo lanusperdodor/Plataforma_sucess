@@ -21,6 +21,7 @@ export const PLATFORM_PERMISSION_CODES = [
   'privacy.manage',
   'couriers.review',
   'orders.view',
+  'orders.manage',
   'finance.view',
   'moderation.manage',
   'support.manage',
@@ -309,15 +310,15 @@ export function setSetting(key: string, value: unknown): Promise<void> {
 }
 
 // ---------- dados de teste (0015) ----------
-const testLoginSchema = z.object({ role: z.string(), label: z.string(), email: z.string() })
+const testLoginSchema = z.object({ role: z.string(), label: z.string(), email: z.string(), key: z.string().optional() })
 export type TestLogin = z.infer<typeof testLoginSchema>
 
 const createdSchema = z
-  .object({ run_id: z.string(), city: z.string(), password: z.string(), logins: z.array(testLoginSchema) })
-  .transform((r) => ({ runId: r.run_id, city: r.city, password: r.password, logins: r.logins }))
+  .object({ run_id: z.string(), city: z.string(), password: z.string().nullable(), logins: z.array(testLoginSchema), reused: z.boolean().optional() })
+  .transform((r) => ({ runId: r.run_id, city: r.city, password: r.password, logins: r.logins, reused: r.reused ?? false }))
 export type CreatedTestData = z.output<typeof createdSchema>
 
-/** Cria empresas, entregador e clientes de teste na cidade. A senha volta só nesta resposta. */
+/** Contas de homologação dos 9 perfis na cidade, reaproveitando o lote existente. A senha das contas novas volta só nesta resposta. */
 export function createTestData(cityId: string): Promise<CreatedTestData> {
   return rpc('admin_create_test_data', { _city: cityId }, createdSchema)
 }
@@ -501,4 +502,61 @@ export function setAccountPassword(userId: string, password: string): Promise<vo
 }
 export function setAccountBlocked(userId: string, blocked: boolean): Promise<void> {
   return rpc('admin_set_account_blocked', { _user: userId, _blocked: blocked }, z.any()).then(() => undefined)
+}
+
+// ---------- pedidos (0022): acompanhamento e ocorrências ----------
+const ORDER_STATUS = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'picked_up', 'rejected', 'cancelled'] as const
+const DELIVERY_STATUS = ['offered', 'accepted', 'picked_up', 'delivered', 'cancelled'] as const
+const adminOrderSchema = z
+  .object({
+    id: z.string(), code: z.string(), created_at: z.string(), status: z.enum(ORDER_STATUS),
+    fulfillment: z.enum(['delivery_own', 'delivery_partner', 'pickup']), payment_method: z.enum(['cash', 'pix_on_delivery', 'card_on_delivery']),
+    business_name: z.string(), city_name: z.string().nullable(), customer_name: z.string(), courier_name: z.string().nullable(),
+    total_cents: z.number().int(), commission_cents: z.number().int(), platform_fee_cents: z.number().int(),
+    delivery_status: z.enum(DELIVERY_STATUS).nullable(), attention: z.string().nullable(), is_test: z.boolean(), total: z.number(),
+  })
+  .transform((r) => ({
+    id: r.id, code: r.code, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment_method,
+    businessName: r.business_name, city: r.city_name, customerName: r.customer_name, courierName: r.courier_name,
+    totalCents: r.total_cents, commissionCents: r.commission_cents, platformFeeCents: r.platform_fee_cents,
+    deliveryStatus: r.delivery_status, attention: r.attention, isTest: r.is_test, total: r.total,
+  }))
+export type AdminOrder = z.output<typeof adminOrderSchema>
+export type AdminOrderScope = 'abertos' | 'atencao' | 'concluidos' | 'cancelados' | 'todos'
+
+export function listAdminOrders(scope: AdminOrderScope, search: string, includeTest: boolean, limit = 50, offset = 0): Promise<AdminOrder[]> {
+  return rpc('admin_list_orders', { _scope: scope, _search: search.trim() || null, _include_test: includeTest, _limit: limit, _offset: offset }, z.array(adminOrderSchema))
+}
+
+const detailSchema = z.object({
+  id: z.string(), code: z.string(), status: z.enum(ORDER_STATUS), fulfillment: z.string(), payment_method: z.string(),
+  created_at: z.string(), is_test: z.boolean(), notes: z.string().nullable(), rejection_reason: z.string().nullable(),
+  prep_minutes: z.number().nullable(), estimated_ready_at: z.string().nullable(), attention: z.string().nullable(),
+  customer: z.object({ name: z.string(), phone: z.string().nullable(), address: z.string().nullable() }),
+  business: z.object({ id: z.string(), name: z.string(), phone: z.string().nullable(), address: z.string().nullable(), city: z.string().nullable() }),
+  values: z.object({
+    subtotal_cents: z.number(), delivery_fee_cents: z.number(), total_cents: z.number(), commission_cents: z.number(),
+    merchant_delivery_cents: z.number(), courier_pay_cents: z.number(), platform_fee_cents: z.number(), pricing_version: z.unknown(),
+  }),
+  items: z.array(z.object({ name: z.string(), quantity: z.number(), unit_price_cents: z.number(), line_total_cents: z.number(),
+    options: z.array(z.object({ group: z.string(), option: z.string() }).passthrough()), notes: z.string().nullable() })),
+  events: z.array(z.object({ status: z.enum(ORDER_STATUS), note: z.string().nullable(), at: z.string(), actor: z.string() })),
+  delivery: z.object({
+    status: z.enum(DELIVERY_STATUS), offer_round: z.number(), offer_expires_at: z.string().nullable(), offered_at: z.string(),
+    accepted_at: z.string().nullable(), picked_up_at: z.string().nullable(), delivered_at: z.string().nullable(),
+    attention_reason: z.string().nullable(), failed_code_attempts: z.number(), declines: z.number(),
+    courier: z.object({ name: z.string(), phone: z.string().nullable(), vehicle: z.string(), last_lat: z.number().nullable(),
+      last_lng: z.number().nullable(), last_location_at: z.string().nullable() }).nullable(),
+  }).nullable(),
+})
+export type AdminOrderDetail = z.infer<typeof detailSchema>
+
+export function getAdminOrder(id: string): Promise<AdminOrderDetail> {
+  return rpc('admin_order_detail', { _order: id }, detailSchema)
+}
+export function cancelOrderAsPlatform(id: string, reason: string): Promise<void> {
+  return rpc('admin_cancel_order', { _order: id, _reason: reason.trim() }, z.any()).then(() => undefined)
+}
+export function redispatchOrder(id: string): Promise<void> {
+  return rpc('admin_redispatch', { _order: id }, z.any()).then(() => undefined)
 }

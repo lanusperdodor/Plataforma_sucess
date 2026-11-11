@@ -141,7 +141,7 @@ export async function placeOrder(cart: Cart, input: CheckoutForm, idempotencyKey
 
 // ---------- leitura ----------
 const ORDER_COLUMNS =
-  'id,code,customer_id,business_id,status,fulfillment,payment_method,change_for_cents,customer_name,customer_phone,delivery_address,delivery_reference,notes,subtotal_cents,delivery_fee_cents,discount_cents,total_cents,commission_cents,merchant_delivery_contribution_cents,platform_delivery_fee_cents,rejection_reason,created_at,updated_at'
+  'id,code,customer_id,business_id,status,fulfillment,payment_method,change_for_cents,customer_name,customer_phone,delivery_address,delivery_reference,notes,subtotal_cents,delivery_fee_cents,discount_cents,total_cents,commission_cents,merchant_delivery_contribution_cents,platform_delivery_fee_cents,rejection_reason,created_at,updated_at,prep_minutes,estimated_ready_at,is_test'
 
 const orderSchema = z
   .object({
@@ -151,6 +151,7 @@ const orderSchema = z
     notes: z.string().nullable(), subtotal_cents: z.number().int(), delivery_fee_cents: z.number().int(), discount_cents: z.number().int(),
     total_cents: z.number().int(), commission_cents: z.number().int(), merchant_delivery_contribution_cents: z.number().int(),
     platform_delivery_fee_cents: z.number().int(), rejection_reason: z.string().nullable(), created_at: z.string(), updated_at: z.string(),
+    prep_minutes: z.number().int().nullable().optional(), estimated_ready_at: z.string().nullable().optional(), is_test: z.boolean().optional(),
   })
   .transform((r) => ({
     id: r.id, code: r.code, customerId: r.customer_id, businessId: r.business_id, status: r.status, fulfillment: r.fulfillment,
@@ -158,7 +159,8 @@ const orderSchema = z
     address: r.delivery_address, reference: r.delivery_reference, notes: r.notes, subtotalCents: r.subtotal_cents,
     deliveryFeeCents: r.delivery_fee_cents, discountCents: r.discount_cents, totalCents: r.total_cents, commissionCents: r.commission_cents,
     merchantDeliveryCents: r.merchant_delivery_contribution_cents + r.platform_delivery_fee_cents, rejectionReason: r.rejection_reason,
-    createdAt: r.created_at, updatedAt: r.updated_at,
+    createdAt: r.created_at, updatedAt: r.updated_at, prepMinutes: r.prep_minutes ?? null, estimatedReadyAt: r.estimated_ready_at ?? null,
+    isTest: r.is_test ?? false,
   }))
 export type Order = z.output<typeof orderSchema>
 
@@ -272,11 +274,24 @@ export async function listOrderItems(orderIds: string[]): Promise<OrderItem[]> {
 }
 
 const deliveryRowSchema = z
-  .object({ order_id: z.string(), status: z.enum(deliveryStatuses), courier_id: z.string().nullable() })
-  .transform((r) => ({ orderId: r.order_id, status: r.status, hasCourier: !!r.courier_id }))
+  .object({
+    order_id: z.string(), status: z.enum(deliveryStatuses), courier_id: z.string().nullable(),
+    offer_round: z.number().int().optional(), attention_reason: z.string().nullable().optional(),
+  })
+  .transform((r) => ({ orderId: r.order_id, status: r.status, hasCourier: !!r.courier_id, offerRound: r.offer_round ?? 1, attention: r.attention_reason ?? null }))
 export async function listBusinessDeliveries(orderIds: string[]): Promise<z.output<typeof deliveryRowSchema>[]> {
   if (orderIds.length === 0) return []
-  return exec(supabase.from('deliveries').select('order_id,status,courier_id').in('order_id', orderIds), z.array(deliveryRowSchema))
+  return exec(supabase.from('deliveries').select('order_id,status,courier_id,offer_round,attention_reason').in('order_id', orderIds), z.array(deliveryRowSchema))
+}
+
+/** Aceite com tempo estimado de preparo (o cliente vê a previsão). */
+export async function acceptOrder(id: string, prepMinutes: number): Promise<OrderStatus> {
+  return exec(supabase.rpc('merchant_accept_order', { _order: id, _prep_minutes: prepMinutes }), z.enum(orderStatuses))
+}
+
+/** Expira/redistribui ofertas vencidas (o banco faz tudo; seguro chamar ao abrir o painel). */
+export async function dispatchTick(): Promise<number> {
+  return exec(supabase.rpc('dispatch_tick'), z.number().int())
 }
 
 const summarySchema = z

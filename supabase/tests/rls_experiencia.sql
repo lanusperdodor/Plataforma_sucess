@@ -153,7 +153,9 @@ begin
                            -- pedidos (0011): itens e eventos pertencem ao pedido, que tem business_id
                            'order_items', 'order_events', 'job_applications',
                            -- catálogo de planos da plataforma (0018)
-                           'plans')
+                           'plans',
+                           -- recusas de oferta (0022) pertencem à entrega, que tem business_id
+                           'delivery_declines')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

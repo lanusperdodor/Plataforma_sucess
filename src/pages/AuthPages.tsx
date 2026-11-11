@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.ts'
+import { homeFor } from '../features/permissions/permissions.ts'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 import {
   loginSchema,
@@ -90,10 +91,13 @@ export function safeRedirect(from: unknown, fallback = '/conta'): string {
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, loading } = useAuth()
+  const { session, loading, authz, authzError } = useAuth()
   const [error, setError] = useState<string>()
   const f = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
-  const target = safeRedirect((location.state as { from?: unknown } | null)?.from)
+  const from = (location.state as { from?: unknown } | null)?.from
+  // veio de uma página protegida: volta para ela; senão vai para o painel do perfil
+  const hasFrom = safeRedirect(from, '') !== ''
+  const target = safeRedirect(from)
 
   const onSubmit = f.handleSubmit(async (v) => {
     setError(undefined)
@@ -101,10 +105,14 @@ export function LoginPage() {
     const { error: err } = await signInWithIdentifier(v.identifier, v.password)
     if (err) return setError(SIGN_IN_MESSAGES[err])
     trackLogin(v.identifier.includes('@') ? 'email' : 'username')
-    navigate(target, { replace: true })
+    if (hasFrom) navigate(target, { replace: true })
   })
 
-  if (!loading && session) return <Navigate to={target} replace />
+  if (!loading && session) {
+    if (hasFrom) return <Navigate to={target} replace />
+    if (authz || authzError) return <Navigate to={authz ? homeFor(authz) : '/conta'} replace />
+    return <Card title="Entrando…"><p role="status" className="text-sm text-ink-muted">Abrindo o seu painel…</p></Card>
+  }
 
   return (
     <Card title="Entrar" subtitle="Acesse sua conta Tucaí para pedir, acompanhar e interagir.">

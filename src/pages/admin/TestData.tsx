@@ -6,19 +6,28 @@ import { useToast } from '../../components/feedback/toast-context.ts'
 import { createTestData, listCities, listTestData, removeTestData, type CreatedTestData } from '../../features/admin/repository.ts'
 import { dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
-/** Dados de teste por cidade (2 estabelecimentos, entregador, vaga e 5 logins), com remoção completa. */
+/** Contas de homologação por cidade (9 perfis, 3 estabelecimentos de teste), sem duplicar e com remoção completa. */
 function copy(text: string, ok: () => void) {
   void navigator.clipboard?.writeText(text).then(ok, () => undefined)
 }
 
 function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void }) {
   const toast = useToast()
-  const all = [`Dados de teste — ${data.city}`, `Senha de todos: ${data.password}`, ...data.logins.map((l) => `${l.label}: ${l.email}`)].join('\n')
+  const all = [`Dados de teste — ${data.city}`, `Senha das contas novas: ${data.password ?? ''}`, ...data.logins.map((l) => `${l.label}: ${l.email}`)].join('\n')
+  if (data.logins.length === 0) {
+    return (
+      <Panel className="flex flex-col gap-3">
+        <h2 className="text-lg font-bold text-ink">Nada a criar em {data.city}</h2>
+        <p className="text-sm text-ink">Todos os perfis de homologação já existem no lote desta cidade. Nenhuma conta foi duplicada. Se perdeu a senha, defina uma nova na lista de contas acima.</p>
+        <button type="button" onClick={onClose} className={secondaryButton}>Entendi</button>
+      </Panel>
+    )
+  }
   return (
     <Panel className="flex flex-col gap-3 border-success">
-      <h2 className="text-lg font-bold text-ink">Dados de teste criados em {data.city}</h2>
+      <h2 className="text-lg font-bold text-ink">{data.reused ? 'Perfis que faltavam criados' : 'Contas de homologação criadas'} em {data.city}</h2>
       <p role="alert" className="rounded-xl bg-muted p-3 text-sm text-ink">
-        Copie agora: a senha aparece <strong>só desta vez</strong>. Todos os logins abaixo usam a mesma senha.
+        Copie agora: a senha aparece <strong>só desta vez</strong>. Os logins abaixo usam a mesma senha{data.reused ? '; as contas que já existiam mantêm a senha anterior' : ''}.
       </p>
       <p className="flex flex-wrap items-center gap-2 text-sm">
         Senha: <code className="rounded-lg bg-muted px-2 py-1 text-base font-bold tracking-wide text-ink">{data.password}</code>
@@ -36,7 +45,8 @@ function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void
         <button type="button" onClick={onClose} className={secondaryButton}>Já copiei</button>
       </div>
       <p className="text-xs text-ink-muted">
-        Clientes e lojistas entram em /entrar; o entregador vê as ofertas em Área do entregador. Os estabelecimentos aparecem com “[Teste]” no nome, abertos o dia todo.
+        Todos entram em /entrar (o operador administrativo em /admin/entrar). Os estabelecimentos “[Teste]” ficam abertos o dia todo e só aparecem para contas de teste e para a equipe:
+        clientes reais não os veem, contas de teste não compram em lojas reais e entregadores reais não recebem ofertas de teste.
       </p>
     </Panel>
   )
@@ -71,10 +81,11 @@ export function TestDataSection() {
       <h2 id="dados-teste" className="flex items-center gap-2 text-lg font-bold text-ink"><FlaskConical aria-hidden="true" className="size-5" />Dados de teste</h2>
       <Panel className="flex flex-col gap-3 text-sm">
         <p className="text-ink">
-          Cria na cidade escolhida: <strong>2 estabelecimentos</strong> com cardápio e horários (um com entregador parceiro, outro com entrega própria),
-          <strong> 1 entregador aprovado</strong>, <strong>1 vaga</strong> e <strong>logins de 2 clientes e 2 lojistas</strong> para simular pedidos de ponta a ponta.
+          Cria na cidade escolhida as contas de homologação dos perfis: <strong>dono do restaurante, funcionário, cozinha, lojista, prestador de serviços,
+          2 entregadores independentes, 2 clientes e operador administrativo</strong> (o Master é você), com restaurante, loja e serviço de teste.
+          Se a cidade já tiver um lote, só cria os perfis que faltam.
         </p>
-        <p className="text-ink-muted">Tudo fica marcado como “[Teste]” e pode ser removido aqui. Use em produção só para validar e remova depois.</p>
+        <p className="text-ink-muted">Tudo fica marcado como teste, isolado dos clientes, lojas e entregadores reais, fora do financeiro, e pode ser removido aqui.</p>
         {cities.isError ? (
           <ErrorState error={cities.error} onRetry={() => void cities.refetch()} />
         ) : (

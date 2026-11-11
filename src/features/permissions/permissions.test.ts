@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canInBusiness, canOnPlatform, hasRole, type AuthContext } from './permissions.ts'
+import { canInBusiness, canOnPlatform, hasRole, homeFor, type AuthContext } from './permissions.ts'
 
 const A = 'business-a'
 const B = 'business-b'
@@ -55,5 +55,20 @@ describe('RBAC', () => {
     expect(hasRole(ownerA, 'customer')).toBe(true)
     expect(hasRole(ownerA, 'business_owner')).toBe(true)
     expect(hasRole(ownerA, 'platform_master')).toBe(false)
+  })
+})
+
+describe('painel inicial por perfil', () => {
+  const ctx = (roles: string[], memberships: { businessId: string; role: string }[] = []) =>
+    ({ userId: 'u', roles, memberships }) as unknown as Parameters<typeof homeFor>[0]
+  it('leva cada perfil ao seu painel', () => {
+    expect(homeFor(ctx(['customer', 'platform_master']))).toBe('/admin')
+    expect(homeFor(ctx(['customer', 'platform_operator']))).toBe('/admin')
+    expect(homeFor(ctx(['customer'], [{ businessId: 'b1', role: 'owner' }]))).toBe('/painel/b1')
+    expect(homeFor(ctx(['customer'], [{ businessId: 'b1', role: 'kitchen' }]))).toBe('/painel/b1/pedidos')
+    expect(homeFor(ctx(['customer'], [{ businessId: 'b1', role: 'attendant' }]))).toBe('/painel/b1/pedidos')
+    expect(homeFor(ctx(['customer', 'courier_partner']))).toBe('/entregador')
+    expect(homeFor(ctx(['customer']))).toBe('/conta')
+    expect(homeFor(null)).toBe('/conta')
   })
 })

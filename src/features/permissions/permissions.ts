@@ -107,3 +107,17 @@ export function hasRole(ctx: AuthContext | null | undefined, role: AppRole): boo
 
 /** Papéis que o cadastro público pode obter. Todos os demais exigem aprovação/backend. */
 export const SELF_SERVICE_ROLES: readonly AppRole[] = ['customer']
+
+/**
+ * Painel inicial depois do login, por perfil (só navegação; cada painel confere a permissão no banco).
+ * Equipe da plataforma → /admin; equipe de estabelecimento → painel (atendimento e cozinha direto nos pedidos);
+ * entregador parceiro → área do entregador; demais → Minha conta.
+ */
+export function homeFor(ctx: AuthContext | null | undefined): string {
+  if (!ctx) return '/conta'
+  if (ctx.roles.includes('platform_master') || ctx.roles.includes('platform_operator')) return '/admin'
+  const m = ctx.memberships[0]
+  if (m) return m.role === 'owner' || m.role === 'manager' ? `/painel/${m.businessId}` : `/painel/${m.businessId}/pedidos`
+  if (ctx.roles.includes('courier_partner')) return '/entregador'
+  return '/conta'
+}

@@ -98,6 +98,7 @@ async function main() {
       ...one('supabase/tests/rls_finance.sql'),
       ...one('supabase/tests/rls_payments.sql'),
       ...one('supabase/tests/rls_accounts.sql'),
+      ...one('supabase/tests/e2e_homologacao.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

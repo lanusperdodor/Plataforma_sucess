@@ -21,9 +21,9 @@ describe('login com e-mail ou usuário', () => {
   it('usuário (qualquer caixa) é trocado pelo e-mail devolvido pelo banco', async () => {
     h.rpc.mockResolvedValue({ data: 'admin@tucai.example.com', error: null })
     h.signIn.mockResolvedValue({ error: null })
-    await signInWithIdentifier('ADMIN', '4109')
-    expect(h.rpc).toHaveBeenCalledWith('resolve_login', { _username: 'ADMIN', _password: '4109' })
-    expect(h.signIn).toHaveBeenCalledWith({ email: 'admin@tucai.example.com', password: '4109' })
+    await signInWithIdentifier('ADMIN', 'senha-qualquer')
+    expect(h.rpc).toHaveBeenCalledWith('resolve_login', { _username: 'ADMIN', _password: 'senha-qualquer' })
+    expect(h.signIn).toHaveBeenCalledWith({ email: 'admin@tucai.example.com', password: 'senha-qualquer' })
   })
   it('senha errada: mensagem genérica; excesso de tentativas: aviso próprio', async () => {
     h.rpc.mockResolvedValue({ data: null, error: null })

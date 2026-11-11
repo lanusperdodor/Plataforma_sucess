@@ -12,7 +12,8 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/brand/icone-1024.png" />
-    <link rel="preload" as="image" href="/brand/tuca-apresentador-600.png" fetchpriority="high" />
+    <!-- o PNG do Tuca só aparece com "reduzir movimento"; os demais veem o vídeo -->
+    <link rel="preload" as="image" href="/brand/tuca-apresentador-600.png" media="(prefers-reduced-motion: reduce)" />
     <link rel="stylesheet" href="/boot.css" />
     <title>Tucaí — Tudo junto. Tudo aí.</title>
   </head>

@@ -59,3 +59,10 @@ Abra `/robots.txt`, `/sitemap.xml`, `/restaurantes` e veja o código-fonte (Ctrl
 
 - Deduplicação: cada evento leva `event_id`/`eventID`; a compra usa `purchase-<id do pedido>`, pronto para a futura Conversions API.
 - Pendência jurídica: revisar o texto do aviso e da política antes de ativar o marketing.
+
+## Desempenho (Fase 5)
+- O PNG do mascote (250 KB) só é pré-carregado para quem usa “reduzir movimento” (os demais veem o vídeo).
+- O vídeo do mascote (1,7 MB) só começa a baixar depois que a página termina de carregar.
+- O recorte do fundo do vídeo roda a ~15 quadros/s (antes: a cada quadro), aliviando o processador do celular.
+- `/brand/*` com cache de 1 dia; `/assets/*` continua imutável por 1 ano.
+- Pendente: o carregamento inicial de JS (~620 KB, ~180 KB comprimido) segue acima da meta interna de 450 KB, principalmente pelo `supabase-js`; reduzir exige separar a autenticação do carregamento inicial (mudança maior, a planejar).

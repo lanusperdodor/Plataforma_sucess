@@ -67,8 +67,26 @@ function PresenterVideo({ media }: { media: Extract<PresenterMedia, { kind: 'vid
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(false)
+  // o vídeo (1,7 MB) só começa a baixar depois da página carregada: não disputa a rede com o app
+  const [src, setSrc] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    let cancelled = false
+    const start = () => {
+      if (!cancelled) setSrc(media.src)
+    }
+    const idle = (cb: () => void) => {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(cb, { timeout: 2000 })
+      else globalThis.setTimeout(cb, 300)
+    }
+    if (document.readyState === 'complete') idle(start)
+    else window.addEventListener('load', () => idle(start), { once: true })
+    return () => {
+      cancelled = true
+    }
+  }, [media.src])
 
   useEffect(() => {
+    if (!src) return
     const v = videoRef.current
     let out: CanvasRenderingContext2D | null = null
     try {
@@ -83,9 +101,13 @@ function PresenterVideo({ media }: { media: Extract<PresenterMedia, { kind: 'vid
     let stop = false
     let handle = 0
     const rvfc = (v as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback
+    let last = 0
     const draw = () => {
       if (stop) return
-      if (v.readyState >= 2) {
+      // recorte do fundo quadro a quadro custa CPU: ~15 quadros/s bastam e preservam a resposta ao toque
+      const now = performance.now()
+      if (v.readyState >= 2 && now - last >= 66) {
+        last = now
         ctx.clearRect(0, 0, KEY_W, KEY_H)
         ctx.drawImage(v, 0, 0, KEY_W, KEY_H)
         const frame = ctx.getImageData(0, 0, KEY_W, KEY_H)
@@ -101,13 +123,13 @@ function PresenterVideo({ media }: { media: Extract<PresenterMedia, { kind: 'vid
       v.removeEventListener('loadeddata', draw)
       if (!rvfc) cancelAnimationFrame(handle)
     }
-  }, [])
+  }, [src])
 
   return (
     <div className="relative">
       <video
         ref={videoRef}
-        src={media.src}
+        src={src}
         muted
         loop
         playsInline

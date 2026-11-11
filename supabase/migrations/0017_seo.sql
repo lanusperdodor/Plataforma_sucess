@@ -23,10 +23,10 @@ revoke all on function private.indexable_businesses() from public, anon, authent
 
 create or replace function public.seo_business(_slug text)
 returns table (name text, business_type public.business_type, description text, city_name text, city_state text, city_slug text,
-               updated_at timestamptz, indexable boolean)
+               updated_at timestamptz, indexable boolean, address_line text, phone text, logo_url text, cover_url text)
 language sql stable security definer set search_path = '' as $$
   select b.name, b.business_type, b.description, c.name, c.state, c.slug, b.updated_at,
-         b.id not in (select private.test_business_ids())
+         b.id not in (select private.test_business_ids()), b.address_line, b.phone, b.logo_url, b.cover_url
     from public.businesses b left join public.cities c on c.id = b.city_id and c.is_active
    where b.slug = _slug and b.status = 'active' and not b.is_demo
 $$;
@@ -45,11 +45,16 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 create or replace function public.seo_job(_id uuid)
-returns table (title text, business_name text, city_name text, city_state text, indexable boolean)
+returns table (title text, business_name text, city_name text, city_state text, indexable boolean,
+               description text, employment_type public.job_employment, work_mode public.job_work_mode,
+               salary_min_cents integer, salary_max_cents integer, created_at timestamptz, expires_at timestamptz,
+               business_slug text, business_type public.business_type, address_line text)
 language sql stable security definer set search_path = '' as $$
-  select j.title, b.name, c.name, c.state, true
+  select j.title, b.name, c.name, c.state, true, j.description, j.employment_type, j.work_mode,
+         j.salary_min_cents, j.salary_max_cents, j.created_at, j.expires_at, b.slug, b.business_type, bb.address_line
     from public.jobs j
     join private.indexable_businesses() b on b.id = j.business_id
+    join public.businesses bb on bb.id = b.id
     left join public.cities c on c.id = j.city_id
    where j.id = _id and j.status = 'open' and j.expires_at > now()
 $$;

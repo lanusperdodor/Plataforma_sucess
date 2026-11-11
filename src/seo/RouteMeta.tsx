@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { seoRpc as rpc } from '../features/seo/repository'
+import { trackPageView } from '../features/tracking/tracker'
 import { resolvePage } from './resolve'
-import { DEFAULT_SITE_URL, matchRoute, type PageMeta } from './seo'
+import { DEFAULT_SITE_URL, OG_IMAGE, matchRoute, type PageMeta } from './seo'
 
 /** Domínio canônico: o mesmo que o Worker escreveu no HTML (ou o padrão). */
 function canonicalBase(): string {
@@ -30,11 +31,26 @@ export function applyMeta(meta: PageMeta, base = canonicalBase()): void {
   set('meta[property="og:description"]', { property: 'og:description', content: meta.description })
   set('meta[property="og:url"]', { property: 'og:url', content: base + meta.canonicalPath })
   set('link[rel="canonical"]', { rel: 'canonical', href: base + meta.canonicalPath }, 'link')
+  const image = meta.image && /^https:\/\//i.test(meta.image) ? meta.image : base + OG_IMAGE.path
+  set('meta[property="og:image"]', { property: 'og:image', content: image })
+  set('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' })
+  set('meta[name="twitter:title"]', { name: 'twitter:title', content: meta.title })
+  set('meta[name="twitter:description"]', { name: 'twitter:description', content: meta.description })
+  set('meta[name="twitter:image"]', { name: 'twitter:image', content: image })
   // fora do domínio canônico (homologação, prévia) nunca indexa
   const noindex = !meta.index || window.location.origin !== base || import.meta.env.VITE_STATIC_PREVIEW === '1'
   const robots = document.head.querySelector('meta[name="robots"]')
   if (noindex) set('meta[name="robots"]', { name: 'robots', content: 'noindex, nofollow' })
   else robots?.remove()
+  // dados estruturados da página atual (os da página anterior saem)
+  document.head.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove())
+  if (!noindex)
+    for (const obj of meta.jsonLd ?? []) {
+      const el = document.createElement('script')
+      el.type = 'application/ld+json'
+      el.textContent = JSON.stringify(obj)
+      document.head.appendChild(el)
+    }
 }
 
 // Caminho do primeiro carregamento: o Worker já escreveu os metadados certos no HTML.
@@ -46,7 +62,7 @@ export function RouteMeta() {
   const navigate = useNavigate()
   const kind = matchRoute(pathname).kind
   const needsData = kind === 'business' || kind === 'job' || kind === 'city'
-  const q = useQuery({ queryKey: ['seo', pathname], queryFn: () => resolvePage(pathname, rpc), staleTime: 5 * 60_000 })
+  const q = useQuery({ queryKey: ['seo', pathname], queryFn: () => resolvePage(pathname, rpc, canonicalBase()), staleTime: 5 * 60_000 })
   useEffect(() => {
     if (!q.data) return
     if (q.data.redirect) {
@@ -54,13 +70,17 @@ export function RouteMeta() {
       return
     }
     // banco indisponível no primeiro carregamento: mantém o que veio do servidor
-    if (q.data.unavailable && pathname === initialPath) return
+    if (q.data.unavailable && pathname === initialPath) {
+      trackPageView(pathname + search, document.title)
+      return
+    }
     applyMeta(q.data.meta)
+    trackPageView(pathname + search, q.data.meta.title)
   }, [q.data, navigate, search, pathname])
   // rotas fixas aplicam na hora, sem esperar a consulta
   useEffect(() => {
     if (needsData) return
-    void resolvePage(pathname, rpc).then((r) => applyMeta(r.meta))
+    void resolvePage(pathname, rpc, canonicalBase()).then((r) => applyMeta(r.meta))
   }, [pathname, needsData])
   return null
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bike, Check, KeyRound, MessageCircle, ReceiptText, Star } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
@@ -22,6 +22,7 @@ import {
   type OrderStatus,
 } from '../features/orders/repository.ts'
 import { formatBRL } from '../lib/money.ts'
+import { trackPurchase } from '../features/tracking/tracker.ts'
 import { whatsappHref } from './BusinessPage.tsx'
 import { dateTime } from './OrdersPage.tsx'
 
@@ -105,6 +106,19 @@ export function OrderPage() {
     enabled: isCustomer && o?.fulfillment === 'delivery_partner' && !isFinal(o.status),
     refetchInterval: 15_000,
   })
+  // compra concluída = pedido entregue ou retirado (pagamento acontece na entrega/retirada)
+  useEffect(() => {
+    const d = q.data
+    if (!d || !isCustomer || (d.order.status !== 'delivered' && d.order.status !== 'picked_up')) return
+    trackPurchase({
+      id: d.order.id,
+      code: d.order.code,
+      totalCents: d.order.totalCents,
+      deliveryFeeCents: d.order.deliveryFeeCents,
+      affiliation: d.business?.name,
+      items: d.items.map((i) => ({ id: i.productId ?? i.id, name: i.name, priceCents: i.unitCents, quantity: i.quantity })),
+    })
+  }, [q.data, isCustomer])
   const cancel = useMutation({
     mutationFn: () => updateOrderStatus(id, 'cancelled'),
     onSuccess: () => {

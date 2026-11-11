@@ -35,3 +35,34 @@ npm run build
 npx wrangler dev
 ```
 Abra `/robots.txt`, `/sitemap.xml`, `/restaurantes` e veja o código-fonte (Ctrl+U): título e canonical já vêm no HTML.
+
+## GA4, Meta Pixel e consentimento (Fase 4)
+- IDs em `wrangler.jsonc → vars`: `GA4_ID` (formato `G-XXXX`) e `META_PIXEL_ID` (só números). Vazios = nada carrega e o aviso de cookies não aparece.
+- Com ID configurado, o Worker escreve `<meta name="tucai:ga4-id">`/`<meta name="tucai:meta-pixel-id">` e amplia a CSP **só** com os domínios da ferramenta ativa.
+- O app (`src/components/consent/ConsentManager.tsx`) mostra o aviso (Aceitar, Recusar, Personalizar). Scripts do Google/Meta só são baixados depois do aceite da categoria:
+  estatísticas → GA4; marketing → Pixel. Recusar não limita o site. A escolha fica em `consent:v1` (com data e versão do aviso) e pode ser mudada em `/armazenamento`.
+- Google Consent Mode v2: `analytics_storage` conforme a escolha; `ad_storage`, `ad_user_data` e `ad_personalization` sempre negados (sem Google Ads).
+- Eventos (`src/features/tracking/tracker.ts`), sem nome, e-mail, telefone ou endereço, valores em BRL:
+
+| Ação real | GA4 | Meta Pixel |
+|---|---|---|
+| Trocar de página | `page_view` (1 por rota) | `PageView` |
+| Ver lista de estabelecimentos | `view_item_list` | — |
+| Clicar num estabelecimento da lista | `select_item` | — |
+| Abrir página do estabelecimento | `view_item` | `ViewContent` |
+| Adicionar à sacola | `add_to_cart` | `AddToCart` |
+| Abrir o checkout | `begin_checkout` | `InitiateCheckout` |
+| Pedido **entregue ou retirado** | `purchase` (1 por pedido) | `Purchase` |
+| Buscar | `search` | `Search` |
+| Criar conta | `sign_up` | `CompleteRegistration` |
+| Entrar | `login` | — |
+
+- Deduplicação: cada evento leva `event_id`/`eventID`; a compra usa `purchase-<id do pedido>`, pronto para a futura Conversions API.
+- Pendência jurídica: revisar o texto do aviso e da política antes de ativar o marketing.
+
+## Desempenho (Fase 5)
+- O PNG do mascote (250 KB) só é pré-carregado para quem usa “reduzir movimento” (os demais veem o vídeo).
+- O vídeo do mascote (1,7 MB) só começa a baixar depois que a página termina de carregar.
+- O recorte do fundo do vídeo roda a ~15 quadros/s (antes: a cada quadro), aliviando o processador do celular.
+- `/brand/*` com cache de 1 dia; `/assets/*` continua imutável por 1 ano.
+- Pendente: o carregamento inicial de JS (~620 KB, ~180 KB comprimido) segue acima da meta interna de 450 KB, principalmente pelo `supabase-js`; reduzir exige separar a autenticação do carregamento inicial (mudança maior, a planejar).

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ReceiptText } from 'lucide-react'
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
@@ -21,6 +21,7 @@ import {
 } from '../features/orders/repository.ts'
 import { getPublicBusiness } from '../features/store/repository.ts'
 import { formatBRL } from '../lib/money.ts'
+import { trackBeginCheckout } from '../features/tracking/tracker.ts'
 
 const field = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink'
 
@@ -46,6 +47,15 @@ export function CheckoutPage() {
   const [v, setV] = useState<CheckoutForm>({ fulfillment: 'pickup', payment: 'pix_on_delivery', customerName: '', customerPhone: '', address: '', reference: '', notes: '', changeFor: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = <K extends keyof CheckoutForm>(k: K, val: CheckoutForm[K]) => setV((p) => ({ ...p, [k]: val }))
+  const startedFor = useRef('')
+  useEffect(() => {
+    if (!cart || startedFor.current === cart.business.id) return
+    startedFor.current = cart.business.id
+    trackBeginCheckout(
+      cart.lines.map((l) => ({ id: l.productId, name: l.name, priceCents: l.unitCents, quantity: l.quantity, affiliation: cart.business.name })),
+      cartSubtotal(cart),
+    )
+  }, [cart])
 
   const place = useMutation({
     mutationFn: (input: CheckoutForm) => placeOrder(cart!, input, key.current),

@@ -14,9 +14,29 @@ export const SECTION_TYPE = { restaurantes: 'restaurante', lojas: 'loja', servic
 export const TYPE_SECTION = { restaurante: 'restaurantes', loja: 'lojas', servico: 'servicos' } as const
 export type BusinessKind = keyof typeof TYPE_SECTION
 
+/** Imagem padrão de compartilhamento (1200×630), feita com o logo e o mascote oficiais. */
+export const OG_IMAGE = { path: '/brand/og-tucai.jpg', width: 1200, height: 630, alt: 'Tucaí — Tudo junto. Tudo aí. Delivery, lojas, serviços e vagas da sua cidade.' }
+
+export interface ShellLink {
+  href: string
+  label: string
+}
+
+/** Conteúdo visível no HTML para quem não executa JavaScript (o React substitui ao iniciar). */
+export interface PageShell {
+  heading: string
+  text: string
+  links: ShellLink[]
+}
+
 export interface PageMeta {
   title: string
   description: string
+  /** Imagem de compartilhamento: URL absoluta https ou caminho do site. Padrão: OG_IMAGE. */
+  image?: string
+  /** Objetos Schema.org (JSON-LD), só com dados reais. */
+  jsonLd?: Record<string, unknown>[]
+  shell?: PageShell
   /** false = <meta name="robots" content="noindex"> e X-Robots-Tag. */
   index: boolean
   /** Caminho canônico (sem domínio e sem query). */

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { STATIC_PRESENTER, TucaPresenter } from './TucaPresenter.tsx'
@@ -31,7 +31,7 @@ describe('TucaPresenter', () => {
     expect(source).toHaveAttribute('srcset', '/brand/tuca-apresentador-600.png')
   })
 
-  it('vídeo: mudo, em loop, inline, com pôster, pausa acessível e sem balão duplicado', () => {
+  it('vídeo: mudo, em loop, inline, com pôster, pausa acessível e sem balão duplicado', async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve())
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     const { container } = render(
@@ -41,7 +41,10 @@ describe('TucaPresenter', () => {
     expect(video.muted).toBe(true)
     expect(video).toHaveAttribute('loop')
     expect(video).toHaveAttribute('playsinline')
-    expect(play).toHaveBeenCalled()
+    // o vídeo só recebe a fonte depois do carregamento da página (não disputa a rede com o app)
+    expect(video).not.toHaveAttribute('src')
+    await waitFor(() => expect(video).toHaveAttribute('src', '/brand/tuca.mp4'))
+    await waitFor(() => expect(play).toHaveBeenCalled())
     // balão embutido no vídeo: o texto fica só para leitores de tela, sem balão visual
     expect(container.querySelector('.tuca-bubble')).toBeNull()
     expect(screen.getByText(/Oi! Eu sou o Tuca\. Bem-vindo ao Tucaí!/)).toHaveClass('sr-only')
@@ -53,11 +56,11 @@ describe('TucaPresenter', () => {
     pause.mockRestore()
   })
 
-  it('padrão: vídeo do Tuca em canvas acessível, sem balão HTML duplicado', () => {
+  it('padrão: vídeo do Tuca em canvas acessível, sem balão HTML duplicado', async () => {
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve())
     const { container } = render(<TucaPresenter />)
     expect(screen.getByRole('img', { name: /Tuca, o tucano mascote/ })).toHaveAttribute('data-testid', 'tuca-canvas')
-    expect(container.querySelector('video')).toHaveAttribute('src', '/brand/tuca-apresentador.mp4')
+    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', '/brand/tuca-apresentador.mp4'))
     expect(container.querySelector('.tuca-bubble')).toBeNull()
     vi.restoreAllMocks()
   })

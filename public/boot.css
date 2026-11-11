@@ -1,7 +1,13 @@
 /* Tela de carregamento inicial (externa para a CSP não precisar de estilos inline). */
 #boot { min-height: 100dvh; display: grid; place-items: center; font-family: system-ui, sans-serif; color: #17191b; background: #fff; }
 #boot .boot-box { text-align: center; padding: 24px; }
-#boot .boot-icon { border-radius: 14px; }
+#boot .boot-icon { border-radius: 14px; display: block; margin: 0 auto; }
 #boot-msg { margin: 12px 0 0; font-size: 15px; }
 #boot-retry { margin-top: 12px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: #ff5500; color: #17191b; font-weight: 600; cursor: pointer; }
 #boot-retry[hidden] { display: none; }
+/* Conteúdo da página visível sem JavaScript (o app substitui ao iniciar) */
+.seo-shell { max-width: 560px; margin: 24px auto 0; line-height: 1.5; }
+.seo-shell h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+.seo-shell p { margin: 0 0 12px; color: #4b5563; font-size: 15px; }
+.seo-shell ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; }
+.seo-shell a { color: #c2410c; }

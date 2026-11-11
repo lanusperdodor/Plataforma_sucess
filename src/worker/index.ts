@@ -9,7 +9,9 @@
  */
 import { SUPABASE_PUBLIC } from '../config/supabase-public'
 import { resolvePage, type Rpc } from '../seo/resolve'
-import { DEFAULT_SITE_URL, robotsTxt, sitemapXml, type PageMeta, type SitemapEntry } from '../seo/seo'
+import { DEFAULT_SITE_URL, OG_IMAGE, robotsTxt, sitemapXml, type PageMeta, type SitemapEntry } from '../seo/seo'
+import { ldScript } from '../seo/structured'
+import { validGa4, validPixel } from '../features/tracking/config'
 import { SECURITY_HEADERS } from './securityHeaders'
 
 export interface Env {
@@ -18,6 +20,10 @@ export interface Env {
   SITE_URL?: string
   /** "true" só no ambiente de produção. Qualquer outro valor: nada é indexado. */
   ALLOW_INDEXING?: string
+  /** ID de medição do GA4 (G-XXXX). Vazio = GA4 desligado. */
+  GA4_ID?: string
+  /** ID do Meta Pixel (só números). Vazio = Pixel desligado. */
+  META_PIXEL_ID?: string
   SUPABASE_URL?: string
   SUPABASE_PUBLISHABLE_KEY?: string
 }
@@ -46,23 +52,71 @@ const isFilePath = (path: string) => path.startsWith('/assets/') || /\.[a-z0-9]{
 
 const attr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
-/** Reescreve o index.html com os metadados da página. */
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Tags de cabeçalho da página: canonical, Open Graph, Twitter/X, robots e JSON-LD. */
 export function headTags(meta: PageMeta, siteUrl: string, indexable: boolean): string {
   const canonical = siteUrl + meta.canonicalPath
+  const custom = meta.image && /^https:\/\//i.test(meta.image) ? meta.image : null
+  const image = custom ?? siteUrl + OG_IMAGE.path
   return [
     `<link rel="canonical" href="${attr(canonical)}" />`,
     `<meta property="og:url" content="${attr(canonical)}" />`,
     `<meta property="og:type" content="website" />`,
+    `<meta property="og:locale" content="pt_BR" />`,
     `<meta property="og:description" content="${attr(meta.description)}" />`,
+    `<meta property="og:image" content="${attr(image)}" />`,
+    custom ? '' : `<meta property="og:image:width" content="${OG_IMAGE.width}" />`,
+    custom ? '' : `<meta property="og:image:height" content="${OG_IMAGE.height}" />`,
+    `<meta property="og:image:alt" content="${attr(custom ? meta.title : OG_IMAGE.alt)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${attr(meta.title)}" />`,
+    `<meta name="twitter:description" content="${attr(meta.description)}" />`,
+    `<meta name="twitter:image" content="${attr(image)}" />`,
     indexable ? '' : '<meta name="robots" content="noindex, nofollow" />',
+    ...(indexable ? (meta.jsonLd ?? []).map(ldScript) : []),
   ].filter(Boolean).join('\n    ')
+}
+
+/** Conteúdo visível sem JavaScript (o React substitui o #root ao iniciar). */
+export function shellHtml(meta: PageMeta): string {
+  if (!meta.shell) return ''
+  const links = meta.shell.links.map((l) => `<li><a href="${attr(l.href)}">${esc(l.label)}</a></li>`).join('')
+  return `<div class="seo-shell"><h1>${esc(meta.shell.heading)}</h1><p>${esc(meta.shell.text)}</p>${links ? `<ul>${links}</ul>` : ''}</div>`
 }
 
 declare const HTMLRewriter: {
   new (): {
-    on(selector: string, handlers: { element?(el: { setInnerContent(c: string): void; setAttribute(n: string, v: string): void; append(c: string, o?: { html: boolean }): void }): void }): InstanceType<typeof HTMLRewriter>
+    on(selector: string, handlers: { element?(el: { setInnerContent(c: string): void; setAttribute(n: string, v: string): void; append(c: string, o?: { html: boolean }): void; remove(): void }): void }): InstanceType<typeof HTMLRewriter>
     transform(res: Response): Response
   }
+}
+
+/** CSP base + domínios estritamente necessários para cada ferramenta configurada. */
+export function cspFor(base: string, ga4: string | null, pixel: string | null): string {
+  if (!ga4 && !pixel) return base
+  const add: Record<string, string[]> = { 'script-src': [], 'connect-src': [], 'img-src': [] }
+  if (ga4) {
+    add['script-src']!.push('https://www.googletagmanager.com')
+    add['connect-src']!.push('https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://www.googletagmanager.com')
+  }
+  if (pixel) {
+    add['script-src']!.push('https://connect.facebook.net')
+    add['connect-src']!.push('https://www.facebook.com', 'https://connect.facebook.net')
+  }
+  return base
+    .split(';')
+    .map((d) => {
+      const name = d.trim().split(/\s+/)[0] ?? ''
+      const extra = add[name]
+      return extra && extra.length ? `${d.trim()} ${extra.join(' ')}` : d.trim()
+    })
+    .join('; ')
+}
+
+/** Metatags com os IDs públicos de medição (lidas pelo app; vazias não geram nada). */
+export function trackingTags(ga4: string | null, pixel: string | null): string {
+  return [ga4 ? `<meta name="tucai:ga4-id" content="${ga4}" />` : '', pixel ? `<meta name="tucai:meta-pixel-id" content="${pixel}" />` : ''].filter(Boolean).join('\n    ')
 }
 
 function withHeaders(res: Response, extra: Record<string, string>): Response {
@@ -96,23 +150,29 @@ export default {
     if (isFilePath(path)) return env.ASSETS.fetch(request)
     if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } })
 
-    const { meta, redirect } = await resolvePage(path, supabaseRpc(env))
+    const { meta, redirect } = await resolvePage(path, supabaseRpc(env), siteUrl)
     if (redirect) return Response.redirect(new URL(redirect + url.search, url).toString(), 301)
     // barra final ou caixa diferente: uma única URL por página
     if (meta.status !== 404 && path !== meta.canonicalPath && path.replace(/\/+$/, '') === meta.canonicalPath) {
       return Response.redirect(new URL(meta.canonicalPath + url.search, url).toString(), 301)
     }
 
+    const ga4 = validGa4(env.GA4_ID)
+    const pixel = validPixel(env.META_PIXEL_ID)
     const shell = await env.ASSETS.fetch(new Request(new URL('/', url).toString(), { headers: request.headers }))
     const index = indexingAllowed && meta.index
     const html = new HTMLRewriter()
       .on('title', { element: (el) => el.setInnerContent(meta.title) })
       .on('meta[name="description"]', { element: (el) => el.setAttribute('content', meta.description) })
       .on('meta[property="og:title"]', { element: (el) => el.setAttribute('content', meta.title) })
-      .on('head', { element: (el) => el.append(headTags(meta, siteUrl, index), { html: true }) })
+      // valores padrão do index.html: substituídos pelos da página (sem tags duplicadas)
+      .on('meta[property="og:image"], meta[name="twitter:card"]', { element: (el) => el.remove() })
+      .on('head', { element: (el) => el.append([headTags(meta, siteUrl, index), trackingTags(ga4, pixel)].filter(Boolean).join('\n    '), { html: true }) })
+      .on('#boot .boot-box', { element: (el) => el.append(shellHtml(meta), { html: true }) })
       .transform(shell)
     return withHeaders(new Response(html.body, { status: meta.status ?? 200, headers: shell.headers }), {
       'Content-Type': 'text/html; charset=utf-8',
+      'Content-Security-Policy': cspFor(SECURITY_HEADERS['Content-Security-Policy']!, ga4, pixel),
       'Cache-Control': 'public, max-age=0, must-revalidate',
       ...(index ? {} : { 'X-Robots-Tag': 'noindex, nofollow' }),
     })

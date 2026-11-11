@@ -35,3 +35,27 @@ npm run build
 npx wrangler dev
 ```
 Abra `/robots.txt`, `/sitemap.xml`, `/restaurantes` e veja o código-fonte (Ctrl+U): título e canonical já vêm no HTML.
+
+## GA4, Meta Pixel e consentimento (Fase 4)
+- IDs em `wrangler.jsonc → vars`: `GA4_ID` (formato `G-XXXX`) e `META_PIXEL_ID` (só números). Vazios = nada carrega e o aviso de cookies não aparece.
+- Com ID configurado, o Worker escreve `<meta name="tucai:ga4-id">`/`<meta name="tucai:meta-pixel-id">` e amplia a CSP **só** com os domínios da ferramenta ativa.
+- O app (`src/components/consent/ConsentManager.tsx`) mostra o aviso (Aceitar, Recusar, Personalizar). Scripts do Google/Meta só são baixados depois do aceite da categoria:
+  estatísticas → GA4; marketing → Pixel. Recusar não limita o site. A escolha fica em `consent:v1` (com data e versão do aviso) e pode ser mudada em `/armazenamento`.
+- Google Consent Mode v2: `analytics_storage` conforme a escolha; `ad_storage`, `ad_user_data` e `ad_personalization` sempre negados (sem Google Ads).
+- Eventos (`src/features/tracking/tracker.ts`), sem nome, e-mail, telefone ou endereço, valores em BRL:
+
+| Ação real | GA4 | Meta Pixel |
+|---|---|---|
+| Trocar de página | `page_view` (1 por rota) | `PageView` |
+| Ver lista de estabelecimentos | `view_item_list` | — |
+| Clicar num estabelecimento da lista | `select_item` | — |
+| Abrir página do estabelecimento | `view_item` | `ViewContent` |
+| Adicionar à sacola | `add_to_cart` | `AddToCart` |
+| Abrir o checkout | `begin_checkout` | `InitiateCheckout` |
+| Pedido **entregue ou retirado** | `purchase` (1 por pedido) | `Purchase` |
+| Buscar | `search` | `Search` |
+| Criar conta | `sign_up` | `CompleteRegistration` |
+| Entrar | `login` | — |
+
+- Deduplicação: cada evento leva `event_id`/`eventID`; a compra usa `purchase-<id do pedido>`, pronto para a futura Conversions API.
+- Pendência jurídica: revisar o texto do aviso e da política antes de ativar o marketing.

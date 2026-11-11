@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { STORAGE_ITEMS, USES_NON_ESSENTIAL_TRACKING } from './inventory'
+import { STORAGE_ITEMS, TRACKING_TOOLS, usesNonEssentialTracking } from './inventory'
 
 function sources(): string[] {
   const out: string[] = []
@@ -26,8 +26,10 @@ describe('inventário de armazenamento local', () => {
     }
     for (const key of used) expect(declared.some((d) => key.startsWith(d) || d.startsWith(key))).toBe(true)
   })
-  it('não há cookies nem rastreamento não essencial (sem banner a exibir)', () => {
+  it('o app não grava cookies; rastreamento de terceiros só existe com ID configurado', () => {
     expect(sources().some((s) => /document\.cookie/.test(s))).toBe(false)
-    expect(USES_NON_ESSENTIAL_TRACKING).toBe(false)
+    expect(usesNonEssentialTracking({ ga4: null, pixel: null })).toBe(false)
+    expect(usesNonEssentialTracking({ ga4: 'G-ABC123', pixel: null })).toBe(true)
+    expect(TRACKING_TOOLS.map((t) => t.category)).toEqual(['estatisticas', 'marketing'])
   })
 })

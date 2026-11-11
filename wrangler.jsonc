@@ -17,7 +17,10 @@
     // Domínio canônico. Ao migrar para o domínio oficial, troque aqui (sem barra final).
     "SITE_URL": "https://plataforma-sucess.marcossonopi.workers.dev",
     // "true" só em produção. Fora do domínio canônico o Worker já responde noindex.
-    "ALLOW_INDEXING": "true"
+    "ALLOW_INDEXING": "true",
+    // IDs públicos de medição. Vazios = nada é carregado. Só são ativados após o consentimento.
+    "GA4_ID": "",
+    "META_PIXEL_ID": ""
   },
   "observability": { "enabled": true }
 }

@@ -3,7 +3,9 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Page, PageHeader } from '../../components/nav/PageHeader.tsx'
 import { LEGAL, PENDING, legalValue } from '../../config/legal.ts'
-import { OPERATORS, PROCESSING, STORAGE_ITEMS, USES_NON_ESSENTIAL_TRACKING } from '../../features/legal/inventory.ts'
+import { OPERATORS, PROCESSING, STORAGE_ITEMS, TRACKING_TOOLS, usesNonEssentialTracking } from '../../features/legal/inventory.ts'
+import { readTrackingConfig } from '../../features/tracking/config.ts'
+import { openConsentPreferences } from '../../components/consent/ConsentManager.tsx'
 import { removeStorage } from '../../lib/storage.ts'
 
 function Doc({ icon, title, subtitle, children }: { icon: LucideIcon; title: string; subtitle: string; children: ReactNode }) {
@@ -127,6 +129,8 @@ const CATEGORY_LABEL = { necessario: 'Estritamente necessário', preferencias: '
 
 export function StoragePolicyPage() {
   const [cleared, setCleared] = useState(false)
+  const config = readTrackingConfig()
+  const tracking = usesNonEssentialTracking(config)
   const clear = () => {
     for (const item of STORAGE_ITEMS) {
       if (!item.clearable) continue
@@ -146,10 +150,32 @@ export function StoragePolicyPage() {
   }
   return (
     <Doc icon={HardDrive} title="Cookies e armazenamento local" subtitle="Tudo o que a Tucaí guarda no seu navegador.">
-      <p>
-        A Tucaí <strong>não usa cookies</strong>, ferramentas de estatística ou de marketing.
-        {USES_NON_ESSENTIAL_TRACKING ? '' : ' Por isso não exibimos banner de consentimento: só existe armazenamento necessário ou de preferências que você controla aqui.'}
-      </p>
+      {tracking ? (
+        <>
+          <p>
+            Além do armazenamento necessário abaixo, a Tucaí usa ferramentas de terceiros <strong>somente se você permitir</strong>.
+            Recusar não limita nada no site. Você pode mudar a escolha quando quiser.
+          </p>
+          <ul className="!list-none !pl-0 flex flex-col gap-2">
+            {TRACKING_TOOLS.filter((t) => (t.tool === 'ga4' ? config.ga4 : config.pixel)).map((t) => (
+              <li key={t.tool} className="rounded-card border border-line bg-surface p-3">
+                <p className="font-semibold">{t.name} · cookies <code>{t.cookies}</code></p>
+                <p className="text-ink-muted">{CATEGORY_LABEL[t.category]} — {t.purpose} Duração: {t.lifetime}</p>
+              </li>
+            ))}
+          </ul>
+          <div>
+            <button type="button" onClick={openConsentPreferences} className="pressable inline-flex min-h-11 items-center rounded-full bg-brand px-5 text-sm font-semibold text-surface">
+              Preferências de cookies
+            </button>
+          </div>
+        </>
+      ) : (
+        <p>
+          A Tucaí <strong>não usa cookies</strong>, ferramentas de estatística ou de marketing. Por isso não exibimos aviso de consentimento:
+          só existe armazenamento necessário ou de preferências que você controla aqui.
+        </p>
+      )}
       <ul className="!list-none !pl-0 flex flex-col gap-2">
         {STORAGE_ITEMS.map((i) => (
           <li key={i.key} className="rounded-card border border-line bg-surface p-3">

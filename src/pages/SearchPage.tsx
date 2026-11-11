@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { trackSearch } from '../features/tracking/tracker.ts'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BusinessCard } from '../components/cards/BusinessCard.tsx'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
@@ -25,6 +26,9 @@ export function SearchPage() {
   const loading = ok && (r.isLoading || s.isLoading || v.isLoading)
   const failed = [r, s, v].find((x) => x.isError)
   const total = businesses.length
+  useEffect(() => {
+    if (ok) trackSearch(q)
+  }, [q]) // eslint-disable-line react-hooks/exhaustive-deps -- um evento por termo buscado
   const submit = (e: FormEvent) => {
     e.preventDefault()
     setParams(term.trim() ? { q: term.trim() } : {}, { replace: true })

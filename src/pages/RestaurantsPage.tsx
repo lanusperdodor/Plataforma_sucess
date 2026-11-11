@@ -10,6 +10,8 @@ import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { parseRestaurantFilters, serializeRestaurantFilters, toQueryFilters, type RestaurantFilters } from '../features/catalog/filters.ts'
 import { useCategories, useRestaurants } from '../features/catalog/hooks.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
+import { useTrackItemList } from '../features/tracking/hooks.ts'
+import { trackSelectItem } from '../features/tracking/tracker.ts'
 
 const MODES = [
   { value: '', label: 'Entrega e retirada' },
@@ -36,6 +38,7 @@ export function RestaurantsPage() {
     setParams(serializeRestaurantFilters(next), { replace: true })
   }
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
+  useTrackItemList('restaurantes', `Restaurantes${city ? ` em ${city.name}` : ''}`, items.map((b) => ({ id: b.id, name: b.name, category: 'restaurante' })))
   const hasFilters = params.toString() !== ''
   const extra = (filters.fulfillment ? 1 : 0) + (filters.sort !== 'popularity' ? 1 : 0)
   const [showMore, setShowMore] = useState(extra > 0)
@@ -84,7 +87,7 @@ export function RestaurantsPage() {
           <p className="text-sm text-ink-muted" aria-live="polite">{items.length} {items.length === 1 ? 'restaurante' : 'restaurantes'}</p>
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {items.map((b) => (
-              <li key={b.id}>
+              <li key={b.id} onClickCapture={() => trackSelectItem('Restaurantes', { id: b.id, name: b.name, category: 'restaurante' })}>
                 <BusinessCard business={b} categoryLabel={b.categoryId ? labels.get(b.categoryId) : undefined} />
               </li>
             ))}

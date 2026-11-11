@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { seoRpc as rpc } from '../features/seo/repository'
+import { trackPageView } from '../features/tracking/tracker'
 import { resolvePage } from './resolve'
 import { DEFAULT_SITE_URL, OG_IMAGE, matchRoute, type PageMeta } from './seo'
 
@@ -69,8 +70,12 @@ export function RouteMeta() {
       return
     }
     // banco indisponível no primeiro carregamento: mantém o que veio do servidor
-    if (q.data.unavailable && pathname === initialPath) return
+    if (q.data.unavailable && pathname === initialPath) {
+      trackPageView(pathname + search, document.title)
+      return
+    }
     applyMeta(q.data.meta)
+    trackPageView(pathname + search, q.data.meta.title)
   }, [q.data, navigate, search, pathname])
   // rotas fixas aplicam na hora, sem esperar a consulta
   useEffect(() => {

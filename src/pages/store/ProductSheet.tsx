@@ -7,6 +7,7 @@ import { Sheet } from '../../components/overlays/Sheet.tsx'
 import { MAX_QTY, addToCart, type CartBusiness } from '../../features/cart/cartStore.ts'
 import type { MenuGroup, MenuProduct } from '../../features/store/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
+import { trackAddToCart } from '../../features/tracking/tracker.ts'
 
 /** Escolhas inválidas por grupo (mínimo/máximo). Mesma regra que o servidor confere. */
 export function groupErrors(groups: MenuGroup[], chosen: Record<string, string[]>): Record<string, string> {
@@ -53,6 +54,7 @@ export function ProductSheet({ product, business, onClose }: { product: MenuProd
       if (window.confirm('Sua sacola tem itens de outro estabelecimento. Esvaziar a sacola e começar uma nova aqui?')) add(true)
       return
     }
+    trackAddToCart({ id: product.id, name: product.name, priceCents: unit, quantity: qty, affiliation: business.name })
     toast.success(`${product.name} adicionado à sacola.`)
     onClose()
   }

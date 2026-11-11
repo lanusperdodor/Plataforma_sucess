@@ -164,12 +164,12 @@ export type Order = z.output<typeof orderSchema>
 
 const itemSchema = z
   .object({
-    id: z.string(), order_id: z.string(), name: z.string(), unit_price_cents: z.number().int(), quantity: z.number().int(),
+    id: z.string(), order_id: z.string(), product_id: z.string().nullable().optional(), name: z.string(), unit_price_cents: z.number().int(), quantity: z.number().int(),
     options: z.array(z.object({ group: z.string(), option: z.string(), price_delta_cents: z.number().int() })),
     line_total_cents: z.number().int(), notes: z.string().nullable(),
   })
   .transform((r) => ({
-    id: r.id, orderId: r.order_id, name: r.name, unitCents: r.unit_price_cents, quantity: r.quantity,
+    id: r.id, orderId: r.order_id, productId: r.product_id ?? null, name: r.name, unitCents: r.unit_price_cents, quantity: r.quantity,
     options: r.options.map((o) => o.option), lineTotalCents: r.line_total_cents, notes: r.notes,
   }))
 export type OrderItem = z.output<typeof itemSchema>
@@ -213,7 +213,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
   const order = await exec(supabase.from('orders').select(ORDER_COLUMNS).eq('id', id).maybeSingle(), orderSchema.nullable())
   if (!order) return null
   const [items, events, biz] = await Promise.all([
-    exec(supabase.from('order_items').select('id,order_id,name,unit_price_cents,quantity,options,line_total_cents,notes').eq('order_id', id), z.array(itemSchema)),
+    exec(supabase.from('order_items').select('id,order_id,product_id,name,unit_price_cents,quantity,options,line_total_cents,notes').eq('order_id', id), z.array(itemSchema)),
     exec(supabase.from('order_events').select('id,status,note,created_at').eq('order_id', id).order('created_at', { ascending: true }), z.array(eventSchema)),
     businessesByIds([order.businessId]),
   ])
@@ -266,7 +266,7 @@ export async function listBusinessOrders(businessId: string, scope: 'open' | 'do
 export async function listOrderItems(orderIds: string[]): Promise<OrderItem[]> {
   if (orderIds.length === 0) return []
   return exec(
-    supabase.from('order_items').select('id,order_id,name,unit_price_cents,quantity,options,line_total_cents,notes').in('order_id', orderIds),
+    supabase.from('order_items').select('id,order_id,product_id,name,unit_price_cents,quantity,options,line_total_cents,notes').in('order_id', orderIds),
     z.array(itemSchema),
   )
 }

@@ -1,6 +1,8 @@
 import { RECENT_KEY } from '../recent/recentStore'
 import { CITY_KEY } from '../location/cityStore'
 import { CART_KEY } from '../cart/cartStore'
+import { CONSENT_KEY } from '../tracking/consentStore'
+import { TRACKED_PURCHASES_KEY } from '../tracking/tracker'
 
 /**
  * Inventário do que a Tucaí efetivamente trata HOJE (fonte única para a política de
@@ -53,6 +55,22 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     clearable: true,
   },
   {
+    key: CONSENT_KEY,
+    where: 'localStorage',
+    category: 'necessario',
+    purpose: 'Guardar sua escolha sobre cookies de estatística e marketing (com data e versão do aviso).',
+    lifetime: 'Até você mudar a escolha, o aviso mudar ou apagar.',
+    clearable: true,
+  },
+  {
+    key: TRACKED_PURCHASES_KEY,
+    where: 'localStorage',
+    category: 'estatisticas',
+    purpose: 'Evitar contar a mesma compra duas vezes nas estatísticas (só identificadores de pedidos). Criado só com estatísticas ou marketing aceitos.',
+    lifetime: 'Últimos 100 pedidos; até você apagar.',
+    clearable: true,
+  },
+  {
     key: 'scroll:<página>',
     where: 'sessionStorage',
     category: 'necessario',
@@ -62,8 +80,31 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
   },
 ]
 
-/** Hoje não há cookies, estatísticas nem marketing: nenhum banner de consentimento é necessário. */
-export const USES_NON_ESSENTIAL_TRACKING = STORAGE_ITEMS.some((i) => i.category === 'estatisticas' || i.category === 'marketing')
+/**
+ * Ferramentas de terceiros que só funcionam quando o ID está configurado no Worker E a pessoa aceita.
+ * Sem ID configurado nada é carregado e o aviso de cookies não aparece.
+ */
+export const TRACKING_TOOLS: readonly { tool: 'ga4' | 'pixel'; name: string; category: StorageCategory; cookies: string; purpose: string; lifetime: string }[] = [
+  {
+    tool: 'ga4',
+    name: 'Google Analytics 4',
+    category: 'estatisticas',
+    cookies: '_ga, _ga_<ID>',
+    purpose: 'Medir visitas e uso do site de forma agregada (páginas vistas, buscas, etapas do pedido), sem nome, e-mail, telefone ou endereço.',
+    lifetime: 'Até 2 anos (definido pelo Google).',
+  },
+  {
+    tool: 'pixel',
+    name: 'Meta Pixel (Facebook e Instagram)',
+    category: 'marketing',
+    cookies: '_fbp',
+    purpose: 'Medir resultados de anúncios da Tucaí no Facebook e Instagram (visualizações, sacola, início do pedido e pedido concluído), sem dados de contato.',
+    lifetime: 'Até 90 dias (definido pela Meta).',
+  },
+]
+
+/** Há rastreamento não essencial configurado? (Se sim, o aviso de cookies aparece.) */
+export const usesNonEssentialTracking = (config: { ga4: string | null; pixel: string | null }) => Boolean(config.ga4 || config.pixel)
 
 export interface ProcessingActivity {
   data: string
@@ -157,6 +198,14 @@ export const PROCESSING: readonly ProcessingActivity[] = [
     access: 'Você; dono e gerente do estabelecimento que publicou a vaga',
   },
   {
+    data: 'Estatísticas de navegação (Google Analytics 4) e medição de anúncios (Meta Pixel): páginas vistas, buscas, itens vistos, sacola e pedidos concluídos, com identificadores técnicos do navegador',
+    purpose: 'Entender o uso do site e medir campanhas',
+    legalBasis: 'Consentimento (art. 7º, I), revogável a qualquer momento nas preferências de cookies',
+    systems: 'Google e Meta, como operadores/controladores conforme seus termos (a confirmar)',
+    retention: 'Conforme os prazos configurados nas ferramentas (a definir) e os cookies listados na página de armazenamento',
+    access: 'Equipe autorizada da Tucaí nos painéis das ferramentas',
+  },
+  {
     data: 'Endereço IP, navegador e horários de requisição (registros técnicos)',
     purpose: 'Funcionamento, segurança e limite de abuso',
     legalBasis: 'Legítimo interesse (art. 7º, IX) e obrigação legal (art. 7º, II)',
@@ -175,5 +224,7 @@ export const OPERATORS: readonly { name: string; role: string; status: string }[
   { name: 'Mapas e rotas', role: 'Distância e tempo de entrega', status: 'Não contratado.' },
   { name: 'Mensageria / notificações', role: 'Avisos de pedidos', status: 'Não contratado.' },
   { name: 'Ferramentas de IA', role: '—', status: 'Nenhuma em uso no produto.' },
+  { name: 'Google (Analytics 4)', role: 'Estatísticas de uso do site', status: 'Preparado. Só funciona se o ID for configurado e você aceitar.' },
+  { name: 'Meta (Pixel)', role: 'Medição de anúncios no Facebook e Instagram', status: 'Preparado. Só funciona se o ID for configurado e você aceitar.' },
   { name: 'Monitoramento de erros', role: '—', status: 'Nenhum em uso.' },
 ]

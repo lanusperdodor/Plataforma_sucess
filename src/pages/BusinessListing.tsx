@@ -9,6 +9,8 @@ import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { useBusinesses, useCategories } from '../features/catalog/hooks.ts'
 import type { BusinessType, CategoryKind } from '../features/catalog/schemas.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
+import { useTrackItemList } from '../features/tracking/hooks.ts'
+import { trackSelectItem } from '../features/tracking/tracker.ts'
 
 export interface BusinessListingProps {
   type: Exclude<BusinessType, 'restaurante'>
@@ -27,6 +29,7 @@ export function BusinessListing({ type, title, subtitle, icon }: BusinessListing
   const options = [{ value: '', label: 'Todas' }, ...(categories.data ?? []).map((c) => ({ value: c.slug, label: c.label }))]
   const labels = new Map((categories.data ?? []).map((c) => [c.id, c.label]))
   const setCategory = (v: string) => setParams(v ? { categoria: v } : {}, { replace: true })
+  useTrackItemList(type, `${title}${city ? ` em ${city.name}` : ''}`, (list.data ?? []).map((b) => ({ id: b.id, name: b.name, category: type })))
 
   return (
     <Page>
@@ -47,7 +50,7 @@ export function BusinessListing({ type, title, subtitle, icon }: BusinessListing
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {(list.data ?? []).map((b) => (
-            <li key={b.id}>
+            <li key={b.id} onClickCapture={() => trackSelectItem(title, { id: b.id, name: b.name, category: type })}>
               <BusinessCard business={b} categoryLabel={b.categoryId ? labels.get(b.categoryId) : undefined} />
             </li>
           ))}

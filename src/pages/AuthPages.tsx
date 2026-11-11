@@ -16,6 +16,7 @@ import {
   type SignUpValues,
 } from '../features/auth/schemas.ts'
 import { SIGN_IN_MESSAGES, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
+import { trackLogin, trackSignUp } from '../features/tracking/tracker.ts'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
 export const OFFLINE_MESSAGE = 'Entrar e criar conta não funcionam nesta prévia, que não se conecta ao banco. Use o site publicado.'
@@ -99,6 +100,7 @@ export function LoginPage() {
     if (!isSupabaseConfigured) return setError(OFFLINE_MESSAGE)
     const { error: err } = await signInWithIdentifier(v.identifier, v.password)
     if (err) return setError(SIGN_IN_MESSAGES[err])
+    trackLogin(v.identifier.includes('@') ? 'email' : 'username')
     navigate(target, { replace: true })
   })
 
@@ -143,6 +145,7 @@ export function SignUpPage() {
       options: { data: { full_name: v.fullName, ...(username ? { username } : {}) }, emailRedirectTo: `${window.location.origin}/entrar` },
     })
     if (error) return setMsg({ kind: 'error', text: 'Não foi possível criar a conta. Verifique os dados.' })
+    trackSignUp('email')
     // projeto sem confirmação de e-mail: a sessão já vem aberta
     if (data.session) return navigate('/conta', { replace: true })
     setMsg({ kind: 'success', text: 'Conta criada. Confirme seu e-mail para entrar.' })

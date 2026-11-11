@@ -14,6 +14,7 @@ import type { BusinessHour, BusinessSummary } from '../features/catalog/schemas.
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { getProfileByUser, isFollowingBusiness, setBusinessFollow } from '../features/conecta/repository.ts'
 import { addRecent } from '../features/recent/recentStore.ts'
+import { trackViewItem } from '../features/tracking/tracker.ts'
 import { Feed } from './ConectaPage.tsx'
 import { getMenu, getPublicBusiness, getReviews, type MenuProduct } from '../features/store/repository.ts'
 import { ProductSheet } from './store/ProductSheet.tsx'
@@ -161,7 +162,9 @@ export function BusinessPage() {
   const [selected, setSelected] = useState<MenuProduct | null>(null)
 
   useEffect(() => {
-    if (b) addRecent({ kind: b.businessType, id: b.id, slug: b.slug, name: b.name, imageUrl: b.logoUrl ?? b.coverUrl ?? undefined })
+    if (!b) return
+    addRecent({ kind: b.businessType, id: b.id, slug: b.slug, name: b.name, imageUrl: b.logoUrl ?? b.coverUrl ?? undefined })
+    trackViewItem({ id: b.id, name: b.name, category: b.businessType })
   }, [b])
 
   if (business.isLoading) {

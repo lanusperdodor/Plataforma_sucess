@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BarChart3, Briefcase, Clock, ExternalLink, LayoutGrid, Plus, ReceiptText, Star, Store, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Briefcase, CreditCard, Clock, ExternalLink, LayoutGrid, Plus, ReceiptText, Star, Store, Trash2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
 import { businessHref } from '../../components/cards/BusinessCard.tsx'
@@ -35,7 +35,7 @@ import {
 } from '../../features/merchant/repository.ts'
 import { canInBusiness, type BusinessPermission } from '../../features/permissions/permissions.ts'
 import { formatBRL } from '../../lib/money.ts'
-import { JobsTab, OrdersTab, ReviewsTab, SalesTab } from './OperationsTabs.tsx'
+import { JobsTab, OrdersTab, PlanTab, ReviewsTab, SalesTab } from './OperationsTabs.tsx'
 
 const field = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink'
 const primary = 'pressable inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-surface disabled:opacity-50'
@@ -364,6 +364,7 @@ const TABS: { to: string; label: string; icon: typeof Store; permission: Busines
   { to: 'vendas', label: 'Vendas', icon: BarChart3, permission: 'reports.view' },
   { to: 'avaliacoes', label: 'Avaliações', icon: Star, permission: 'store.customize' },
   { to: 'vagas', label: 'Vagas', icon: Briefcase, permission: 'jobs.manage' },
+  { to: 'plano', label: 'Plano', icon: CreditCard, permission: 'reports.view' },
 ]
 
 function BusinessPanel() {
@@ -402,6 +403,7 @@ function BusinessPanel() {
         <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} />)} />
         <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
         <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />
+        <Route path="plano" element={guard('reports.view', <PlanTab businessId={b.id} />)} />
         <Route path="vagas" element={guard('jobs.manage', <JobsTab businessId={b.id} active={b.status === 'active'} />)} />
         <Route path="*" element={<Navigate to="" replace />} />
       </Routes>

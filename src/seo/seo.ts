@@ -262,7 +262,7 @@ export function jobMeta(j: JobSeo, id: string): PageMeta {
 
 export function robotsTxt(siteUrl: string, allowIndexing: boolean): string {
   if (!allowIndexing) return ['# Ambiente sem indexação (homologação ou domínio não canônico).', 'User-agent: *', 'Disallow: /', ''].join('\n')
-  const disallow = [...PRIVATE_PREFIXES, '/busca', '/conectuai', '/conecta', '/comunidade']
+  const disallow = [...PRIVATE_PREFIXES, '/busca', '/conectuai', '/conecta', '/comunidade', '/api']
   return [
     '# Tucaí — Tudo junto. Tudo aí.',
     '# Áreas privadas também respondem com noindex; robots.txt não é mecanismo de segurança.',

@@ -285,3 +285,22 @@ export async function setProductAvailability(id: string, isAvailable: boolean): 
 export async function deleteProduct(id: string): Promise<void> {
   one(await exec(supabase.from('products').delete().eq('id', id).select('id'), z.array(z.object({ id: z.string() }))))
 }
+
+// ---------- plano e cobranças da plataforma (0018) ----------
+const subscriptionSchema = z
+  .object({ id: z.string(), plan_code: z.string(), price_cents: z.number(), started_on: z.string(), current_period_end: z.string() })
+  .transform((r) => ({ id: r.id, planCode: r.plan_code, priceCents: r.price_cents, startedOn: r.started_on, periodEnd: r.current_period_end }))
+const myChargeSchema = z
+  .object({ id: z.string(), kind: z.enum(['plano', 'comissao', 'outro']), description: z.string(), amount_cents: z.number(), due_on: z.string(), status: z.enum(['aberta', 'paga', 'cancelada']), paid_at: z.string().nullable() })
+  .transform((r) => ({ id: r.id, kind: r.kind, description: r.description, amountCents: r.amount_cents, dueOn: r.due_on, status: r.status, paidAt: r.paid_at }))
+export type MyCharge = z.output<typeof myChargeSchema>
+
+export async function getMyPlan(businessId: string) {
+  const [subs, plans, charges] = await Promise.all([
+    exec(supabase.from('business_subscriptions').select('id,plan_code,price_cents,started_on,current_period_end').eq('business_id', businessId).eq('status', 'active'), z.array(subscriptionSchema)),
+    exec(supabase.from('plans').select('code,name'), z.array(z.object({ code: z.string(), name: z.string() }))),
+    exec(supabase.from('platform_charges').select('id,kind,description,amount_cents,due_on,status,paid_at').eq('business_id', businessId).order('due_on', { ascending: false }).limit(24), z.array(myChargeSchema)),
+  ])
+  const sub = subs[0] ?? null
+  return { subscription: sub ? { ...sub, planName: plans.find((p) => p.code === sub.planCode)?.name ?? sub.planCode } : null, charges }
+}

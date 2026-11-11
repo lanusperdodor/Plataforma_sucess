@@ -19,6 +19,7 @@ import {
   type FinanceBusiness,
 } from '../../features/admin/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
+import { createPaymentLink } from '../../features/payments/repository.ts'
 import { useAdminAccess } from './access-context.ts'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
@@ -178,6 +179,16 @@ function Charges({ canEdit }: { canEdit: boolean }) {
   const [status, setStatus] = useState<ChargeStatus | ''>('aberta')
   const [method, setMethod] = useState('pix')
   const q = useQuery({ queryKey: ['admin', 'finance', 'charges', status], queryFn: () => listCharges(status || null) })
+  const link = useMutation({
+    mutationFn: createPaymentLink,
+    onSuccess: (url) => {
+      void navigator.clipboard?.writeText(url).then(
+        () => toast.success('Link do Mercado Pago copiado. Envie para a empresa pelo WhatsApp.'),
+        () => window.prompt('Copie o link de pagamento:', url),
+      )
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
   const run = useMutation({
     mutationFn: (fn: () => Promise<void>) => fn(),
     onSuccess: () => {
@@ -220,7 +231,15 @@ function Charges({ canEdit }: { canEdit: boolean }) {
                     </p>
                   </div>
                   {canEdit && c.status === 'aberta' && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={link.isPending}
+                        onClick={() => link.mutate(c.id)}
+                        className={secondaryButton}
+                      >
+                        Link de pagamento
+                      </button>
                       <button type="button" disabled={run.isPending} onClick={() => run.mutate(() => markChargePaid(c.id, method))} className={primaryButton}>Marcar como paga</button>
                       <button type="button" disabled={run.isPending} onClick={() => { if (window.confirm('Cancelar esta cobrança?')) run.mutate(() => cancelCharge(c.id)) }} className={secondaryButton}>Cancelar</button>
                     </div>

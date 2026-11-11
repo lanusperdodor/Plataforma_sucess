@@ -220,7 +220,7 @@ export const OPERATORS: readonly { name: string; role: string; status: string }[
   { name: 'Supabase', role: 'Banco de dados, autenticação e e-mails de conta', status: 'Em uso. Região do projeto e DPA a confirmar.' },
   { name: 'Cloudflare', role: 'Hospedagem do site e CDN', status: 'Em uso. Termos/DPA a confirmar.' },
   { name: 'GitHub', role: 'Código-fonte (sem dados de usuários)', status: 'Em uso. Não trata dados de clientes.' },
-  { name: 'Provedor de pagamentos', role: 'Pix e cartão', status: 'Não contratado.' },
+  { name: 'Mercado Pago', role: 'Pagamento das mensalidades e cobranças das empresas (Pix, cartão e boleto)', status: 'Integração pronta; em uso quando ativada no Painel Master. Os dados de pagamento são tratados pelo Mercado Pago, não pela Tucaí.' },
   { name: 'Mapas e rotas', role: 'Distância e tempo de entrega', status: 'Não contratado.' },
   { name: 'Mensageria / notificações', role: 'Avisos de pedidos', status: 'Não contratado.' },
   { name: 'Ferramentas de IA', role: '—', status: 'Nenhuma em uso no produto.' },

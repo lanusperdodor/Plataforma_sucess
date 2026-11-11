@@ -3,6 +3,8 @@
 Data: 11/11/2026 · Site auditado: `https://plataforma-sucess.marcossonopi.workers.dev` (build atual da `main`).
 Escopo desta fase: só diagnóstico e plano. Nada foi alterado no site, no banco ou no Cloudflare.
 
+> **Situação:** Fase 2 implementada (ver `docs/SEO.md`). Fases 3 a 5 aguardam aprovação.
+
 ## 1. Resumo
 
 | Item | Situação | Gravidade |

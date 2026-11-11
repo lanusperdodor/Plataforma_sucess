@@ -1,11 +1,30 @@
 -- =====================================================================================
--- TUCAÍ — MIGRATIONS 0001 a 0010 PARA O SQL EDITOR DO SUPABASE
--- Gerado automaticamente a partir de supabase/migrations. NÃO editar aqui.
--- Para banco VAZIO. Copie TODO o conteúdo, cole no SQL Editor e clique em Run UMA vez.
--- Regenerar: npm run sql:bundle
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0010) PARA O SQL EDITOR DO SUPABASE
+-- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
+-- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
+-- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
 -- =====================================================================================
 
+create schema if not exists private;
+revoke all on schema private from public;
+create table if not exists private.tucai_migrations (
+  version text primary key,
+  name text not null,
+  how text not null check (how in ('applied', 'detected')),
+  applied_at timestamptz not null default now()
+);
+revoke all on private.tucai_migrations from public;
+
 -- ===================== supabase/migrations/0001_foundation.sql =====================
+do $tucai_0001$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0001') then
+    raise notice 'Tucaí 0001: já aplicada';
+  elsif to_regclass('public.profiles') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0001', '0001_foundation.sql', 'detected');
+    raise notice 'Tucaí 0001: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0001_foundation: perfis, papéis, empresas (mínimo), membros, permissões, auditoria, RLS.
 -- Princípio: RLS em tudo; escrita de papéis somente por funções SECURITY DEFINER.
 
@@ -218,8 +237,22 @@ grant update (full_name, phone, preferred_city_id) on public.profiles to authent
 grant update (name) on public.businesses to authenticated;
 grant insert, delete on public.business_members to authenticated;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0001', '0001_foundation.sql', 'applied');
+    raise notice 'Tucaí 0001: aplicada agora';
+  end if;
+end $tucai_0001$;
 
 -- ===================== supabase/migrations/0002_catalog_core.sql =====================
+do $tucai_0002$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0002') then
+    raise notice 'Tucaí 0002: já aplicada';
+  elsif to_regclass('public.cities') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0002', '0002_catalog_core.sql', 'detected');
+    raise notice 'Tucaí 0002: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0002_catalog_core: catálogo (cidades, categorias, estabelecimentos, cardápio, serviços, avaliações),
 -- configuração de preços versionada, visão pública segura de estabelecimentos e RLS.
 -- A 0001 não é alterada; ajustes sobre ela (grants/políticas de businesses) são feitos aqui.
@@ -614,8 +647,22 @@ revoke all on function public.business_is_open(uuid) from public, anon, authenti
 grant execute on function public.is_active_business(uuid) to anon, authenticated;
 grant execute on function public.business_is_open(uuid) to anon, authenticated;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0002', '0002_catalog_core.sql', 'applied');
+    raise notice 'Tucaí 0002: aplicada agora';
+  end if;
+end $tucai_0002$;
 
 -- ===================== supabase/migrations/0003_public_real_data_only.sql =====================
+do $tucai_0003$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0003') then
+    raise notice 'Tucaí 0003: já aplicada';
+  elsif to_regclass('public.public_businesses') is not null and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'public_businesses' and column_name = 'is_demo') then
+    insert into private.tucai_migrations(version, name, how) values ('0003', '0003_public_real_data_only.sql', 'detected');
+    raise notice 'Tucaí 0003: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0003_public_real_data_only: a experiência pública só mostra dados reais.
 -- Linhas marcadas is_demo (antigo seed de desenvolvimento) deixam de ser visíveis para
 -- anon/authenticated em qualquer leitura pública, mesmo que existam no banco.
@@ -705,14 +752,42 @@ insert into public.cities (name, state, slug, is_active)
 values ('Itaú de Minas', 'MG', 'itau-de-minas-mg', true)
 on conflict do nothing;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0003', '0003_public_real_data_only.sql', 'applied');
+    raise notice 'Tucaí 0003: aplicada agora';
+  end if;
+end $tucai_0003$;
 
 -- ===================== supabase/migrations/0004_business_status_rejected.sql =====================
+do $tucai_0004$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0004') then
+    raise notice 'Tucaí 0004: já aplicada';
+  elsif exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'business_status' and e.enumlabel = 'rejected') then
+    insert into private.tucai_migrations(version, name, how) values ('0004', '0004_business_status_rejected.sql', 'detected');
+    raise notice 'Tucaí 0004: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0004: novo estado de estabelecimento "rejected" (solicitação recusada pelo Master).
 -- Isolado em migration própria: um valor novo de enum não pode ser usado na mesma transação.
 alter type public.business_status add value if not exists 'rejected';
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0004', '0004_business_status_rejected.sql', 'applied');
+    raise notice 'Tucaí 0004: aplicada agora';
+  end if;
+end $tucai_0004$;
 
 -- ===================== supabase/migrations/0005_platform_admin.sql =====================
+do $tucai_0005$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0005') then
+    raise notice 'Tucaí 0005: já aplicada';
+  elsif to_regclass('public.platform_settings') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0005', '0005_platform_admin.sql', 'detected');
+    raise notice 'Tucaí 0005: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0005_platform_admin: base do Painel Master.
 --  * Configurações operacionais (platform_settings) alteráveis só pelo Master, com auditoria.
 --  * Permissões administrativas configuráveis por integrante (operadores não recebem nada por padrão).
@@ -1266,8 +1341,22 @@ begin
   end loop;
 end $$;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0005', '0005_platform_admin.sql', 'applied');
+    raise notice 'Tucaí 0005: aplicada agora';
+  end if;
+end $tucai_0005$;
 
 -- ===================== supabase/migrations/0006_security_privacy.sql =====================
+do $tucai_0006$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0006') then
+    raise notice 'Tucaí 0006: já aplicada';
+  elsif to_regclass('public.privacy_requests') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0006', '0006_security_privacy.sql', 'detected');
+    raise notice 'Tucaí 0006: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0006_security_privacy: controles fundamentais de segurança e LGPD.
 --  * MFA obrigatório para a equipe administrativa por padrão (o Master cadastra o TOTP em
 --    /admin/seguranca antes de qualquer outra ação; o cadastro do fator não depende do painel).
@@ -1633,8 +1722,22 @@ begin
   end loop;
 end $$;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0006', '0006_security_privacy.sql', 'applied');
+    raise notice 'Tucaí 0006: aplicada agora';
+  end if;
+end $tucai_0006$;
 
 -- ===================== supabase/migrations/0007_merchant_panel.sql =====================
+do $tucai_0007$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0007') then
+    raise notice 'Tucaí 0007: já aplicada';
+  elsif exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'businesses' and policyname = 'businesses_member_update') then
+    insert into private.tucai_migrations(version, name, how) values ('0007', '0007_merchant_panel.sql', 'detected');
+    raise notice 'Tucaí 0007: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0007_merchant_panel: escrita do painel do estabelecimento com RLS por permissão.
 --  * Membros leem os próprios dados (inclusive antes da aprovação, para preparar a loja).
 --  * Loja/horários: store.customize ou settings.manage. Cardápio: menu.manage.
@@ -1755,8 +1858,22 @@ revoke all on function private.businesses_name_guard() from public, anon, authen
 create trigger businesses_name_guard before update of name on public.businesses
   for each row execute function private.businesses_name_guard();
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0007', '0007_merchant_panel.sql', 'applied');
+    raise notice 'Tucaí 0007: aplicada agora';
+  end if;
+end $tucai_0007$;
 
 -- ===================== supabase/migrations/0008_conecta_feed.sql =====================
+do $tucai_0008$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0008') then
+    raise notice 'Tucaí 0008: já aplicada';
+  elsif to_regclass('public.social_profiles') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0008', '0008_conecta_feed.sql', 'detected');
+    raise notice 'Tucaí 0008: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0008_conecta_feed: Tucaí Conecta — perfis sociais, feed, comentários, curtidas, salvos,
 -- seguir (pessoas e estabelecimentos), bloqueio, denúncias, moderação humana com contestação,
 -- suspensão e notificações. Reutiliza auth.users, businesses, products e cities.
@@ -2585,8 +2702,22 @@ begin
 end $$;
 revoke all on function private.anonymize_user(uuid) from public, anon, authenticated;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0008', '0008_conecta_feed.sql', 'applied');
+    raise notice 'Tucaí 0008: aplicada agora';
+  end if;
+end $tucai_0008$;
 
 -- ===================== supabase/migrations/0009_couriers.sql =====================
+do $tucai_0009$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0009') then
+    raise notice 'Tucaí 0009: já aplicada';
+  elsif to_regclass('public.couriers') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0009', '0009_couriers.sql', 'detected');
+    raise notice 'Tucaí 0009: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0009_couriers: cadastro de entregadores parceiros (independentes) e análise pela equipe.
 --  * Minimização (LGPD): só o necessário para analisar e contatar; documentos ficam para o
 --    envio por Storage com política própria (ainda não disponível).
@@ -2779,8 +2910,22 @@ begin
   end loop;
 end $$;
 
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0009', '0009_couriers.sql', 'applied');
+    raise notice 'Tucaí 0009: aplicada agora';
+  end if;
+end $tucai_0009$;
 
 -- ===================== supabase/migrations/0010_conectuai_comunidades.sql =====================
+do $tucai_0010$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0010') then
+    raise notice 'Tucaí 0010: já aplicada';
+  elsif to_regclass('public.communities') is not null then
+    insert into private.tucai_migrations(version, name, how) values ('0010', '0010_conectuai_comunidades.sql', 'detected');
+    raise notice 'Tucaí 0010: já existia no banco (registrada)';
+  else
+    execute $tucai_sql$
 -- 0010_conectuai_comunidades: Conectuaí completo — privacidade do perfil, amizades, recados
 -- (mural), depoimentos com aprovação, comunidades públicas/privadas com moderadores, tópicos,
 -- respostas e enquetes. Reaproveita perfis sociais, bloqueios, denúncias, moderação e
@@ -3679,3 +3824,11 @@ begin
     ''notes'', jsonb_build_array(');
   execute src;
 end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0010', '0010_conectuai_comunidades.sql', 'applied');
+    raise notice 'Tucaí 0010: aplicada agora';
+  end if;
+end $tucai_0010$;
+
+select version, name, how, applied_at from private.tucai_migrations order by version;

@@ -1,7 +1,7 @@
 -- =====================================================================================
--- TUCAÍ — TODAS AS MIGRATIONS (0001 a 0010) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — MIGRATIONS 0001 a 0010 PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations. NÃO editar aqui.
--- Uso: copie TODO este conteúdo, cole no SQL Editor (banco vazio) e clique em Run UMA vez.
+-- Para banco VAZIO. Copie TODO o conteúdo, cole no SQL Editor e clique em Run UMA vez.
 -- Regenerar: npm run sql:bundle
 -- =====================================================================================
 

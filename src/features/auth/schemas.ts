@@ -1,7 +1,17 @@
 import { z } from 'zod'
 
+/** Nome de usuário: 3 a 30 letras, números, ponto ou sublinhado (sem diferenciar maiúsculas). */
+export const USERNAME_RE = /^[a-zA-Z0-9._]{3,30}$/
+
+/** E-mail completo ou nome de usuário. */
+export const identifierSchema = z
+  .string()
+  .trim()
+  .min(1, 'Informe seu e-mail ou usuário')
+  .refine((v) => (v.includes('@') ? z.string().email().safeParse(v).success : USERNAME_RE.test(v)), 'E-mail ou usuário inválido')
+
 export const loginSchema = z.object({
-  email: z.string().trim().email('Informe um e-mail válido'),
+  identifier: identifierSchema,
   password: z.string().min(1, 'Informe a senha'),
 })
 
@@ -14,14 +24,7 @@ export function adminIdentifierToEmail(id: string): string {
   return v.includes('@') ? v : `${v}@${ADMIN_USERNAME_DOMAIN}`
 }
 
-export const adminLoginSchema = z.object({
-  identifier: z
-    .string()
-    .trim()
-    .min(1, 'Informe o usuário ou e-mail')
-    .refine((v) => (v.includes('@') ? z.string().email().safeParse(v).success : /^[a-zA-Z0-9._-]{3,40}$/.test(v)), 'Usuário ou e-mail inválido'),
-  password: z.string().min(1, 'Informe a senha'),
-})
+export const adminLoginSchema = z.object({ identifier: identifierSchema, password: z.string().min(1, 'Informe a senha') })
 export type AdminLoginValues = z.infer<typeof adminLoginSchema>
 
 const strongPassword = z
@@ -33,6 +36,11 @@ const strongPassword = z
 
 export const signUpSchema = z.object({
   fullName: z.string().trim().min(2, 'Informe seu nome').max(120),
+  username: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || USERNAME_RE.test(v), 'Use de 3 a 30 letras, números, ponto ou sublinhado')
+    .optional(),
   email: z.string().trim().email('Informe um e-mail válido'),
   password: strongPassword,
 })

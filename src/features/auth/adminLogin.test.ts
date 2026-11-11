@@ -8,6 +8,7 @@ describe('login administrativo por usuário', () => {
   })
   it('valida usuário ou e-mail', () => {
     expect(adminLoginSchema.safeParse({ identifier: 'admin', password: 'x' }).success).toBe(true)
+    expect(adminLoginSchema.safeParse({ identifier: 'ADMIN', password: 'x' }).success).toBe(true)
     expect(adminLoginSchema.safeParse({ identifier: 'a b', password: 'x' }).success).toBe(false)
     expect(adminLoginSchema.safeParse({ identifier: 'x@', password: 'x' }).success).toBe(false)
   })

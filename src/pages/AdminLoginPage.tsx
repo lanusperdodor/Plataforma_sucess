@@ -5,8 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, Navigate } from 'react-router-dom'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
-import { adminIdentifierToEmail, adminLoginSchema, type AdminLoginValues } from '../features/auth/schemas.ts'
-import { isSupabaseConfigured, signInWithPassword } from '../features/auth/signIn.ts'
+import { adminLoginSchema, type AdminLoginValues } from '../features/auth/schemas.ts'
+import { SIGN_IN_MESSAGES, isSupabaseConfigured, signInWithIdentifier } from '../features/auth/signIn.ts'
 import { OFFLINE_MESSAGE } from './AuthPages.tsx'
 
 const ADMIN_ROLES = ['platform_master', 'platform_operator'] as const
@@ -26,8 +26,8 @@ export function AdminLoginPage() {
   const onSubmit = f.handleSubmit(async (v) => {
     setError(undefined)
     if (!isSupabaseConfigured) return setError(OFFLINE_MESSAGE)
-    const { error: err } = await signInWithPassword(adminIdentifierToEmail(v.identifier), v.password)
-    if (err) setError('Usuário ou senha incorretos.')
+    const { error: err } = await signInWithIdentifier(v.identifier, v.password)
+    if (err) setError(SIGN_IN_MESSAGES[err])
   })
 
   const header = (

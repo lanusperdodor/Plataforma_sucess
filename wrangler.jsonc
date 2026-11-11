@@ -1,0 +1,23 @@
+// Configuração do Cloudflare Workers da Tucaí (deploy: npm run build && npx wrangler deploy).
+// O Worker (src/worker/index.ts) atende as rotas do app com HTTP 200 e metadados de SEO,
+// gera /robots.txt e /sitemap.xml e entrega os arquivos de dist/ pelo binding ASSETS.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "plataforma-sucess",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // o Worker decide primeiro: arquivos seguem para ASSETS, rotas recebem o HTML com metadados
+    "run_worker_first": true,
+    "not_found_handling": "none"
+  },
+  "vars": {
+    // Domínio canônico. Ao migrar para o domínio oficial, troque aqui (sem barra final).
+    "SITE_URL": "https://plataforma-sucess.marcossonopi.workers.dev",
+    // "true" só em produção. Fora do domínio canônico o Worker já responde noindex.
+    "ALLOW_INDEXING": "true"
+  },
+  "observability": { "enabled": true }
+}

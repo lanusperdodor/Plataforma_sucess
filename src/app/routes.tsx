@@ -13,6 +13,7 @@ const BusinessPage = lazyNamed(pageLoaders['/restaurantes/:slug'], 'BusinessPage
 const StoresPage = lazyNamed(pageLoaders['/lojas'], 'StoresPage')
 const ServicesPage = lazyNamed(pageLoaders['/servicos'], 'ServicesPage')
 const JobsPage = lazyNamed(pageLoaders['/vagas'], 'JobsPage')
+const CityPage = lazyNamed(() => import('../pages/CityPage.tsx'), 'CityPage')
 const JobPage = lazyNamed(pageLoaders['/vagas/:id'], 'JobPage')
 const MyApplicationsPage = lazyNamed(pageLoaders['/vagas/:id'], 'MyApplicationsPage')
 const ConectaPage = lazyNamed(pageLoaders['/conectuai'], 'ConectaPage')
@@ -100,6 +101,8 @@ export function AppRoutes() {
         <Route path="servicos" element={<ServicesPage />} />
         <Route path="servicos/:slug" element={<BusinessPage />} />
         <Route path="vagas" element={<JobsPage />} />
+        <Route path="cidades/:slug" element={<CityPage />} />
+        <Route path="cidades/:slug/:section" element={<CityPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
         <Route path="vagas/minhas-candidaturas" element={<RequireAuth><MyApplicationsPage /></RequireAuth>} />
         <Route path="conectuai" element={<ConectaPage />} />

@@ -1,13 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BarChart3, Briefcase, CreditCard, Clock, ExternalLink, LayoutGrid, PiggyBank, Plus, Receipt, ReceiptText, Star, Store, Trash2, Wallet } from 'lucide-react'
+import { LayoutGrid, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
-import { businessHref } from '../../components/cards/BusinessCard.tsx'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
-import { Page, PageHeader } from '../../components/nav/PageHeader.tsx'
-import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { useCategories } from '../../features/catalog/hooks.ts'
 import type { CategoryKind } from '../../features/catalog/schemas.ts'
 import {
@@ -16,10 +12,8 @@ import {
   createProduct,
   deleteCategory,
   deleteProduct,
-  getBusiness,
   listCategories,
   listHours,
-  listMyBusinesses,
   listProducts,
   productFormSchema,
   removeHour,
@@ -33,17 +27,14 @@ import {
   type ProductForm,
   type StoreForm,
 } from '../../features/merchant/repository.ts'
-import { CashTab, ExpensesTab, ProfitTab } from './MerchantFinance.tsx'
-import { canInBusiness, type BusinessPermission } from '../../features/permissions/permissions.ts'
 import { formatBRL } from '../../lib/money.ts'
-import { JobsTab, OrdersTab, PlanTab, ReviewsTab, SalesTab } from './OperationsTabs.tsx'
 
 const field = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink'
 const primary = 'pressable inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-surface disabled:opacity-50'
 const secondary = 'pressable inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-line px-4 text-sm font-semibold text-ink disabled:opacity-50'
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-const STATUS_TEXT = { pending: 'Em análise — você já pode preparar a loja; ela só fica pública após a aprovação.', active: 'Publicado na Tucaí.', suspended: 'Suspenso pela Tucaí.', rejected: 'Solicitação recusada.' } as const
+export const STATUS_TEXT = { pending: 'Em análise — você já pode preparar a loja; ela só fica pública após a aprovação.', active: 'Publicado na Tucaí.', suspended: 'Suspenso pela Tucaí.', rejected: 'Solicitação recusada.' } as const
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente novamente.')
 const centsText = (c: number) => (c ? formatBRL(c).replace('R$ ', '') : '')
 
@@ -55,7 +46,7 @@ function FieldError({ text }: { text?: string }) {
 }
 
 // ---------- Loja ----------
-function StoreTab({ b }: { b: MerchantBusiness }) {
+export function StoreTab({ b }: { b: MerchantBusiness }) {
   const qc = useQueryClient()
   const toast = useToast()
   const categories = useCategories(b.businessType as CategoryKind)
@@ -153,7 +144,7 @@ function StoreTab({ b }: { b: MerchantBusiness }) {
 }
 
 // ---------- Horários ----------
-function HoursTab({ b }: { b: MerchantBusiness }) {
+export function HoursTab({ b }: { b: MerchantBusiness }) {
   const qc = useQueryClient()
   const toast = useToast()
   const hours = useQuery({ queryKey: ['merchant', 'hours', b.id], queryFn: () => listHours(b.id) })
@@ -258,7 +249,7 @@ function ProductEditor({ businessId, categories, product, onDone }: { businessId
   )
 }
 
-function MenuTab({ b }: { b: MerchantBusiness }) {
+export function MenuTab({ b }: { b: MerchantBusiness }) {
   const qc = useQueryClient()
   const toast = useToast()
   const cats = useQuery({ queryKey: ['merchant', 'categories', b.id], queryFn: () => listCategories(b.id) })
@@ -353,113 +344,5 @@ function MenuTab({ b }: { b: MerchantBusiness }) {
         </>
       )}
     </div>
-  )
-}
-
-// ---------- estrutura ----------
-const TABS: { to: string; label: string; icon: typeof Store; permission: BusinessPermission }[] = [
-  { to: '', label: 'Loja', icon: Store, permission: 'store.customize' },
-  { to: 'horarios', label: 'Horários', icon: Clock, permission: 'store.customize' },
-  { to: 'cardapio', label: 'Cardápio', icon: LayoutGrid, permission: 'menu.manage' },
-  { to: 'pedidos', label: 'Pedidos recebidos', icon: ReceiptText, permission: 'orders.view' },
-  { to: 'vendas', label: 'Vendas', icon: BarChart3, permission: 'reports.view' },
-  { to: 'caixa', label: 'Caixa', icon: Wallet, permission: 'reports.view' },
-  { to: 'gastos', label: 'Gastos', icon: Receipt, permission: 'reports.view' },
-  { to: 'lucro', label: 'Meu lucro', icon: PiggyBank, permission: 'reports.view' },
-  { to: 'avaliacoes', label: 'Avaliações', icon: Star, permission: 'store.customize' },
-  { to: 'vagas', label: 'Vagas', icon: Briefcase, permission: 'jobs.manage' },
-  { to: 'plano', label: 'Plano', icon: CreditCard, permission: 'reports.view' },
-]
-
-function BusinessPanel() {
-  const { businessId = '' } = useParams()
-  const { authz } = useAuth()
-  const q = useQuery({ queryKey: ['merchant', 'business', businessId], queryFn: () => getBusiness(businessId), enabled: !!businessId })
-  if (q.isLoading) return <Page><p role="status" className="text-sm text-ink-muted">Carregando…</p></Page>
-  if (q.isError) return <Page><ErrorState error={q.error} onRetry={() => void q.refetch()} /></Page>
-  const b = q.data
-  if (!b) return <Page><EmptyState icon={Store} title="Estabelecimento não encontrado" description="Você não faz parte da equipe deste estabelecimento." /></Page>
-  const allowed = (p: BusinessPermission) => canInBusiness(authz, p, b.id) || (p === 'store.customize' && canInBusiness(authz, 'settings.manage', b.id))
-  const tabs = TABS.filter((t) => allowed(t.permission))
-  const guard = (perm: BusinessPermission, el: ReactNode) => (allowed(perm) ? el : <EmptyState title="Sem permissão" description="Seu cargo não permite alterar esta área." />)
-  return (
-    <Page>
-      <Link to="/painel" className="pressable inline-flex min-h-11 w-fit items-center gap-1 text-sm font-semibold text-ink"><ArrowLeft aria-hidden="true" className="size-4" />Meus estabelecimentos</Link>
-      <PageHeader
-        icon={Store}
-        title={b.name}
-        subtitle={STATUS_TEXT[b.status]}
-        actions={b.status === 'active' ? <Link to={businessHref(b)} className={secondary}><ExternalLink aria-hidden="true" className="size-4" />Ver página</Link> : undefined}
-      />
-      {b.reviewNote && (b.status === 'rejected' || b.status === 'suspended') && <p role="alert" className="rounded-card border border-danger p-3 text-sm text-ink">Motivo informado pela Tucaí: {b.reviewNote}</p>}
-      <nav aria-label="Áreas do painel" className="flex gap-2 overflow-x-auto">
-        {tabs.map((t) => (
-          <NavLink key={t.label} to={`/painel/${b.id}${t.to ? `/${t.to}` : ''}`} end className={({ isActive }) => `pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold ${isActive ? 'bg-brand text-surface' : 'border border-line text-ink'}`}>
-            <t.icon aria-hidden="true" className="size-4" />
-            {t.label}
-          </NavLink>
-        ))}
-      </nav>
-      <Routes>
-        <Route index element={allowed('store.customize') ? <StoreTab key={b.id} b={b} /> : allowed('orders.view') ? <Navigate to="pedidos" replace /> : guard('store.customize', null)} />
-        <Route path="horarios" element={guard('store.customize', <HoursTab b={b} />)} />
-        <Route path="cardapio" element={guard('menu.manage', <MenuTab b={b} />)} />
-        <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} kitchen={authz?.memberships.find((m) => m.businessId === b.id)?.role === 'kitchen'} />)} />
-        <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
-        <Route path="caixa" element={guard('reports.view', <CashTab businessId={b.id} />)} />
-        <Route path="gastos" element={guard('reports.view', <ExpensesTab businessId={b.id} />)} />
-        <Route path="lucro" element={guard('reports.view', <ProfitTab businessId={b.id} />)} />
-        <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />
-        <Route path="plano" element={guard('reports.view', <PlanTab businessId={b.id} />)} />
-        <Route path="vagas" element={guard('jobs.manage', <JobsTab businessId={b.id} active={b.status === 'active'} />)} />
-        <Route path="*" element={<Navigate to="" replace />} />
-      </Routes>
-      {b.status === 'active' && (
-        <p className="text-sm text-ink">
-          Publique novidades e ofertas ligadas ao cardápio no <Link to="/conectuai" className="font-semibold text-brand underline">Conectuaí</Link> escolhendo “Publicar como {b.name}”.
-        </p>
-      )}
-    </Page>
-  )
-}
-
-function BusinessList() {
-  const { session } = useAuth()
-  const userId = session?.user.id ?? ''
-  const q = useQuery({ queryKey: ['merchant', 'list', userId], queryFn: () => listMyBusinesses(userId), enabled: !!userId })
-  return (
-    <Page>
-      <PageHeader icon={Store} title="Meus estabelecimentos" subtitle="Painel exclusivo de cada negócio." />
-      {q.isError ? (
-        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-      ) : (q.data ?? []).length === 0 ? (
-        <EmptyState
-          icon={Store}
-          title={q.isLoading ? 'Carregando…' : 'Você ainda não faz parte de nenhum estabelecimento'}
-          action={<Link to="/cadastrar-negocio" className="pressable inline-flex min-h-11 items-center rounded-full bg-orange px-5 text-sm font-semibold text-ink">Cadastrar meu negócio</Link>}
-        />
-      ) : (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {(q.data ?? []).map((b) => (
-            <li key={b.id}>
-              <Link to={`/painel/${b.id}`} className="hover-lift pressable flex flex-col gap-1 rounded-card border border-line bg-surface p-4">
-                <span className="font-semibold text-ink">{b.name}</span>
-                <span className="text-sm text-ink-muted">{STATUS_TEXT[b.status]}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Page>
-  )
-}
-
-/** Painel do comerciante. A interface esconde o que o cargo não permite; a RLS decide de fato. */
-export function MerchantPanel() {
-  return (
-    <Routes>
-      <Route index element={<BusinessList />} />
-      <Route path=":businessId/*" element={<BusinessPanel />} />
-    </Routes>
   )
 }

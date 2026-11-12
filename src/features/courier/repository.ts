@@ -114,11 +114,14 @@ const offerSchema = z
     order_id: z.string(), business_name: z.string(), business_address: z.string().nullable(), courier_pay_cents: z.number().int(),
     offered_at: z.string(), neighborhood_hint: z.string().nullable(), items_count: z.number(),
     offer_expires_at: z.string().nullable().optional(), offer_round: z.number().int().optional(),
+    order_status: z.string().nullable().optional(), city_name: z.string().nullable().optional(),
   })
   .transform((r) => ({
     orderId: r.order_id, businessName: r.business_name, businessAddress: r.business_address, payCents: r.courier_pay_cents,
     offeredAt: r.offered_at, neighborhood: r.neighborhood_hint, itemsCount: r.items_count,
     expiresAt: r.offer_expires_at ?? null, round: r.offer_round ?? 1,
+    /** Etapa do pedido na loja (oferta antecipada, 0026): a coleta só é liberada quando 'ready'. */
+    orderStatus: r.order_status ?? null, city: r.city_name ?? null,
   }))
 export type DeliveryOffer = z.output<typeof offerSchema>
 
@@ -129,16 +132,17 @@ export async function listOffers(): Promise<DeliveryOffer[]> {
 const myDeliverySchema = z
   .object({
     order_id: z.string(), order_code: z.string(), status: z.enum(['offered', 'accepted', 'picked_up', 'delivered', 'cancelled']),
-    business_name: z.string(), business_address: z.string().nullable(), business_phone: z.string().nullable(), customer_name: z.string(),
-    customer_phone: z.string(), delivery_address: z.string().nullable(), delivery_reference: z.string().nullable(),
+    business_name: z.string(), business_address: z.string().nullable(), business_phone: z.string().nullable(), customer_name: z.string().nullable(),
+    customer_phone: z.string().nullable(), delivery_address: z.string().nullable(), delivery_reference: z.string().nullable(),
     payment_method: z.enum(['cash', 'pix_on_delivery', 'card_on_delivery']), total_cents: z.number().int(), change_for_cents: z.number().int().nullable(),
     courier_pay_cents: z.number().int(), accepted_at: z.string().nullable(), delivered_at: z.string().nullable(),
+    order_status: z.string().nullable().optional(),
   })
   .transform((r) => ({
     orderId: r.order_id, code: r.order_code, status: r.status, businessName: r.business_name, businessAddress: r.business_address,
     businessPhone: r.business_phone, customerName: r.customer_name, customerPhone: r.customer_phone, address: r.delivery_address,
     reference: r.delivery_reference, payment: r.payment_method, totalCents: r.total_cents, changeForCents: r.change_for_cents,
-    payCents: r.courier_pay_cents, acceptedAt: r.accepted_at, deliveredAt: r.delivered_at,
+    payCents: r.courier_pay_cents, acceptedAt: r.accepted_at, deliveredAt: r.delivered_at, orderStatus: r.order_status ?? null,
   }))
 export type CourierDelivery = z.output<typeof myDeliverySchema>
 

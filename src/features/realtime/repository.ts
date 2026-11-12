@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 
-export type LiveTopic = 'orders' | 'notifications' | 'deliveries' | 'resync'
+export type LiveTopic = 'orders' | 'notifications' | 'deliveries' | 'gestao' | 'resync'
 export interface LiveNotification { id: string; kind: string; message: string | null; link: string | null }
 export type LiveStatus = 'conectado' | 'reconectando' | 'falhou'
 
@@ -23,6 +23,12 @@ export function subscribeLiveUpdates(
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => onChange('orders'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, () => onChange('deliveries'))
+    // Tucaí Gestão (0027): mesas, comandas, itens da cozinha e caixa — só chegam linhas que a equipe pode ler
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'business_tabs' }, () => onChange('gestao'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'business_tab_items' }, () => onChange('gestao'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'business_tables' }, () => onChange('gestao'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_sessions' }, () => onChange('gestao'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_movements' }, () => onChange('gestao'))
     .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') { onStatus?.('conectado'); onChange('resync') }
       else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') onStatus?.('falhou', err?.message ?? status)

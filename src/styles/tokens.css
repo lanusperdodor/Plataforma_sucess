@@ -260,3 +260,10 @@ textarea:focus-visible {
 .scroll-soft::-webkit-scrollbar-thumb:hover {
   background: rgb(23 25 27 / 0.32);
 }
+
+/* Impressão do QR das mesas: só a folha de QR vai para o papel */
+@media print {
+  body.imprimir-qr #root > *:not(:has(.qr-print-root)) { display: none !important; }
+  body.imprimir-qr .qr-print-hide { display: none !important; }
+  body.imprimir-qr .qr-print-root { position: static !important; overflow: visible !important; background: #fff !important; }
+}

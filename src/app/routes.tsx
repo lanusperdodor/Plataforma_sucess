@@ -45,7 +45,8 @@ const NewPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'NewPa
 const AdminLoginPage = lazyNamed(() => import('../pages/AdminLoginPage.tsx'), 'AdminLoginPage')
 const AccountPage = lazyNamed(() => import('../pages/AccountPage.tsx'), 'AccountPage')
 const CourierArea = lazyNamed(pageLoaders['/entregador'], 'CourierArea')
-const MerchantPanel = lazyNamed(() => import('../pages/merchant/MerchantPanel.tsx'), 'MerchantPanel')
+const GestaoApp = lazyNamed(() => import('../pages/gestao/GestaoApp.tsx'), 'GestaoApp')
+const TableQrPage = lazyNamed(() => import('../pages/gestao/TableQrPage.tsx'), 'TableQrPage')
 const AdminApp = lazyNamed(() => import('../pages/admin/AdminApp.tsx'), 'AdminApp')
 
 const PROFILE_SECTIONS = ['dados']
@@ -91,6 +92,8 @@ export function AppRoutes() {
       <Route path="/nova-senha" element={<Auth><NewPasswordPage /></Auth>} />
       <Route path="/conta" element={<Auth><RequireAuth><AccountPage /></RequireAuth></Auth>} />
       <Route path="/admin/*" element={<RouteBoundary><AdminApp /></RouteBoundary>} />
+      {/* Tucaí Gestão: layout próprio em tela cheia, fora do marketplace (sem barra lateral/navegação inferior) */}
+      <Route path="/painel/*" element={<RouteBoundary><RequireAuth><GestaoApp /></RequireAuth></RouteBoundary>} />
       <Route element={<ShellLayout />}>
         <Route index element={<HomePage />} />
         <Route path="explorar" element={<ExplorePage />} />
@@ -121,6 +124,8 @@ export function AppRoutes() {
         <Route path="armazenamento" element={<StoragePolicyPage />} />
         <Route path="busca" element={<SearchPage />} />
         <Route path="sacola" element={<CartPage />} />
+        {/* QR impresso na mesa: identifica a mesa e abre o cardápio público (nada administrativo) */}
+        <Route path="mesa/:token" element={<TableQrPage />} />
         {/* Pedidos, Perfil e Notificações abrem para visitantes com convite de login;
             dados pessoais reais continuam protegidos por RLS. Checkout exige sessão. */}
         <Route path="pedidos" element={<OrdersPage />} />
@@ -136,7 +141,6 @@ export function AppRoutes() {
           <Route path="sacola/checkout" element={<CheckoutPage />} />
           <Route path="pedidos/:id" element={<OrderPage />} />
           <Route path="cadastrar-negocio" element={<BusinessApplicationPage />} />
-          <Route path="painel/*" element={<MerchantPanel />} />
           <Route path="entregador/*" element={<CourierArea />} />
 
         </Route>

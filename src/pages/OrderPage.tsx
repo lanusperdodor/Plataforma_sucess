@@ -92,14 +92,14 @@ export function customerHeadline(status: string, fulfillment: string, delivery: 
   switch (status) {
     case 'placed': return 'Aguardando confirmação do estabelecimento'
     case 'accepted':
-    case 'preparing': return 'Em preparo'
+    case 'preparing': return 'Pedido aceito! Em preparo.'
     case 'ready':
-      if (fulfillment === 'pickup') return 'Pronto para retirada'
-      if (fulfillment === 'delivery_own') return 'Pronto, saindo para entrega em breve'
-      return delivery === 'accepted' ? 'Entregador encontrado!' : 'Estamos procurando um entregador'
-    case 'out_for_delivery': return 'Seu pedido está em rota'
-    case 'delivered': return 'Pedido entregue'
-    case 'picked_up': return 'Pedido retirado'
+      if (fulfillment === 'pickup') return 'Seu pedido está pronto. Aguardando retirada.'
+      if (fulfillment === 'delivery_partner' && delivery === 'accepted') return 'Entregador encontrado.'
+      return 'Seu pedido está pronto. Aguardando coleta.'
+    case 'out_for_delivery': return 'Seu pedido está a caminho.'
+    case 'delivered': return 'Pedido entregue.'
+    case 'picked_up': return 'Pedido retirado.'
     case 'rejected': return 'Pedido recusado'
     case 'cancelled': return 'Pedido cancelado'
     default: return status

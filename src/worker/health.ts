@@ -11,9 +11,12 @@ export async function handleHealth(req: Request, env: PaymentsEnv, fetcher: type
   if (req.method !== 'GET' && req.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
   const started = Date.now()
   const r = await db(env, fetcher).rpc<{ mode?: string }>('platform_status', {})
+  // 404 = o banco respondeu, mas a função da 0030 ainda não existe (migrations pendentes): não é queda do banco
   const body = r.ok && r.data
     ? { ok: true, worker: 'ok', db: 'ok', mode: r.data.mode ?? 'normal', ms: Date.now() - started }
-    : { ok: false, worker: 'ok', db: 'indisponivel', mode: null, ms: Date.now() - started }
+    : r.status === 404
+      ? { ok: true, worker: 'ok', db: 'migracoes_pendentes', mode: 'normal', ms: Date.now() - started }
+      : { ok: false, worker: 'ok', db: 'indisponivel', mode: null, ms: Date.now() - started }
   return new Response(req.method === 'HEAD' ? null : JSON.stringify(body), {
     status: body.ok ? 200 : 503,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },

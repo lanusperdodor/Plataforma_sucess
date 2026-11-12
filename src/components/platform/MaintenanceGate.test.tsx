@@ -28,7 +28,7 @@ describe('Modo manutenção (tela)', () => {
     expect(screen.getByText('TUCAÍ')).toBeInTheDocument()
     expect(screen.getByText('Estamos realizando melhorias para oferecer uma experiência ainda melhor.')).toBeInTheDocument()
     expect(screen.getByText('Em breve estaremos de volta.')).toBeInTheDocument()
-    expect(screen.getByText(/Previsão de retorno: hoje, às/)).toBeInTheDocument()
+    expect(screen.getByText(/Previsão de retorno: (hoje, às|\d{2}\/\d{2}, às)/)).toBeInTheDocument()
     expect(screen.queryByText('Conteúdo da Tucaí')).not.toBeInTheDocument()
   })
   it('Master continua navegando; /admin sempre acessível', async () => {

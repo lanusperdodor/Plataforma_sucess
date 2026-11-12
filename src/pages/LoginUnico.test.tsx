@@ -59,3 +59,18 @@ describe('login único da Tucaí', () => {
     expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
   })
 })
+
+import { oauthReturnError } from '../features/auth/signIn.ts'
+describe('volta do login com Google', () => {
+  it('traduz os erros devolvidos pelo Google/Supabase sem detalhes técnicos', () => {
+    expect(oauthReturnError('?error=access_denied&error_description=The+user+denied', '')).toMatch(/cancelado/)
+    expect(oauthReturnError('', '#error=invalid_request&error_code=validation_failed&error_description=Unsupported+provider%3A+provider+is+not+enabled')).toMatch(/ainda não foi ativado/)
+    expect(oauthReturnError('?error=server_error&error_description=redirect+url+not+allowed', '')).toMatch(/não está autorizado para este endereço/)
+    expect(oauthReturnError('?code=abc', '#access_token=x')).toBeNull()
+  })
+  it('a tela de login mostra o motivo quando volta com erro', () => {
+    auth.value = { loading: false, session: null, authz: null }
+    view('/entrar?error=access_denied&error_description=cancelled')
+    expect(screen.getByRole('alert')).toHaveTextContent('Login com Google cancelado')
+  })
+})

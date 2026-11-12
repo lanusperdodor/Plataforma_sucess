@@ -16,7 +16,7 @@ import {
   type ResetValues,
   type SignUpValues,
 } from '../features/auth/schemas.ts'
-import { SIGN_IN_MESSAGES, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
+import { SIGN_IN_MESSAGES, oauthReturnError, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
 import { trackLogin, trackSignUp } from '../features/tracking/tracker.ts'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
@@ -92,7 +92,8 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { session, loading, authz, authzError } = useAuth()
-  const [error, setError] = useState<string>()
+  // volta do Google com erro (cancelado, endereço não autorizado…): mostra o motivo em português
+  const [error, setError] = useState<string | undefined>(() => oauthReturnError(location.search, location.hash) ?? undefined)
   const f = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
   const from = (location.state as { from?: unknown } | null)?.from
   // veio de uma página protegida: volta para ela; senão vai para o painel do perfil

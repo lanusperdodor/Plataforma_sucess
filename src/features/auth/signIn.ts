@@ -40,11 +40,26 @@ export const SIGN_IN_MESSAGES: Record<SignInError, string> = {
 
 /** Entrar/criar conta com o Google (provedor precisa estar ativo no Supabase). */
 export async function signInWithGoogle(): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/conta` } })
+  // volta para o login único, que reconhece o perfil e abre o painel certo (Master, empresário, entregador, cliente…)
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/entrar` } })
   if (!error) return { error: null }
   return {
     error: /not enabled|unsupported provider/i.test(error.message ?? '')
       ? 'O login com Google ainda não foi ativado pela Tucaí. Use e-mail ou usuário.'
       : 'Não foi possível abrir o login do Google. Tente novamente.',
   }
+}
+
+/** Erro devolvido pelo Google/Supabase na volta do OAuth (?error=… ou #error=…), em português. Nunca expõe detalhes técnicos. */
+export function oauthReturnError(search: string, hash: string): string | null {
+  const read = (raw: string) => new URLSearchParams(raw.replace(/^[?#]/, ''))
+  const q = read(search)
+  const h = read(hash)
+  const code = q.get('error_code') ?? h.get('error_code') ?? q.get('error') ?? h.get('error')
+  if (!code) return null
+  const desc = `${q.get('error_description') ?? h.get('error_description') ?? ''} ${code}`.toLowerCase()
+  if (/access_denied/.test(desc)) return 'Login com Google cancelado. Você pode tentar de novo ou entrar com e-mail ou usuário.'
+  if (/not enabled|unsupported provider/.test(desc)) return 'O login com Google ainda não foi ativado pela Tucaí. Use e-mail ou usuário.'
+  if (/redirect|not allowed/.test(desc)) return 'O login com Google não está autorizado para este endereço do site. A equipe Tucaí precisa concluir a configuração.'
+  return 'Não foi possível concluir o login com Google. Tente novamente ou entre com e-mail ou usuário.'
 }

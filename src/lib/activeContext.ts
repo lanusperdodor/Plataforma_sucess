@@ -19,9 +19,13 @@ export function setActiveContext(c: ActiveContext) {
 }
 function subscribe(l: () => void) { listeners.add(l); return () => listeners.delete(l) }
 
-/** Perfis que a conta realmente tem (cliente sempre). */
+/**
+ * Perfis que a conta realmente tem. Lojista/empresário (dono ou equipe de um estabelecimento) usa só o
+ * perfil empresarial: não tem perfil de cliente. Os demais sempre têm o de cliente.
+ */
 export function availableContexts(authz: AuthContext | null | undefined): ActiveContext[] {
-  const out: ActiveContext[] = [{ kind: 'cliente' }]
+  const business = (authz?.memberships.length ?? 0) > 0
+  const out: ActiveContext[] = business ? [] : [{ kind: 'cliente' }]
   for (const m of authz?.memberships ?? []) out.push({ kind: 'loja', businessId: m.businessId })
   if (authz?.roles.includes('courier_partner')) out.push({ kind: 'entregador' })
   if (authz?.roles.includes('platform_master') || authz?.roles.includes('platform_operator')) out.push({ kind: 'master' })
@@ -31,12 +35,13 @@ export function availableContexts(authz: AuthContext | null | undefined): Active
 /** Valida o perfil salvo contra os papéis atuais (perfil que a conta perdeu volta para cliente). */
 export function resolveContext(raw: string, authz: AuthContext | null | undefined): ActiveContext {
   const ok = availableContexts(authz)
+  const fallback: ActiveContext = ok[0] ?? { kind: 'cliente' }
   if (raw.startsWith('loja:')) {
     const id = raw.slice(5)
-    return ok.some((c) => c.kind === 'loja' && c.businessId === id) ? { kind: 'loja', businessId: id } : { kind: 'cliente' }
+    return ok.some((c) => c.kind === 'loja' && c.businessId === id) ? { kind: 'loja', businessId: id } : fallback
   }
-  if (raw === 'entregador' || raw === 'master') return ok.some((c) => c.kind === raw) ? { kind: raw } : { kind: 'cliente' }
-  return { kind: 'cliente' }
+  if (raw === 'entregador' || raw === 'master') return ok.some((c) => c.kind === raw) ? { kind: raw } : fallback
+  return ok.some((c) => c.kind === 'cliente') ? { kind: 'cliente' } : fallback
 }
 
 export function useActiveContext(authz: AuthContext | null | undefined): ActiveContext {

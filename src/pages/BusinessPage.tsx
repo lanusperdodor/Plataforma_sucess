@@ -16,6 +16,7 @@ import { getProfileByUser, isFollowingBusiness, setBusinessFollow } from '../fea
 import { addRecent } from '../features/recent/recentStore.ts'
 import { trackViewItem } from '../features/tracking/tracker.ts'
 import { Feed } from './ConectaPage.tsx'
+import { LoginInvite } from '../components/feedback/LoginInvite.tsx'
 import { getMenu, getPublicBusiness, getReviews, type MenuProduct } from '../features/store/repository.ts'
 import { ProductSheet } from './store/ProductSheet.tsx'
 import { formatBRL } from '../lib/money.ts'
@@ -236,7 +237,11 @@ export function BusinessPage() {
       </section>
       <section aria-labelledby="loja-conecta" className="flex flex-col gap-3">
         <h2 id="loja-conecta" className="text-lg font-semibold text-ink">No Conectuaí</h2>
-        <Feed scope={{ kind: 'business', businessId: b.id }} me={session?.user.id ?? null} empty={{ title: 'Sem publicações ainda', description: 'Novidades e ofertas do estabelecimento aparecem aqui.' }} />
+        {session ? (
+          <Feed scope={{ kind: 'business', businessId: b.id }} me={session.user.id} empty={{ title: 'Sem publicações ainda', description: 'Novidades e ofertas do estabelecimento aparecem aqui.' }} />
+        ) : (
+          <LoginInvite title="Entre para ver o Conectuaí" description="As publicações do estabelecimento ficam na comunidade, que é só para quem tem conta." />
+        )}
       </section>
       {selected && <ProductSheet product={selected} business={{ id: b.id, slug: b.slug, name: b.name }} onClose={() => setSelected(null)} />}
       <Link to={b.businessType === 'restaurante' ? '/restaurantes' : b.businessType === 'loja' ? '/lojas' : '/servicos'} className="text-sm font-semibold text-brand underline">

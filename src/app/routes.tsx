@@ -105,13 +105,13 @@ export function AppRoutes() {
         <Route path="cidades/:slug/:section" element={<CityPage />} />
         <Route path="vagas/:id" element={<JobPage />} />
         <Route path="vagas/minhas-candidaturas" element={<RequireAuth><MyApplicationsPage /></RequireAuth>} />
-        <Route path="conectuai" element={<ConectaPage />} />
-        <Route path="conectuai/amigos" element={<FriendsPage />} />
-        <Route path="conectuai/c" element={<CommunitiesPage />} />
-        <Route path="conectuai/c/:slug" element={<CommunityPage />} />
-        <Route path="conectuai/c/:slug/t/:topicId" element={<TopicPage />} />
-        <Route path="conectuai/u/:handle" element={<ConectaProfilePage />} />
-        <Route path="conectuai/:postId" element={<PostPage />} />
+        <Route path="conectuai" element={<RequireAuth><ConectaPage /></RequireAuth>} />
+        <Route path="conectuai/amigos" element={<RequireAuth><FriendsPage /></RequireAuth>} />
+        <Route path="conectuai/c" element={<RequireAuth><CommunitiesPage /></RequireAuth>} />
+        <Route path="conectuai/c/:slug" element={<RequireAuth><CommunityPage /></RequireAuth>} />
+        <Route path="conectuai/c/:slug/t/:topicId" element={<RequireAuth><TopicPage /></RequireAuth>} />
+        <Route path="conectuai/u/:handle" element={<RequireAuth><ConectaProfilePage /></RequireAuth>} />
+        <Route path="conectuai/:postId" element={<RequireAuth><PostPage /></RequireAuth>} />
         {/* Nomes antigos (Comunidade, Conecta): links salvos continuam funcionando. */}
         <Route path="conecta/*" element={<LegacyRedirect from="/conecta" />} />
         <Route path="comunidade/*" element={<LegacyRedirect from="/comunidade" />} />

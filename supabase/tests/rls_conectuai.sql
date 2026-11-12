@@ -10,6 +10,9 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
   set role authenticated;
 end $$;
+-- o Conectuaí é só para quem está logado (0025): "público" = qualquer pessoa logada
+create function tstq.outsider() returns void language plpgsql as $$
+begin reset role; perform set_config('request.jwt.claims', json_build_object('sub', '22220000-0000-0000-0000-0000000000d1', 'role', 'authenticated')::text, true); set role authenticated; end $$;
 create function tstq.anon() returns void language plpgsql as $$
 begin reset role; perform set_config('request.jwt.claims', '{}', true); set role anon; end $$;
 create function tstq.su() returns void language plpgsql as $$ begin reset role; end $$;
@@ -37,7 +40,8 @@ insert into auth.users(id, email) values
   ('22220000-0000-0000-0000-0000000000a1', 'q-ana@teste.invalid'),
   ('22220000-0000-0000-0000-0000000000b1', 'q-bia@teste.invalid'),
   ('22220000-0000-0000-0000-0000000000c1', 'q-caio@teste.invalid'),
-  ('22220000-0000-0000-0000-0000000000f1', 'q-moderador@teste.invalid');
+  ('22220000-0000-0000-0000-0000000000f1', 'q-moderador@teste.invalid'),
+  ('22220000-0000-0000-0000-0000000000d1', 'q-outra-pessoa-logada@teste.invalid');
 insert into public.user_roles(user_id, role) values ('22220000-0000-0000-0000-0000000000f1', 'platform_operator');
 insert into public.platform_staff_permissions(user_id, permission) values ('22220000-0000-0000-0000-0000000000f1', 'moderation.manage');
 insert into public.social_profiles(user_id, handle, display_name) values
@@ -71,7 +75,10 @@ begin
   perform tstq.login(c);
   insert into public.scraps(owner_id, body) values (a, 'Oi Ana, tudo bem?') returning id into scrap;
   perform tstq.anon();
-  perform tstq.ok(tstq.count(format($q$select 1 from public.scraps where owner_id = %L$q$, a)) = 1, 'mural aberto visível ao público');
+  perform tstq.denied(format($q$select 1 from public.scraps where owner_id = %L$q$, a), 'visitante sem login lê recados (0025)');
+  perform tstq.denied('select 1 from public.communities', 'visitante sem login lê comunidades (0025)');
+  perform tstq.outsider();
+  perform tstq.ok(tstq.count(format($q$select 1 from public.scraps where owner_id = %L$q$, a)) = 1, 'mural aberto visível a quem está logado');
   perform tstq.login(a);
   insert into public.scraps(owner_id, parent_id, body) values (a, scrap, 'Tudo ótimo!');
   update public.social_profiles set wall_audience = 'friends' where user_id = a;
@@ -94,12 +101,12 @@ begin
   perform tstq.login(b);
   insert into public.testimonials(recipient_id, body) values (a, 'A Ana é a melhor vizinha.') returning id into dep;
   perform tstq.ok(tstq.affected(format($q$update public.testimonials set status = 'approved' where id = %L$q$, dep)) = 0, 'autora aprova o próprio depoimento');
-  perform tstq.anon();
+  perform tstq.outsider();
   perform tstq.ok(tstq.count(format($q$select 1 from public.testimonials where id = %L$q$, dep)) = 0, 'pendente invisível');
   perform tstq.login(a);
   perform tstq.denied(format($q$update public.testimonials set body = 'editado' where id = %L$q$, dep), 'destinatária edita texto');
   perform tstq.ok(tstq.affected(format($q$update public.testimonials set status = 'approved' where id = %L$q$, dep)) = 1, 'destinatária aprova');
-  perform tstq.anon();
+  perform tstq.outsider();
   perform tstq.ok(tstq.count(format($q$select 1 from public.testimonials where id = %L$q$, dep)) = 1, 'aprovado público');
 
   -- 4. comunidades abertas e fechadas
@@ -128,7 +135,7 @@ begin
   perform tstq.denied(format($q$update public.community_topics set is_pinned = true where id = %L$q$, topic), 'membro fixa tópico', array['42501']);
   perform tstq.login(b);
   perform tstq.ok(tstq.count(format($q$select 1 from public.community_topics where id = %L$q$, topic)) = 0, 'não membro lê tópico de comunidade fechada');
-  perform tstq.anon();
+  perform tstq.outsider();
   perform tstq.ok(tstq.count(format($q$select 1 from public.communities where id = %L$q$, priv)) = 1, 'comunidade fechada aparece na busca');
   perform tstq.login(a);
   insert into public.topic_replies(topic_id, body) values (topic, 'Eu vou!');
@@ -171,7 +178,7 @@ begin
   rep := public.report_content('testimonial', dep, 'other');
   perform tstq.login(m);
   perform public.admin_moderate(rep, 'hide', 'Conteúdo indevido.');
-  perform tstq.anon();
+  perform tstq.outsider();
   perform tstq.ok(tstq.count(format($q$select 1 from public.testimonials where id = %L$q$, dep)) = 0, 'depoimento ocultado some do público');
 
   -- 8. bloqueio desfaz amizade; LGPD

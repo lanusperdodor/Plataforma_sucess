@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0024) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0025) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -7587,5 +7587,37 @@ $tucai_sql$;
     raise notice 'Tucaí 0024: aplicada agora';
   end if;
 end $tucai_0024$;
+
+-- ===================== supabase/migrations/0025_comunidade_logada.sql =====================
+do $tucai_0025$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0025') then
+    raise notice 'Tucaí 0025: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0025_comunidade_logada: o Conectuaí (feed, perfis, recados, depoimentos e comunidades) passa a ser só para
+-- quem está logado. Visitante sem conta não lê nem publica; as regras de quem vê o quê entre usuários logados
+-- (perfil fechado, amigos, comunidades fechadas, bloqueios) continuam as mesmas.
+revoke select on public.social_profiles, public.follows, public.posts, public.post_comments,
+  public.friendships, public.scraps, public.testimonials,
+  public.communities, public.community_members, public.community_topics, public.topic_replies,
+  public.community_polls, public.poll_options
+from anon;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['public.are_friends(uuid, uuid)', 'public.can_read_community(uuid)', 'public.can_see_wall(uuid)',
+                           'public.community_role(uuid)', 'public.conecta_can_see(uuid)', 'public.is_blocked_between(uuid, uuid)',
+                           'public.is_community_mod(uuid)'] loop
+    execute format('revoke execute on function %s from anon', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0025', '0025_comunidade_logada.sql', 'applied');
+    raise notice 'Tucaí 0025: aplicada agora';
+  end if;
+end $tucai_0025$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

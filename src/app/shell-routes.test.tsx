@@ -96,15 +96,14 @@ describe('AppShell + rotas reais', () => {
     expect(await screen.findByTestId('from')).toHaveTextContent('/sacola/checkout?cupom=X')
   })
 
-  it('antiga /comunidade redireciona para /conecta (Conectuaí ativo)', async () => {
+  it('antiga /comunidade leva ao Conectuaí, que é só para quem está logado', async () => {
     setWidth(375)
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/comunidade']}>
         <AppRoutes />
       </MemoryRouter></QueryClientProvider>,
     )
-    expect(await screen.findByRole('heading', { name: 'Conectuaí' })).toBeInTheDocument()
-    expect(currentLabels(screen.getByRole('navigation', { name: 'Navegação principal' }))).toEqual(['Conectuaí'])
+    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
   })
 
   it('a prévia visual /previa não existe mais', async () => {

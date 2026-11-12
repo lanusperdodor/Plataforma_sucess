@@ -23,15 +23,22 @@ describe('Menu de conta', () => {
     expect(await screen.findByText('Carla')).toBeInTheDocument()
     expect(screen.getByText('Mercadinho Teste — Operador')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Conta de Carla/ }))
-    expect(screen.getByRole('menuitemradio', { name: /Cliente \(minhas compras\)/ })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('menuitem', { name: /Meus pedidos/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Mercadinho Teste \(pedidos recebidos\)/ }))
-    expect(localStorage.getItem('tucai:perfil')).toBe('loja:b1')
-    fireEvent.click(screen.getByRole('button', { name: /Conta de Carla/ }))
+    // lojista/equipe da loja só tem o perfil empresarial: sem "Cliente" e sem "Meus pedidos"
+    expect(screen.queryByRole('menuitemradio', { name: /Cliente/ })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: /Meus pedidos/ })).toBeNull()
     expect(screen.getByRole('radiogroup', { name: 'Tema' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: /Sair/ }))
     expect(h.signOut).toHaveBeenCalled()
+  })
+  it('quem é cliente e entregador escolhe o perfil ativo', async () => {
+    h.session = { user: { id: 'k', email: 'carlos@x.com' } }
+    h.authz = { userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] }
+    show()
+    fireEvent.click(await screen.findByRole('button', { name: /Conta de/ }))
+    expect(screen.getByRole('menuitemradio', { name: /Cliente \(minhas compras\)/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitem', { name: /Meus pedidos/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Entregador/ }))
+    expect(localStorage.getItem('tucai:perfil')).toBe('entregador')
   })
   it('no Painel Master não há "Meus pedidos"', async () => {
     h.session = { user: { id: 'm', email: 'admin@tucai.example.com' } }

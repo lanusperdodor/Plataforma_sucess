@@ -103,7 +103,11 @@ begin
   perform tstc.ok(tstc.affected(format($q$update public.posts set body = 'invadido' where id = %L$q$, post_a)) = 0, 'outro usuário edita');
   perform tstc.ok(tstc.affected(format($q$delete from public.posts where id = %L$q$, post_a)) = 0, 'outro usuário apaga');
   perform tstc.anon();
-  perform tstc.ok(tstc.count(format($q$select 1 from public.posts where id = %L$q$, post_a)) = 1, 'visitante lê publicação pública');
+  perform tstc.denied(format($q$select 1 from public.posts where id = %L$q$, post_a), 'visitante sem login lê o Conectuaí (0025)');
+  perform tstc.denied('select 1 from public.social_profiles', 'visitante sem login lê perfis (0025)');
+  perform tstc.login('44440000-0000-0000-0000-0000000000d1');
+  perform tstc.ok(tstc.count(format($q$select 1 from public.posts where id = %L$q$, post_a)) = 1, 'qualquer usuário logado lê publicação pública');
+  perform tstc.anon();
   perform tstc.denied($q$insert into public.posts(body) values ('anon')$q$, 'visitante publica');
 
   -- 3. comentários, respostas, curtidas e contadores
@@ -144,7 +148,7 @@ begin
   perform tstc.ok(tstc.affected(format($q$update public.follows set status = 'accepted' where follower_id = %L$q$, b)) = 1, 'perfil fechado aprova');
   perform tstc.login(b);
   perform tstc.ok(tstc.count(format($q$select 1 from public.posts where id = %L$q$, post_c)) = 1, 'seguidor aprovado vê perfil fechado');
-  perform tstc.anon();
+  perform tstc.login('44440000-0000-0000-0000-0000000000d1');
   perform tstc.ok(tstc.count(format($q$select 1 from public.follows where followee_id = %L$q$, c)) = 0, 'seguidores de perfil fechado ocultos');
   perform tstc.login(c);
   perform tstc.ok(tstc.count($q$select 1 from public.notifications where kind = 'follow'$q$) = 1, 'nova seguidora notificada');

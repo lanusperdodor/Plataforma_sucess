@@ -196,7 +196,7 @@ export function OrderPage() {
           {d.status === 'offered' ? (
             <p className="text-sm text-ink">Estamos procurando um entregador parceiro disponível. Avisaremos assim que alguém aceitar.</p>
           ) : d.status === 'picked_up' && d.code ? (
-            <div className="flex flex-col gap-2 rounded-2xl border-2 border-orange bg-orange/10 p-4">
+            <div className="flex flex-col gap-2 rounded-2xl border border-line bg-warm-soft p-4">
               <p className="text-lg font-bold text-ink">Seu pedido está a caminho!</p>
               <p className="text-sm text-ink">{d.courierName ?? 'O entregador'}{d.vehicle && d.vehicle in VEHICLE_LABEL ? ` · ${VEHICLE_LABEL[d.vehicle as Vehicle]}` : ''} está levando seu pedido.</p>
               <p className="flex flex-wrap items-center gap-2 text-ink">

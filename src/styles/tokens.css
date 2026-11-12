@@ -97,9 +97,23 @@ body {
   font-family: var(--font-sans);
 }
 
+:root {
+  /* Foco de teclado: neutro e discreto, com contraste suficiente nos dois temas (sem contorno laranja). */
+  --focus-ring: rgb(23 25 27 / 0.55);
+}
+:root[data-theme='dark'] {
+  --focus-ring: rgb(242 242 240 / 0.6);
+}
 :focus-visible {
-  outline: 2px solid var(--brand-accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+/* Campos de texto: o mouse/toque também dispara :focus-visible; um anel fino basta. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 /* Utilitários de interação: apenas transform/opacity, 150-350 ms. */

@@ -12,7 +12,7 @@ function Doc({ icon, title, subtitle, children }: { icon: LucideIcon; title: str
   return (
     <Page>
       <PageHeader icon={icon} title={title} subtitle={subtitle} />
-      <p role="note" className="rounded-card border border-warm bg-warm-soft p-3 text-sm text-ink">
+      <p role="note" className="rounded-card border border-line bg-warm-soft p-3 text-sm text-ink">
         Minuta em revisão jurídica. Versão {LEGAL.documentsVersion}. Os dados institucionais marcados como pendentes serão
         publicados antes da operação comercial.
       </p>

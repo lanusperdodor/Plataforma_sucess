@@ -118,7 +118,7 @@ function Detail({ id, canManage }: { id: string; canManage: boolean }) {
 function Row({ o, canManage }: { o: AdminOrder; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   return (
-    <Panel className={`text-sm ${o.attention ? 'border-orange' : ''}`}>
+    <Panel className={`text-sm ${o.attention ? 'bg-warm-soft' : ''}`}>
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full flex-wrap items-center gap-2 text-left">
         <span className="font-semibold text-ink">#{o.code}</span>
         <span className="text-ink">{o.businessName}</span>

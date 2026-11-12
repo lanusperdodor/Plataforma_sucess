@@ -112,7 +112,7 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false }: { business
             const d = (deliveries.data ?? []).find((x) => x.orderId === o.id)
             const tel = phoneDigits(o.customerPhone)
             return (
-              <li key={o.id} className={`${box} flex flex-col gap-2 ${o.status === 'placed' ? 'border-orange' : ''}`}>
+              <li key={o.id} className={`${box} flex flex-col gap-2 ${o.status === 'placed' ? 'bg-warm-soft' : ''}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold text-ink">#{o.code} · {o.customerName}</h3>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${o.status === 'placed' ? 'bg-orange text-ink' : 'bg-muted text-ink'}`}>{STATUS_LABEL[o.status]}</span>

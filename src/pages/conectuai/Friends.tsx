@@ -39,7 +39,7 @@ export function FriendsPage() {
       ) : (
         <>
           {(requests.data ?? []).length > 0 && (
-            <section aria-labelledby="convites" className="rounded-card border border-warm bg-surface p-4">
+            <section aria-labelledby="convites" className="rounded-card border border-line bg-surface p-4">
               <h2 id="convites" className="mb-2 text-sm font-semibold text-ink">Convites de amizade</h2>
               <ul className="flex flex-col gap-2">
                 {(requests.data ?? []).map((p) => (
@@ -54,7 +54,7 @@ export function FriendsPage() {
             </section>
           )}
           {pendingTestimonials.length > 0 && (
-            <section aria-labelledby="dep-pend" className="rounded-card border border-warm bg-surface p-4">
+            <section aria-labelledby="dep-pend" className="rounded-card border border-line bg-surface p-4">
               <h2 id="dep-pend" className="mb-2 text-sm font-semibold text-ink">Depoimentos aguardando sua aprovação</h2>
               <p className="mb-2 text-xs text-ink-muted">Só aparecem no seu perfil depois que você aprovar.</p>
               <ul className="flex flex-col gap-3">

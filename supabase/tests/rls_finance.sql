@@ -68,7 +68,7 @@ begin
   s := public.admin_finance_summary();
   perform tstf.ok((s->>'active_subscriptions')::int = 2 and (s->>'mrr_cents')::int = 17800 and (s->>'due_soon')::int = 1, 'resumo: assinaturas, receita mensal e vencendo');
   select * into r from public.admin_finance_businesses() x where x.business_id = a;
-  perform tstf.ok(r.plan_name = 'Presencial + Delivery' and r.price_cents = 9900 and r.owner_name = 'Dona Ana' and r.whatsapp = '(35) 97777-0000' and r.current_period_end = current_date + 5, 'empresa: plano, valor, dono, WhatsApp e vencimento');
+  perform tstf.ok(r.plan_name = 'Premium' and r.price_cents = 9900 and r.owner_name = 'Dona Ana' and r.whatsapp = '(35) 97777-0000' and r.current_period_end = current_date + 5, 'empresa: plano, valor, dono, WhatsApp e vencimento');
 
   -- mensalidade: cobra, não duplica, paga renova 1 mês
   cid := public.admin_charge_subscription(a);

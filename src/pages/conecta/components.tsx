@@ -323,7 +323,7 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
 
       <div className="flex flex-col gap-3 px-4 pb-2">
         {post.hidden && (
-          <div className="flex flex-col gap-2 rounded-xl border border-warm bg-warm-soft p-3 text-sm text-ink">
+          <div className="flex flex-col gap-2 rounded-xl border border-line bg-warm-soft p-3 text-sm text-ink">
             <p className="inline-flex items-center gap-1.5 font-semibold"><EyeOff aria-hidden="true" className="size-4" />Ocultada pela moderação — só você vê.</p>
             {mine && <AppealForm type="post" id={post.id} />}
           </div>

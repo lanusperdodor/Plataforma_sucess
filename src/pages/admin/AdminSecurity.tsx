@@ -181,7 +181,7 @@ export function AdminSecurity() {
     <>
       <AdminHeader title="Segurança" subtitle="Verificação em duas etapas e configurações sensíveis." />
       {!access.mfaOk && (
-        <p role="alert" className="mb-4 rounded-card border border-warm bg-warm-soft p-3 text-sm text-ink">
+        <p role="alert" className="mb-4 rounded-card border border-line bg-warm-soft p-3 text-sm text-ink">
           A Tucaí exige verificação em duas etapas para a equipe. Confirme seu autenticador para liberar o painel.
         </p>
       )}

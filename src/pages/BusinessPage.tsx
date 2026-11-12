@@ -60,7 +60,7 @@ export function acceptsOrders(b: BusinessSummary): boolean {
 
 function ProductRow({ p, onAdd }: { p: MenuProduct; onAdd?: () => void }) {
   return (
-    <li id={`produto-${p.id}`} className="flex gap-3 rounded-card border border-line bg-surface p-3 target:ring-2 target:ring-orange">
+    <li id={`produto-${p.id}`} className="flex gap-3 rounded-card border border-line bg-surface p-3 target:ring-2 target:ring-ink/30">
       <div className="min-w-0 flex-1">
         <h4 className="font-semibold text-ink">{p.name}</h4>
         {p.description && <p className="mt-0.5 line-clamp-3 text-sm text-ink-muted">{p.description}</p>}

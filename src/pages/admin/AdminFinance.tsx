@@ -328,7 +328,7 @@ export function AdminFinance() {
       <FinanceReportSection />
       <p className="text-xs text-ink-muted">
         Gere a mensalidade e a comissão aqui. Com o Mercado Pago configurado (aba Pagamentos), envie o link de pagamento: a confirmação do provedor marca a cobrança como paga. Sem ele, receba por Pix ou outro meio e dê baixa manual.
-        Pagar a mensalidade renova o plano por 1 mês. Planos aprovados: Delivery R$ 79/mês e Presencial + Delivery R$ 99/mês.
+        Pagar a mensalidade renova o plano por 1 mês. Planos: Padrão (delivery) R$ 79/mês e Premium (presencial + delivery, com Meu Lucro e calculadora de custos) R$ 99/mês.
       </p>
       <section aria-labelledby="empresas" className="flex flex-col gap-3">
         <h2 id="empresas" className="flex items-center gap-2 text-lg font-bold text-ink"><Wallet aria-hidden="true" className="size-5" />Estabelecimentos e planos</h2>

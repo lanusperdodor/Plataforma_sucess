@@ -85,7 +85,10 @@ describe('Aba Logins', () => {
   it('dados de teste ficam nesta aba', async () => {
     show()
     const button = screen.getByRole('button', { name: /Criar dados de teste/ })
-    fireEvent.change(screen.getByLabelText('Cidade'), { target: { value: (await screen.findByRole('option', { name: 'Itaú de Minas - MG' })).getAttribute('value') } })
+    const city = screen.getByRole('combobox', { name: 'Cidade' })
+    fireEvent.focus(city)
+    fireEvent.change(city, { target: { value: 'itau' } })
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Itaú de Minas - MG/ }))
     fireEvent.click(button)
     expect(await screen.findByText('Teste-ABCDEF12!')).toBeInTheDocument()
     expect(h.created).toHaveBeenCalledWith('c1')

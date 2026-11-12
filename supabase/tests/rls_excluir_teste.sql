@@ -40,10 +40,15 @@ begin
 
   perform tsxt.login(m);
   perform public.admin_create_test_data(ca);
-  perform public.admin_create_test_data(cb);
+  perform tsxt.denied(format('select public.admin_create_test_data(%L)', cb), 'segundo conjunto de 7 contas em outra cidade', array['P0001']);
+  -- lote antigo fora do padrão que ainda exista no ambiente (ex.: conta de cozinha de versões anteriores)
+  perform tsxt.su();
+  insert into private.test_data_runs(city_id, created_by, user_ids, business_ids, logins)
+  values (cb, m, array[private.create_auth_user('cozinha-old222@teste.example.com', 'x-senha-3', 'Cozinha Antiga')], '{}',
+          '[{"key":"cozinha","label":"Cozinha","email":"cozinha-old222@teste.example.com"}]');
   perform tsxt.su();
   select array_agg(u) into test_users from private.test_data_runs r, unnest(r.user_ids) u where r.removed_at is null;
-  loj := tsxt.uid('lojista'); c1 := tsxt.uid('cliente1');
+  loj := tsxt.uid('empresario1'); c1 := tsxt.uid('cliente1');
   select id into bm from public.businesses where owner_id = loj limit 1;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
   -- movimento de teste: pedido, comanda, caixa e cobrança
@@ -56,7 +61,7 @@ begin
   perform tsxt.login(m);
   perform public.admin_create_charge(bm, 'Mensalidade teste', 7900, current_date + 5);
   perform tsxt.su();
-  perform tsxt.ok((select count(*) from public.businesses where is_test) >= 6, 'dois lotes com estabelecimentos de teste');
+  perform tsxt.ok((select count(*) from public.businesses where is_test) = 2, 'conjunto padrão com lanchonete e supermercado');
 
   -- só Master, com confirmação
   perform tsxt.login(op, 'aal2');
@@ -66,7 +71,7 @@ begin
   perform tsxt.login(m);
   perform tsxt.denied($q$select public.admin_remove_all_test_data('sim')$q$, 'sem digitar EXCLUIR', array['P0001']);
   res := public.admin_remove_all_test_data('excluir');
-  perform tsxt.ok((res->>'lotes')::int = 2 and (res->>'pedidos')::int >= 1 and (res->>'estabelecimentos')::int >= 6, 'contagens: ' || res::text);
+  perform tsxt.ok((res->>'lotes')::int = 2 and (res->>'pedidos')::int >= 1 and (res->>'estabelecimentos')::int = 2, 'contagens: ' || res::text);
 
   perform tsxt.su();
   perform tsxt.ok(not exists (select 1 from private.test_data_runs where removed_at is null), 'nenhum lote ativo');

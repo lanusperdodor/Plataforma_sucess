@@ -42,7 +42,6 @@ const LoginPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'LoginPage')
 const SignUpPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'SignUpPage')
 const ResetPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'ResetPasswordPage')
 const NewPasswordPage = lazyNamed(() => import('../pages/AuthPages.tsx'), 'NewPasswordPage')
-const AdminLoginPage = lazyNamed(() => import('../pages/AdminLoginPage.tsx'), 'AdminLoginPage')
 const AccountPage = lazyNamed(() => import('../pages/AccountPage.tsx'), 'AccountPage')
 const CourierArea = lazyNamed(pageLoaders['/entregador'], 'CourierArea')
 const GestaoApp = lazyNamed(() => import('../pages/gestao/GestaoApp.tsx'), 'GestaoApp')
@@ -86,7 +85,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/entrar" element={<Auth><LoginPage /></Auth>} />
-      <Route path="/admin/entrar" element={<Auth><AdminLoginPage /></Auth>} />
+      {/* login único: endereço antigo da administração leva ao mesmo login, que reconhece o perfil */}
+      <Route path="/admin/entrar" element={<Navigate to="/entrar" replace state={{ from: '/admin' }} />} />
       <Route path="/cadastro" element={<Auth><SignUpPage /></Auth>} />
       <Route path="/recuperar-senha" element={<Auth><ResetPasswordPage /></Auth>} />
       <Route path="/nova-senha" element={<Auth><NewPasswordPage /></Auth>} />

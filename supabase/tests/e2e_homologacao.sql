@@ -1,4 +1,4 @@
--- Teste de ponta a ponta da homologação (0022), no banco: cliente → restaurante → cozinha → entregador → Master,
+-- Teste de ponta a ponta da homologação, no banco, só com as sete contas: cliente → empresário/funcionário (cozinha) → entregador → Master,
 -- com as contas de homologação criadas pela função do Master e os papéis reais (RLS e permissões valem).
 -- Tudo é revertido. Sucesso: NOTICE 'E2E_HOMOLOGACAO_OK'.
 begin;
@@ -27,7 +27,7 @@ declare
   city constant uuid := '22229000-0000-0000-0000-000000000001';
   m uuid; ownr uuid; cr uuid; kr uuid; breal uuid := '22221000-0000-0000-0000-000000000001'; preal text := '22223000-0000-0000-0000-000000000001';
   res jsonb; res2 jsonb;
-  dono uuid; func uuid; coz uuid; k1 uuid; k2 uuid; c1 uuid; c2 uuid; op uuid; lojista uuid; prest uuid;
+  dono uuid; func uuid; k1 uuid; k2 uuid; c1 uuid; c2 uuid; lojista uuid; prest uuid;
   brest uuid; burger text; salada text; refri text; ponto text; bacon text;
   items jsonb; o1 uuid; o1b uuid; o2 uuid; o3 uuid; o4 uuid; o5 uuid;
   code text; detail jsonb; r record; n int;
@@ -48,24 +48,25 @@ begin
   insert into public.couriers(user_id, full_name, phone, city_id, vehicle, status, is_online, terms_version, terms_accepted_at)
   values (kr, 'Entregador Real', '35999990009', city, 'bicicleta', 'approved', true, 't1', now());
 
-  -- ---------- contas de homologação: 9 perfis, sem duplicar ----------
+  -- ---------- contas de homologação: sete perfis operacionais, sem duplicar ----------
   perform tste.login(m);
   res := public.admin_create_test_data(city);
-  perform tste.ok(jsonb_array_length(res->'logins') = 10 and res->>'password' is not null and not (res->>'reused')::boolean, 'cria as 10 contas (9 perfis + 2º entregador)');
+  perform tste.ok(jsonb_array_length(res->'logins') = 7 and res->>'password' is not null and not (res->>'reused')::boolean, 'cria as 7 contas operacionais');
   res2 := public.admin_create_test_data(city);
   perform tste.ok((res2->>'reused')::boolean and jsonb_array_length(res2->'logins') = 0 and res2->>'password' is null, 'segunda chamada reaproveita o lote sem duplicar');
   perform tste.su();
-  dono := tste.uid('restaurante'); func := tste.uid('funcionario'); coz := tste.uid('cozinha'); lojista := tste.uid('lojista');
-  prest := tste.uid('prestador'); k1 := tste.uid('entregador'); k2 := tste.uid('entregador2'); c1 := tste.uid('cliente1'); c2 := tste.uid('cliente2');
-  op := tste.uid('operador');
-  perform tste.ok(dono is not null and func is not null and coz is not null and lojista is not null and prest is not null
-                  and k1 is not null and k2 is not null and c1 is not null and c2 is not null and op is not null, 'todas as contas existem no Auth');
-  perform tste.ok((select count(*) from auth.users where encrypted_password = extensions.crypt(res->>'password', encrypted_password) and email like '%@teste.example.com') = 10,
+  dono := tste.uid('empresario1'); func := tste.uid('funcionario'); lojista := tste.uid('empresario2'); prest := tste.uid('entregador2');
+  k1 := tste.uid('entregador'); c1 := tste.uid('cliente1'); c2 := tste.uid('cliente2');
+  perform tste.ok(dono is not null and func is not null and lojista is not null and prest is not null
+                  and k1 is not null and c1 is not null and c2 is not null, 'as sete contas existem no Auth');
+  -- somente as sete contas: o Entregador 2 (próprio) faz o papel de "outro entregador" que não pode pegar ofertas da rede
+  k2 := prest;
+  perform tste.ok((select count(*) from auth.users where encrypted_password = extensions.crypt(res->>'password', encrypted_password) and email like '%@teste.example.com') = 7,
                   'senha das contas é a informada uma única vez');
   select id into brest from public.businesses where owner_id = dono;
-  perform tste.ok((select is_test from public.businesses where id = brest) and (select count(*) from public.businesses where is_test) = 3, 'restaurante, loja e prestador marcados como teste');
+  perform tste.ok((select is_test from public.businesses where id = brest) and (select count(*) from public.businesses where is_test) = 2, 'lanchonete e supermercado marcados como teste');
   perform tste.ok((select member_role from public.business_members where business_id = brest and user_id = func) = 'attendant'
-                  and (select member_role from public.business_members where business_id = brest and user_id = coz) = 'kitchen', 'funcionário e cozinha vinculados');
+                  and not exists (select 1 from public.business_members where business_id = brest and member_role = 'kitchen'), 'funcionário vinculado (faz atendimento e cozinha; sem conta de cozinha)');
   select id::text into burger from public.products where business_id = brest and name = 'X-Burger';
   select id::text into salada from public.products where business_id = brest and name = 'X-Salada';
   select id::text into refri from public.products where business_id = brest and name = 'Refrigerante lata';
@@ -111,33 +112,28 @@ begin
   perform tste.ok(tste.count(format('select 1 from public.order_items where order_id = %L', o1)) = 2, 'itens visíveis');
   perform tste.su();
   perform tste.ok(exists (select 1 from public.notifications where user_id = dono and kind = 'order_new')
-                  and exists (select 1 from public.notifications where user_id = coz and kind = 'order_new'), 'equipe notificada do pedido novo');
+                  and exists (select 1 from public.notifications where user_id = func and kind = 'order_new'), 'empresário e funcionário notificados do pedido novo');
   perform tste.step(5, 'restaurante recebeu');
-  -- cozinha não aceita nem recusa
-  perform tste.login(coz);
-  perform tste.denied(format('select public.merchant_accept_order(%L, 20)', o1), 'cozinha aceita pedido');
-  perform tste.denied(format($q$select public.update_order_status(%L, 'rejected', 'x')$q$, o1), 'cozinha recusa pedido', array['P0001']);
   -- 6. restaurante confirma com tempo estimado
   perform tste.login(func);
   perform tste.denied(format('select public.merchant_accept_order(%L, 2)', o1), 'tempo de preparo inválido', array['P0001']);
   perform public.merchant_accept_order(o1, 20);
   perform tste.ok((select status = 'preparing' and prep_minutes = 20 and estimated_ready_at > now() from public.orders where id = o1), 'aceito com previsão: já em preparo');
   perform tste.step(6, 'restaurante confirmou');
-  -- 7-8. cozinha prepara e disponibiliza
-  perform tste.login(coz);
-  perform tste.denied(format($q$select public.update_order_status(%L, 'cancelled', 'x')$q$, o1), 'cozinha cancela', array['P0001']);
-  perform tste.step(7, 'cozinha preparando');
-  -- entregadores de teste ficam disponíveis antes de o pedido ficar pronto
+  -- 7-8. o funcionário (função de cozinha) prepara e disponibiliza
+  perform tste.step(7, 'cozinha preparando (funcionário)');
+  -- entregador independente fica disponível antes de o pedido ficar pronto
   perform tste.login(k1); perform public.set_courier_online(true);
-  perform tste.login(k2); perform public.set_courier_online(true);
-  perform tste.login(coz);
+  perform tste.login(k2);
+  perform tste.denied('select public.set_courier_online(true)', 'entregador próprio entra na rede independente', array['42501', 'P0001']);
+  perform tste.login(func);
   perform public.update_order_status(o1, 'ready');
   perform tste.su();
   perform tste.ok((select status = 'offered' and is_test and offer_round = 1 and offer_expires_at > now() from public.deliveries where order_id = o1), 'oferta criada com prazo');
   perform tste.step(8, 'disponível para coleta');
   -- 9. entregadores de teste recebem a oferta; o real, não
   perform tste.ok(exists (select 1 from public.notifications where user_id = k1 and kind = 'delivery_offer')
-                  and exists (select 1 from public.notifications where user_id = k2 and kind = 'delivery_offer'), 'entregadores de teste notificados');
+                  and not exists (select 1 from public.notifications where user_id = k2 and kind = 'delivery_offer'), 'só o entregador independente é notificado');
   perform tste.ok(not exists (select 1 from public.notifications where user_id = kr and kind = 'delivery_offer'), 'entregador real não recebe oferta de teste');
   perform tste.login(kr);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'entregador real não lista oferta de teste');
@@ -146,10 +142,11 @@ begin
   select * into r from public.courier_list_offers() where order_id = o1;
   perform tste.ok(r.courier_pay_cents = 500 and r.items_count = 2 and r.neighborhood_hint = 'Centro', 'oferta com remuneração e bairro, sem dados do cliente');
   perform tste.step(9, 'entregador recebeu a oferta');
-  -- 10. aceite atômico: o segundo entregador perde
+  -- 10. aceite: o independente pega; o próprio não pega oferta da rede
   perform public.courier_accept_delivery(o1);
+  perform tste.denied(format('select public.courier_accept_delivery(%L)', o1), 'aceitar duas vezes a mesma entrega', array['P0001']);
   perform tste.login(k2);
-  perform tste.denied(format('select public.courier_accept_delivery(%L)', o1), 'dois entregadores aceitam a mesma entrega', array['P0001']);
+  perform tste.denied(format('select public.courier_accept_delivery(%L)', o1), 'entregador próprio aceita oferta da rede', array['42501', 'P0001']);
   perform tste.ok(tste.count(format('select 1 from public.orders where id = %L', o1)) = 0, 'outro entregador não vê o pedido');
   perform tste.step(10, 'entregador aceitou');
   -- 11. coleta
@@ -182,13 +179,13 @@ begin
   perform tste.ok(tste.count($q$select 1 from public.admin_list_orders('concluidos')$q$) = 1, 'Master lista o pedido concluído');
   detail := public.admin_order_detail(o1);
   perform tste.ok(jsonb_array_length(detail->'events') >= 7 and detail->'delivery'->>'status' = 'delivered'
-                  and detail->'delivery'->'courier'->>'name' = 'Entregador Teste' and (detail->>'is_test')::boolean, 'detalhe com eventos, entrega e entregador');
+                  and detail->'delivery'->'courier'->>'name' = 'Entregador 1 — Independente' and (detail->>'is_test')::boolean, 'detalhe com eventos, entrega e entregador');
   perform tste.ok((select string_agg(e->>'actor', ',' order by ord) from jsonb_array_elements(detail->'events') with ordinality t(e, ord))
                   = 'cliente,estabelecimento,estabelecimento,estabelecimento,entregador,entregador,entregador', 'quem fez cada passo');
   perform tste.step(14, 'Master vê histórico');
-  perform tste.login(op);
-  perform tste.ok(tste.count($q$select 1 from public.admin_list_orders('todos')$q$) >= 1, 'operador administrativo acompanha pedidos');
-  perform tste.denied(format($q$select public.admin_cancel_order(%L, 'teste')$q$, o1), 'operador sem orders.manage cancela');
+  perform tste.login(func);
+  perform tste.denied($q$select * from public.admin_list_orders('todos')$q$, 'funcionário acessa pedidos da plataforma');
+  perform tste.denied(format($q$select public.admin_cancel_order(%L, 'teste')$q$, o1), 'empresário/funcionário cancela pela administração');
   -- 15. valores e eventos no banco
   perform tste.su();
   perform tste.ok((select string_agg(status::text, ',' order by created_at, id) from public.order_events where order_id = o1)
@@ -223,12 +220,8 @@ begin
   perform public.merchant_accept_order(o4, 15);
   perform public.update_order_status(o4, 'ready');
   perform tste.login(k1); perform public.courier_decline_delivery(o4);
-  perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'recusada some da lista de quem recusou');
-  perform tste.login(k2);
-  perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 1, 'continua para o outro entregador');
-  perform public.courier_decline_delivery(o4);
   perform tste.su();
-  perform tste.ok((select offer_round from public.deliveries where order_id = o4) = 2, 'todos recusaram: nova rodada imediata');
+  perform tste.ok((select offer_round from public.deliveries where order_id = o4) = 2, 'o único independente recusou: nova rodada imediata');
   perform tste.login(k1);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 1, 'na nova rodada a oferta volta para todos');
   perform tste.su();
@@ -260,10 +253,11 @@ begin
   perform tste.login(dono);
   perform public.merchant_accept_order(o5, 10);
   perform public.update_order_status(o5, 'ready');
-  perform tste.login(k2); perform public.courier_accept_delivery(o5); perform public.courier_release_delivery(o5);
+  perform tste.login(k1); perform public.courier_accept_delivery(o5); perform public.courier_release_delivery(o5);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'quem liberou não recebe de novo na mesma rodada');
+  perform tste.su();
+  perform tste.ok((select status = 'offered' and courier_id is null from public.deliveries where order_id = o5), 'oferta reaberta para a rede');
   perform tste.login(k1);
-  perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 1, 'oferta reaberta para os demais');
   -- localização só quando o entregador compartilha, e é apagada ao ficar indisponível
   perform public.courier_update_location(-20.7389, -47.2486);
   perform public.set_courier_online(false);
@@ -291,8 +285,8 @@ end $$;
 -- ======================= Mercadinho (entrega própria), retirada e casos extras =======================
 do $$
 declare
-  c1 uuid := tste.uid('cliente1'); lojista uuid := tste.uid('lojista'); dono uuid := tste.uid('restaurante');
-  k1 uuid := tste.uid('entregador'); k2 uuid := tste.uid('entregador2'); m uuid;
+  c1 uuid := tste.uid('cliente1'); lojista uuid := tste.uid('empresario2'); dono uuid := tste.uid('empresario1');
+  k1 uuid := tste.uid('entregador'); m uuid;
   bl uuid; br uuid; cafe text; arroz text; refri text; salada text; o uuid; o2 uuid; o3 uuid;
 begin
   perform tste.su();
@@ -304,8 +298,7 @@ begin
   select id::text into refri from public.products where business_id = br and name = 'Refrigerante lata';
   select id::text into salada from public.products where business_id = br and name = 'X-Salada';
 
-  -- entrega própria: o lojista configura o Mercadinho para entregar com a própria equipe (na homologação ele usa parceiro)
-  update public.businesses set delivery_offer = 'own' where id = bl;
+  -- entrega própria: o Supermercado de homologação já entrega com a própria equipe
   perform tste.login(c1);
   o := public.place_order(bl, jsonb_build_array(jsonb_build_object('product_id', cafe, 'quantity', 2)), 'delivery_own', 'cash',
                           'Cliente Teste Um', '35999990000', 'Rua das Flores, 100, Centro', null, null, null, 'e2e-merc-0001');
@@ -348,7 +341,6 @@ begin
 
   -- nenhum entregador disponível: a oferta fica aberta e, esgotadas as rodadas, gera alerta
   perform tste.login(k1); perform public.set_courier_online(false);
-  perform tste.login(k2); perform public.set_courier_online(false);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'entregador offline não recebe ofertas');
   perform tste.login(c1);
   o3 := public.place_order(br, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',

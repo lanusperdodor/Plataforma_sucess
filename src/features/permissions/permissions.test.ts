@@ -72,3 +72,20 @@ describe('painel inicial por perfil', () => {
     expect(homeFor(null)).toBe('/conta')
   })
 })
+
+import { homeFor as home } from './permissions.ts'
+describe('destino após o login (quatro perfis + Master)', () => {
+  it('cada perfil cai no seu painel', () => {
+    expect(home({ userId: 'm', roles: ['platform_master'], memberships: [] })).toBe('/admin')
+    expect(home({ userId: 'e', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'owner' }] })).toBe('/painel/b1')
+    expect(home({ userId: 'f', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'attendant' }] })).toBe('/painel/b1/pedidos')
+    expect(home({ userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).toBe('/entregador')
+    expect(home({ userId: 'p', roles: ['customer'], memberships: [{ businessId: 'b2', role: 'courier_own' }] })).toBe('/entregador')
+    expect(home({ userId: 'c', roles: ['customer'], memberships: [] })).toBe('/conta')
+  })
+  it('funcionário não tem financeiro, equipe nem configurações por padrão', () => {
+    const f = { userId: 'f', roles: ['customer'] as const, memberships: [{ businessId: 'b1', role: 'attendant' as const }] }
+    for (const p of ['reports.view', 'staff.manage', 'settings.manage'] as const) expect(canInBusiness(f, p, 'b1')).toBe(false)
+    expect(canInBusiness(f, 'orders.update_status', 'b1') && canInBusiness(f, 'tabs.manage', 'b1')).toBe(true)
+  })
+})

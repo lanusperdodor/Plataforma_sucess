@@ -14,7 +14,7 @@ describe('identificação do usuário conectado', () => {
   })
   it('mostra o perfil ativo de forma discreta', () => {
     expect(activeRole(ctx(['customer', 'platform_master']), ident('A'))).toBe('Master')
-    expect(activeRole(ctx(['customer'], [{ businessId: 'b', role: 'attendant' }]), ident('A', null, { b: 'Mercadinho Teste' }))).toBe('Mercadinho Teste — Operador')
+    expect(activeRole(ctx(['customer'], [{ businessId: 'b', role: 'attendant' }]), ident('A', null, { b: 'Mercadinho Teste' }))).toBe('Mercadinho Teste — Funcionário')
     expect(activeRole(ctx(['customer', 'courier_partner']), ident('Carlos'))).toBe('Entregador')
     expect(activeRole(ctx(['customer']), ident('João'))).toBeNull()
   })

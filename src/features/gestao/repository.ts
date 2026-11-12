@@ -42,7 +42,7 @@ export const getOverview = (businessId: string) => rpc('merchant_overview', { _b
 // ---------- equipe ----------
 export type MemberRole = 'owner' | 'manager' | 'attendant' | 'kitchen' | 'courier_own'
 export const MEMBER_ROLE_LABEL: Record<MemberRole, string> = {
-  owner: 'Proprietário', manager: 'Gerente', attendant: 'Atendente / comandas', kitchen: 'Cozinha', courier_own: 'Entregador da loja',
+  owner: 'Empresário', manager: 'Gerente', attendant: 'Funcionário (atendimento e cozinha)', kitchen: 'Cozinha (cargo antigo)', courier_own: 'Entregador próprio',
 }
 const teamSchema = z.object({ user_id: z.string().nullable(), name: z.string().nullable(), email: z.string().nullable(), member_role: z.string(), pending: z.boolean(), invite_id: z.string().nullable(), created_at: z.string() })
   .transform((r) => ({ userId: r.user_id, name: r.name, email: r.email, role: r.member_role as MemberRole, pending: r.pending, inviteId: r.invite_id, createdAt: r.created_at }))

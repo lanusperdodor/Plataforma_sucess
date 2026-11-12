@@ -25,12 +25,15 @@ function subscribe(l: () => void) { listeners.add(l); return () => listeners.del
  * cliente (sem aba "Pedidos" de compras). Os demais sempre têm o de cliente.
  */
 export function availableContexts(authz: AuthContext | null | undefined): ActiveContext[] {
-  const business = (authz?.memberships.length ?? 0) > 0
+  const memberships = authz?.memberships ?? []
+  // entregador próprio (courier_own) é Entregador, não Empresário: vai para o painel de entregas
+  const businessMemberships = memberships.filter((m) => m.role !== 'courier_own')
+  const ownCourier = memberships.some((m) => m.role === 'courier_own')
   const staff = !!authz?.roles.some((r) => r === 'platform_master' || r === 'platform_operator')
-  const out: ActiveContext[] = business || staff ? [] : [{ kind: 'cliente' }]
-  for (const m of authz?.memberships ?? []) out.push({ kind: 'loja', businessId: m.businessId })
-  if (authz?.roles.includes('courier_partner')) out.push({ kind: 'entregador' })
-  if (authz?.roles.includes('platform_master') || authz?.roles.includes('platform_operator')) out.push({ kind: 'master' })
+  const out: ActiveContext[] = businessMemberships.length > 0 || staff ? [] : [{ kind: 'cliente' }]
+  for (const m of businessMemberships) out.push({ kind: 'loja', businessId: m.businessId })
+  if (authz?.roles.includes('courier_partner') || ownCourier) out.push({ kind: 'entregador' })
+  if (staff) out.push({ kind: 'master' })
   return out
 }
 

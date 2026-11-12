@@ -1,12 +1,14 @@
 // Teste de ponta a ponta NA INTERFACE (Playwright), com as contas de homologação, em um ambiente onde a
-// migração 0022 foi aplicada. Abre cliente, restaurante, cozinha, entregador e Master ao mesmo tempo e
+// migração 0033 foi aplicada. Usa SÓ as sete contas padrão: Cliente 1, Empresário 1 — Lanchonete, Funcionário — Lanchonete
+// (atendimento e cozinha), Entregador 1 — Independente, e o Master (opcional). Abre todos ao mesmo tempo e
 // confere que cada painel recebe a atualização SEM recarregar (tempo real).
 //
 // Nada de senha no repositório: tudo vem de variáveis de ambiente.
 //   E2E_BASE_URL            site a testar (ex.: https://plataforma-sucess.marcossonopi.workers.dev)
 //   E2E_PASSWORD            senha das contas de homologação (mostrada uma vez na aba Logins)
-//   E2E_CLIENTE, E2E_DONO, E2E_COZINHA, E2E_ENTREGADOR   e-mails das contas de teste
-//   E2E_RESTAURANTE_SLUG    slug do estabelecimento de teste (ex.: o "[Teste] Mercadinho Teste")
+//   E2E_CLIENTE, E2E_EMPRESARIO1, E2E_FUNCIONARIO, E2E_ENTREGADOR   e-mails das contas de teste (Cliente 1,
+//                           Empresário 1 — Lanchonete, Funcionário — Lanchonete, Entregador 1 — Independente)
+//   E2E_RESTAURANTE_SLUG    slug da "[Teste] Lanchonete do Tuca"
 //   E2E_PRODUTO             produto a comprar (padrão: Cheeseburger, sem adicionais obrigatórios)
 //   E2E_MASTER, E2E_MASTER_PASSWORD (opcional; sem MFA ativo) para conferir o histórico no painel Master
 // Sem as credenciais, roda só a etapa pública (estabelecimentos de teste não podem aparecer para visitantes).
@@ -71,19 +73,19 @@ try {
     await ctx.close()
   })
 
-  const need = ['E2E_PASSWORD', 'E2E_CLIENTE', 'E2E_DONO', 'E2E_COZINHA', 'E2E_ENTREGADOR', 'E2E_RESTAURANTE_SLUG'].filter((k) => !env[k])
+  const need = ['E2E_PASSWORD', 'E2E_CLIENTE', 'E2E_EMPRESARIO1', 'E2E_FUNCIONARIO', 'E2E_ENTREGADOR', 'E2E_RESTAURANTE_SLUG'].filter((k) => !env[k])
   if (need.length) {
     console.log(`\nEtapas com login puladas: defina ${need.join(', ')}.`)
   } else {
     const pw = env.E2E_PASSWORD
     let cliente, dono, cozinha, entregador, master
-    await step('1. Login real (Supabase Auth) de cliente, restaurante, cozinha e entregador', async () => {
+    await step('1. Login real (Supabase Auth): Cliente 1, Empresário 1, Funcionário (cozinha) e Entregador 1', async () => {
       ;[cliente, dono, cozinha, entregador] = await Promise.all([
-        login(browser, env.E2E_CLIENTE, pw), login(browser, env.E2E_DONO, pw), login(browser, env.E2E_COZINHA, pw), login(browser, env.E2E_ENTREGADOR, pw),
+        login(browser, env.E2E_CLIENTE, pw), login(browser, env.E2E_EMPRESARIO1, pw), login(browser, env.E2E_FUNCIONARIO, pw), login(browser, env.E2E_ENTREGADOR, pw),
       ])
-      if (env.E2E_MASTER && env.E2E_MASTER_PASSWORD) master = await login(browser, env.E2E_MASTER, env.E2E_MASTER_PASSWORD, '/admin/entrar')
+      if (env.E2E_MASTER && env.E2E_MASTER_PASSWORD) master = await login(browser, env.E2E_MASTER, env.E2E_MASTER_PASSWORD)
     })
-    await step('Painéis abertos antes do pedido (restaurante, cozinha) e entregador disponível', async () => {
+    await step('Painéis abertos antes do pedido (empresário e funcionário) e entregador disponível', async () => {
       await Promise.all([openOrdersPanel(dono), openOrdersPanel(cozinha)])
       await entregador.goto(base + '/entregador')
       const on = entregador.getByRole('button', { name: 'Ficar disponível' })
@@ -116,12 +118,12 @@ try {
     await step('6. Restaurante confirma com tempo de preparo', async () => {
       await dono.getByLabel('Preparo').first().selectOption('20')
       await dono.getByRole('button', { name: 'Aceitar' }).first().click()
-      await cliente.getByRole('heading', { name: 'Em preparo' }).waitFor({ timeout: LIVE_MS })
+      await cliente.getByRole('heading', { name: 'Pedido aceito! Em preparo.' }).waitFor({ timeout: LIVE_MS })
     })
     await step('7-8. Cozinha recebe, prepara e disponibiliza para coleta', async () => {
       await cozinha.getByRole('button', { name: 'Marcar como pronto' }).first().waitFor({ timeout: LIVE_MS })
       await cozinha.getByRole('button', { name: 'Marcar como pronto' }).first().click()
-      await cliente.getByRole('heading', { name: 'Estamos procurando um entregador' }).waitFor({ timeout: LIVE_MS })
+      await cliente.getByRole('heading', { name: /Seu pedido está pronto\. Aguardando coleta\.|Entregador encontrado\./ }).waitFor({ timeout: LIVE_MS })
       await shot(cozinha, '05-cozinha-pronto')
     })
     await step('9-10. Entregador recebe a oferta e aceita', async () => {
@@ -129,7 +131,7 @@ try {
       await shot(entregador, '06-oferta')
       await entregador.getByRole('button', { name: 'Aceitar' }).first().click()
       await entregador.getByText(`#${code}`).first().waitFor()
-      await cliente.getByRole('heading', { name: 'Entregador encontrado!' }).waitFor({ timeout: LIVE_MS })
+      await cliente.getByRole('heading', { name: /Entregador encontrado\.|Seu pedido está a caminho\./ }).waitFor({ timeout: LIVE_MS })
     })
     await step('11. Entregador coleta e o cliente vê "saiu para entrega"', async () => {
       await entregador.getByRole('button', { name: 'Peguei o pedido' }).click()
@@ -144,12 +146,12 @@ try {
       await entregador.getByRole('button', { name: 'Confirmar código' }).click()
       await entregador.getByText('Código confirmado!').waitFor()
       await entregador.getByRole('button', { name: 'FINALIZAR ENTREGA' }).click()
-      await cliente.getByRole('heading', { name: 'Pedido entregue' }).waitFor({ timeout: LIVE_MS })
+      await cliente.getByRole('heading', { name: 'Pedido entregue.' }).waitFor({ timeout: LIVE_MS })
       await shot(cliente, '07-cliente-entregue')
     })
     await step('Estado recuperado ao recarregar a página', async () => {
       await cliente.reload()
-      await cliente.getByRole('heading', { name: 'Pedido entregue' }).waitFor()
+      await cliente.getByRole('heading', { name: 'Pedido entregue.' }).waitFor()
     })
     if (master) {
       await step('14. Master vê o histórico completo', async () => {

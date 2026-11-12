@@ -19,7 +19,7 @@ update public.platform_settings set value = 'false' where key = 'require_admin_m
 do $$
 declare
   city constant uuid := '66669000-0000-0000-0000-000000000001';
-  m uuid; c1 uuid; loj uuid; dono uuid; func uuid; coz uuid; k1 uuid; k2 uuid; bm uuid; br uuid; cheese text; salada text;
+  m uuid; c1 uuid; loj uuid; dono uuid; func uuid; k1 uuid; k2 uuid; bm uuid; br uuid; cheese text; salada text;
   o uuid; o2 uuid; res jsonb; r record; ing1 uuid; ing2 uuid; nu uuid;
 begin
   insert into public.cities(id, name, state, slug) values (city, 'Cidade Empresa', 'MG', 'tspe-cidade');
@@ -28,12 +28,12 @@ begin
   perform tspe.login(m);
   res := public.admin_create_test_data(city);
   perform tspe.su();
-  c1 := tspe.uid('cliente1'); loj := tspe.uid('lojista'); dono := tspe.uid('restaurante'); func := tspe.uid('funcionario');
-  coz := tspe.uid('cozinha'); k1 := tspe.uid('entregador'); k2 := tspe.uid('entregador2');
+  c1 := tspe.uid('cliente1'); loj := tspe.uid('empresario1'); dono := tspe.uid('empresario2'); func := tspe.uid('funcionario');
+  k1 := tspe.uid('entregador'); k2 := tspe.uid('entregador');  -- só um independente entre as sete contas
   select id into bm from public.businesses where owner_id = loj;
   select id into br from public.businesses where owner_id = dono;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
-  select id::text into salada from public.products where business_id = br and name = 'X-Salada';
+  select id::text into salada from public.products where business_id = bm and name = 'X-Salada';
 
   -- planos: Mercadinho de teste com Premium por concessão de homologação; restaurante sem plano (Padrão = sem Premium)
   perform tspe.login(loj);
@@ -66,15 +66,16 @@ begin
                   'aviso de pedido novo traz os itens');
   perform tspe.login(k1);
   select * into r from public.courier_list_offers() x where x.order_id = o;
-  perform tspe.ok(r.order_status = 'placed' and r.business_name like '[Teste] Mercadinho%' and r.city_name = 'Cidade Empresa' and r.courier_pay_cents = 500, 'oferta antecipada com estabelecimento, cidade, valor e preparo');
+  perform tspe.ok(r.order_status = 'placed' and r.business_name like '[Teste] Lanchonete%' and r.city_name = 'Cidade Empresa' and r.courier_pay_cents = 500, 'oferta antecipada com estabelecimento, cidade, valor e preparo');
   perform public.courier_accept_delivery(o);
   perform tspe.ok((select delivery_address = 'Centro' and customer_name is null from public.courier_my_deliveries(true) where order_id = o), 'antes do aceite da loja: só o bairro, sem dados do cliente');
   perform tspe.denied(format('select public.courier_pickup_delivery(%L)', o), 'coleta antes de pronto', array['P0001']);
-  -- operador de comandas: o lojista convida o funcionário (conta já existente) como atendente do Mercadinho
+  -- Funcionário — Lanchonete: já vinculado como atendente (atendimento + cozinha); convidar de novo é recusado
   perform tspe.su();
+  perform tspe.ok((select member_role from public.business_members where business_id = bm and user_id = func) = 'attendant', 'funcionário vinculado à lanchonete');
   res := jsonb_build_object('email', (select email from auth.users where id = func));
   perform tspe.login(loj);
-  perform tspe.ok(public.merchant_invite_member(bm, res->>'email', 'attendant') = 'vinculado', 'funcionário vira operador de comandas');
+  perform tspe.denied(format($q$select public.merchant_invite_member(%L, %L, 'attendant')$q$, bm, res->>'email'), 'convidar quem já é da equipe', array['P0001']);
   perform tspe.login(c1);
   perform tspe.denied(format('select public.merchant_accept_order(%L, 15)', o), 'cliente aceita o próprio pedido');
   perform tspe.login(func);
@@ -92,14 +93,17 @@ begin
   perform public.courier_pickup_delivery(o);
   perform tspe.login(c1);
   perform tspe.ok((select status from public.orders where id = o) = 'out_for_delivery', 'cliente vê a caminho');
+  res := jsonb_build_object('code', (select confirmation_code from public.my_delivery(o)));
+  perform tspe.login(k1);
+  perform tspe.ok((public.courier_verify_code(o, res->>'code')->>'ok')::boolean, 'código confere');
+  perform public.courier_finish_delivery(o, gen_random_uuid());
 
   -- recusa depois de entregador aceitar: entrega cancelada e entregador avisado
-  perform tspe.login(k2); perform public.set_courier_online(true);
   perform tspe.login(c1);
-  o2 := public.place_order(br, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',
+  o2 := public.place_order(bm, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',
                            'Cliente Teste Um', '35999990000', 'Rua B, 2, Centro', null, null, null, 'pe-0000002');
   perform tspe.login(k2); perform public.courier_accept_delivery(o2);
-  perform tspe.login(dono); perform public.update_order_status(o2, 'rejected', 'Acabou o pão');
+  perform tspe.login(loj); perform public.update_order_status(o2, 'rejected', 'Acabou o pão');
   perform tspe.su();
   perform tspe.ok((select status from public.deliveries where order_id = o2) = 'cancelled'
                   and exists (select 1 from public.notifications where user_id = k2 and message like '%recusado%'), 'recusa cancela a entrega e avisa o entregador');
@@ -140,7 +144,7 @@ begin
   -- visão geral com números reais
   perform tspe.login(loj);
   res := public.merchant_overview(bm);
-  perform tspe.ok((res->>'recebidos_hoje')::int >= 1 and (res->>'em_andamento')::int >= 1 and (res->>'premium')::boolean and jsonb_array_length(res->'serie') = 14, 'visão geral do dia e série de 14 dias');
+  perform tspe.ok((res->>'recebidos_hoje')::int >= 1 and (res->>'concluidos_hoje')::int >= 1 and (res->>'premium')::boolean and jsonb_array_length(res->'serie') = 14, 'visão geral do dia e série de 14 dias');
 end $$;
 
 do $$ begin raise notice 'RLS_PAINEL_EMPRESARIAL_OK'; end $$;

@@ -9,6 +9,8 @@ const account = (o: Record<string, unknown>) => ({ id: 'a1', email: 'ana@exemplo
 vi.mock('../../features/admin/repository.ts', () => ({
   listCities: () => Promise.resolve([{ id: 'c1', name: 'Itaú de Minas', state: 'MG', slug: 'x', centerLat: null, centerLng: null, isActive: true }]),
   listTestData: () => Promise.resolve([]),
+  getTestAccountsStatus: () => Promise.resolve({ contas: 0, lotes: 0, padrao: false, cidade: null, faltando: [], excedentes: [], bloqueios: [] }),
+  standardizeTestAccounts: vi.fn(),
   createTestData: (id: string) => {
     h.created(id)
     return Promise.resolve({ runId: 'r1', city: 'Itaú de Minas - MG', password: 'Teste-ABCDEF12!', logins: [{ role: 'cliente', label: 'Cliente 1', email: 'cliente1-x@teste.example.com' }] })

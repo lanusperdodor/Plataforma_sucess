@@ -51,15 +51,23 @@ begin
   perform tstd.login(m);
   res := public.admin_create_test_data(city);
   run := (res->>'run_id')::uuid;
-  perform tstd.ok(jsonb_array_length(res->'logins') = 10 and res->>'password' ~ '^Teste-[0-9A-F]{8}!$', 'devolve 10 logins (9 perfis) e a senha gerada');
+  perform tstd.ok(jsonb_array_length(res->'logins') = 7 and res->>'password' ~ '^Teste-[0-9A-F]{8}!$', 'devolve 7 logins (sete perfis operacionais) e a senha gerada');
   perform tstd.ok(tstd.count('select * from public.admin_list_test_data()') = 1, 'lote listado');
   perform tstd.su();
   select user_ids, business_ids into uids, bizs from private.test_data_runs where id = run;
-  perform tstd.ok((select count(*) from auth.users where id = any(uids) and email_confirmed_at is not null and encrypted_password like '$2%') = 10, 'contas confirmadas com senha em hash');
-  perform tstd.ok((select count(*) from auth.identities where user_id = any(uids)) = 10, 'identidades de e-mail criadas');
+  perform tstd.ok((select count(*) from auth.users where id = any(uids) and email_confirmed_at is not null and encrypted_password like '$2%') = 7, 'contas confirmadas com senha em hash');
+  perform tstd.ok((select count(*) from auth.identities where user_id = any(uids)) = 7, 'identidades de e-mail criadas');
   perform tstd.ok(not exists (select 1 from private.test_data_runs where logins::text like '%Teste-%'), 'senha não é guardada');
-  perform tstd.ok((select count(*) from public.user_roles where user_id = any(uids) and role = 'customer') = 10, 'todos ganham papel de cliente');
-  perform tstd.ok(exists (select 1 from public.couriers where user_id = any(uids) and status = 'approved' and city_id = city), 'entregador aprovado na cidade');
+  perform tstd.ok((select count(*) from public.user_roles where user_id = any(uids) and role = 'customer') = 7, 'todos ganham papel de cliente');
+  perform tstd.ok((select count(*) from public.couriers where user_id = any(uids) and status = 'approved' and city_id = city) = 1, 'só o entregador independente entra na rede');
+  perform tstd.ok((select array_agg(l->>'label' order by l->>'label') from jsonb_array_elements(res->'logins') l)
+                  = array['Cliente 1', 'Cliente 2', 'Empresário 1 — Lanchonete', 'Empresário 2 — Supermercado', 'Entregador 1 — Independente',
+                          'Entregador 2 — Próprio do supermercado', 'Funcionário — Lanchonete'], 'nomes visíveis das sete contas');
+  perform tstd.ok(not exists (select 1 from public.user_roles where user_id = any(uids) and role in ('platform_master', 'platform_operator')), 'nenhuma conta de teste com papel administrativo');
+  perform tstd.login(m);
+  res := public.admin_create_test_data(city);
+  perform tstd.su();
+  perform tstd.ok(jsonb_array_length(res->'logins') = 0 and (res->>'reused')::boolean, 'repetir na mesma cidade não duplica contas');
 
   -- fora do público; visível e pronto para pedir só para contas de teste
   perform tstd.anon();

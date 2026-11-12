@@ -16,7 +16,7 @@ import {
   type ResetValues,
   type SignUpValues,
 } from '../features/auth/schemas.ts'
-import { SIGN_IN_MESSAGES, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
+import { SIGN_IN_MESSAGES, oauthReturnError, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
 import { trackLogin, trackSignUp } from '../features/tracking/tracker.ts'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
@@ -92,7 +92,8 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { session, loading, authz, authzError } = useAuth()
-  const [error, setError] = useState<string>()
+  // volta do Google com erro (cancelado, endereço não autorizado…): mostra o motivo em português
+  const [error, setError] = useState<string | undefined>(() => oauthReturnError(location.search, location.hash) ?? undefined)
   const f = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
   const from = (location.state as { from?: unknown } | null)?.from
   // veio de uma página protegida: volta para ela; senão vai para o painel do perfil
@@ -115,7 +116,7 @@ export function LoginPage() {
   }
 
   return (
-    <Card title="Entrar" subtitle="Acesse sua conta Tucaí para pedir, acompanhar e interagir.">
+    <Card title="Entrar" subtitle="Um só acesso para clientes, empresários, funcionários, entregadores e equipe Tucaí. Ao entrar, abrimos o painel do seu perfil.">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="E-mail ou usuário" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.identifier?.message} {...f.register('identifier')} />
         <Field label="Senha" type="password" autoComplete="current-password" error={f.formState.errors.password?.message} {...f.register('password')} />
@@ -126,9 +127,9 @@ export function LoginPage() {
       {error && <Notice kind="error">{error}</Notice>}
       <GoogleButton onError={setError} />
       <ConfigWarning />
-      <p className="mt-4 flex justify-between text-sm">
+      <p className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
         <Link className="text-brand" to="/recuperar-senha">Esqueci a senha</Link>
-        <Link className="text-brand" to="/cadastro">Criar conta</Link>
+        <span className="text-ink-muted">Ainda não tem conta? <Link className="font-semibold text-brand" to="/cadastro">Criar conta</Link></span>
       </p>
     </Card>
   )
@@ -174,7 +175,7 @@ export function SignUpPage() {
       <GoogleButton onError={(text) => setMsg({ kind: 'error', text })} />
       <ConfigWarning />
       <p className="mt-4 text-sm">
-        Já tem conta? <Link className="text-brand" to="/entrar">Entrar</Link>
+        Já sou cadastrado: <Link className="font-semibold text-brand" to="/entrar">Entrar</Link>
       </p>
     </Card>
   )

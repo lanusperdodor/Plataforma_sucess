@@ -21,7 +21,7 @@ update public.platform_settings set value = 'false' where key = 'require_admin_m
 do $$
 declare
   city constant uuid := '77779000-0000-0000-0000-000000000001';
-  m uuid; loj uuid; dono uuid; func uuid; coz uuid; caixa uuid; c1 uuid; bm uuid; br uuid; cheese text; cafe text;
+  m uuid; loj uuid; dono uuid; func uuid; caixa uuid; c1 uuid; bm uuid; br uuid; cheese text; cafe text;
   mesa4 uuid; mesa5 uuid; tab uuid; tab2 uuid; balcao uuid; it uuid; op uuid := gen_random_uuid(); closeop uuid := gen_random_uuid(); res jsonb; r record; qr uuid;
 begin
   insert into public.cities(id, name, state, slug) values (city, 'Cidade Gestão', 'MG', 'tsgg-cidade');
@@ -30,18 +30,17 @@ begin
   perform tsgg.login(m);
   res := public.admin_create_test_data(city);
   perform tsgg.su();
-  loj := tsgg.uid('lojista'); dono := tsgg.uid('restaurante'); func := tsgg.uid('funcionario'); coz := tsgg.uid('cozinha'); c1 := tsgg.uid('cliente1');
+  loj := tsgg.uid('empresario1'); dono := tsgg.uid('empresario2'); func := tsgg.uid('funcionario'); c1 := tsgg.uid('cliente1');
   caixa := private.create_auth_user('gg-caixa@teste.invalid', 'senha-caixa-1', 'Operador Caixa');
   select id into bm from public.businesses where owner_id = loj;
   select id into br from public.businesses where owner_id = dono;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
-  select id::text into cafe from public.products where business_id = bm and name = 'Café 500 g';
+  select id::text into cafe from public.products where business_id = bm and name = 'Refrigerante lata';
 
   -- equipe do Mercadinho: comandas (atendente), cozinha e operador de caixa (atendente + permissão extra de caixa)
-  res := jsonb_build_object('func', (select email from auth.users where id = func), 'coz', (select email from auth.users where id = coz));
+  res := jsonb_build_object('func', (select email from auth.users where id = func));
   perform tsgg.login(loj);
-  perform public.merchant_invite_member(bm, res->>'func', 'attendant');
-  perform public.merchant_invite_member(bm, res->>'coz', 'kitchen');
+  -- o Funcionário — Lanchonete já é atendente da lanchonete (atendimento + cozinha)
   perform public.merchant_invite_member(bm, 'gg-caixa@teste.invalid', 'attendant');
   perform tsgg.login(caixa);
   perform tsgg.denied(format('select public.gestao_open_cash(%L, 10000)', bm), 'atendente sem permissão de caixa abre o caixa');
@@ -72,9 +71,9 @@ begin
                                                                  jsonb_build_object('product_id', cafe, 'quantity', 1, 'price_cents', 1)), op) = 2, 'itens lançados');
   perform tsgg.ok(public.gestao_add_items(tab, jsonb_build_array(jsonb_build_object('product_id', cheese, 'quantity', 2)), op) = 0, 'repetição da mesma operação não duplica');
   perform tsgg.su();
-  perform tsgg.ok(private.tab_total(tab) = 2 * 2200 + 1690, 'preço do cardápio, calculado no servidor');
+  perform tsgg.ok(private.tab_total(tab) = 2 * 2200 + 600, 'preço do cardápio, calculado no servidor');
   -- cozinha recebe com a origem
-  perform tsgg.login(coz);
+  perform tsgg.login(func);  -- o funcionário também faz a cozinha
   perform tsgg.ok(tsgg.count($q$select 1 from public.gestao_kitchen('$q$ || bm || $q$') where origin = 'mesa' and ref_label = 'Mesa 04 — Comanda #001'$q$) = 2, 'cozinha recebe "Mesa 04 — Comanda #001"');
   for it in select id from public.business_tab_items where tab_id = tab loop
     perform public.gestao_item_status(it, 'em_preparo');
@@ -83,7 +82,7 @@ begin
   perform tsgg.denied(format($q$select public.gestao_item_status(%L, 'novo')$q$, it), 'voltar etapa', array['P0001']);
   perform tsgg.login(func);
   select * into r from public.gestao_board(bm) x where x.table_id = mesa4;
-  perform tsgg.ok(r.situation = 'pronto' and r.total_cents = 6090 and r.people = 2, 'quadro: Mesa 04 com pedido pronto');
+  perform tsgg.ok(r.situation = 'pronto' and r.total_cents = 5000 and r.people = 2, 'quadro: Mesa 04 com pedido pronto');
   perform tsgg.ok((select situation from public.gestao_board(bm) x where x.table_id = mesa5) = 'livre', 'quadro: Mesa 05 livre');
   for it in select id from public.business_tab_items where tab_id = tab loop perform public.gestao_item_status(it, 'servido'); end loop;
   -- transferir mesa e balcão
@@ -92,7 +91,7 @@ begin
   perform tsgg.denied(format($q$select public.gestao_open_tab(%L, null, '')$q$, bm), 'balcão sem identificação', array['P0001']);
   balcao := public.gestao_open_tab(bm, null, 'João (balcão)');
   perform public.gestao_add_items(balcao, jsonb_build_array(jsonb_build_object('product_id', cheese, 'quantity', 1)), gen_random_uuid());
-  perform tsgg.login(coz);
+  perform tsgg.login(func);  -- o funcionário também faz a cozinha
   perform tsgg.ok(tsgg.count($q$select 1 from public.gestao_kitchen('$q$ || bm || $q$') where ref_label like 'Balcão — Comanda #002'$q$) = 1, 'cozinha recebe "Balcão — Comanda #002"');
   perform tsgg.login(func);
   select id into it from public.business_tab_items where tab_id = balcao;
@@ -100,10 +99,10 @@ begin
   perform public.gestao_cancel_item(it, 'Cliente desistiu');
   -- fechamento: pedir conta, conferir e registrar pagamento no caixa
   perform public.gestao_request_close(tab);
-  perform tsgg.denied(format($q$select public.gestao_close_tab(%L, '[{"method":"dinheiro","amount_cents":6090}]', 0, %L)$q$, tab, gen_random_uuid()), 'atendente sem caixa fecha comanda');
+  perform tsgg.denied(format($q$select public.gestao_close_tab(%L, '[{"method":"dinheiro","amount_cents":5000}]', 0, %L)$q$, tab, gen_random_uuid()), 'atendente sem caixa fecha comanda');
   perform tsgg.login(caixa);
   perform tsgg.denied(format($q$select public.gestao_close_tab(%L, '[{"method":"dinheiro","amount_cents":1000}]', 0, %L)$q$, tab, gen_random_uuid()), 'pagamento não bate com o total', array['P0001']);
-  res := public.gestao_close_tab(tab, '[{"method":"dinheiro","amount_cents":4000},{"method":"pix","amount_cents":1590}]', 500, closeop);
+  res := public.gestao_close_tab(tab, '[{"method":"dinheiro","amount_cents":4000},{"method":"pix","amount_cents":500}]', 500, closeop);
   perform tsgg.ok(res->>'status' = 'fechada', 'comanda fechada com desconto e pagamentos');
   perform tsgg.ok(public.gestao_close_tab(tab, '[]', 0, closeop)->>'status' = 'ja_fechada', 'fechamento repetido não duplica a venda');
   perform tsgg.ok((select count(*) from public.cash_movements where tab_id = tab and kind = 'venda') = 2, 'duas formas de pagamento registradas uma vez');
@@ -116,7 +115,7 @@ begin
   perform tsgg.login(caixa);
   res := public.gestao_close_cash(bm, 13000);
   -- esperado em dinheiro: 100,00 + 40,00 + 20,00 − 30,00 = 130,00
-  perform tsgg.ok((res->>'expected_cash_cents')::int = 13000 and (res->>'difference_cents')::int = 0 and (res->'by_method'->>'pix')::int = 1590, 'fechamento do caixa: esperado, contado e por forma');
+  perform tsgg.ok((res->>'expected_cash_cents')::int = 13000 and (res->>'difference_cents')::int = 0 and (res->'by_method'->>'pix')::int = 500, 'fechamento do caixa: esperado, contado e por forma');
   perform tsgg.ok(jsonb_array_length(res->'movements') = 4, 'relatório com movimentações e responsáveis');
   perform tsgg.su();
   perform tsgg.ok((select count(*) from public.audit_logs where action like 'gestao.%' and (entity_id = tab::text or entity_id = it::text)) >= 3, 'abertura, cancelamento e fechamento auditados');

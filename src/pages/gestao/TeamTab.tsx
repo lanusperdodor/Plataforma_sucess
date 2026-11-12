@@ -12,17 +12,18 @@ import { useGestao } from './context.ts'
 import { box, field, msg, primary, SectionTitle } from './ui.tsx'
 
 type StaffRole = Exclude<MemberRole, 'owner'>
-const ROLES: StaffRole[] = ['manager', 'attendant', 'kitchen', 'courier_own']
+/** Cargos oferecidos em convites novos. 'kitchen' continua válido para quem já tem, mas o Funcionário faz atendimento e cozinha. */
+const ROLES: StaffRole[] = ['attendant', 'manager', 'courier_own']
 const EXTRAS = [
   { code: 'tabs.manage', label: 'Comandas e mesas' },
   { code: 'cash.manage', label: 'Operar caixa' },
   { code: 'reports.view', label: 'Relatórios e saídas de caixa' },
 ] as const
 const ROLE_HINT: Record<StaffRole, string> = {
-  manager: 'Tudo, exceto equipe e configurações sensíveis.',
-  attendant: 'Pedidos e comandas.',
-  kitchen: 'Fila da cozinha e status dos pedidos.',
-  courier_own: 'Entregas próprias da loja.',
+  manager: 'Funcionário com acesso à gestão (relatórios e cardápio), sem equipe nem configurações sensíveis.',
+  attendant: 'Recebe e atende pedidos, comandas e mesas, cozinha e status do preparo. Sem financeiro: libere extras abaixo se quiser.',
+  kitchen: 'Cargo antigo: fila da cozinha e status dos pedidos.',
+  courier_own: 'Entregador próprio: recebe só as entregas que a loja atribuir a ele.',
 }
 
 /** Equipe: convites por e-mail, cargo e permissões extras. Quem decide é o banco (staff.manage). */
@@ -96,7 +97,7 @@ export function TeamTab() {
                         onChange={(e) => change.mutate({ kind: 'role', user: m.userId!, role: e.target.value as StaffRole })}
                         className="min-h-9 rounded-full border border-line bg-surface px-3 text-sm text-ink"
                       >
-                        {ROLES.map((r) => <option key={r} value={r}>{MEMBER_ROLE_LABEL[r]}</option>)}
+                        {(ROLES.includes(m.role as StaffRole) ? ROLES : [...ROLES, m.role as StaffRole]).map((r) => <option key={r} value={r}>{MEMBER_ROLE_LABEL[r]}</option>)}
                       </select>
                     ) : (
                       <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-ink">{MEMBER_ROLE_LABEL[m.role]}</span>

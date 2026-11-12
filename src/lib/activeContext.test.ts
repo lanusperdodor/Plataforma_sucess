@@ -34,3 +34,17 @@ describe('aba Pedidos por perfil', () => {
     expect(destinationsFor(resolve('entregador', { userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).map((d) => d.label)).toContain('Entregas')
   })
 })
+
+describe('login único: quatro perfis + Master', () => {
+  const kinds = (authz: Parameters<typeof ctxs>[0]) => ctxs(authz).map((c) => c.kind)
+  it('empresário e funcionário vão para o estabelecimento; entregador próprio para entregas; cliente para compras', () => {
+    expect(kinds({ userId: 'e', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'owner' }] })).toEqual(['loja'])
+    expect(kinds({ userId: 'f', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'attendant' }] })).toEqual(['loja'])
+    expect(kinds({ userId: 'p', roles: ['customer'], memberships: [{ businessId: 'b2', role: 'courier_own' }] })).toEqual(['cliente', 'entregador'])
+    expect(kinds({ userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).toEqual(['cliente', 'entregador'])
+    expect(kinds({ userId: 'c', roles: ['customer'], memberships: [] })).toEqual(['cliente'])
+  })
+  it('a mesma conta alterna entre os painéis que tem, sem conta duplicada', () => {
+    expect(kinds({ userId: 'x', roles: ['customer', 'courier_partner'], memberships: [{ businessId: 'b1', role: 'owner' }] })).toEqual(['loja', 'entregador'])
+  })
+})

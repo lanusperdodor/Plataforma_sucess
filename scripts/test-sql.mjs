@@ -109,6 +109,7 @@ async function main() {
       ...one('supabase/tests/rls_excluir_teste.sql'),
       ...one('supabase/tests/rls_perfis.sql'),
       ...one('supabase/tests/rls_sete_contas.sql'),
+      ...one('supabase/tests/rls_catalogo.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

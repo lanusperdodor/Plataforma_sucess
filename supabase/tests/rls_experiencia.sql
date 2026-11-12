@@ -160,7 +160,9 @@ begin
                            -- cobertura nacional (0028): base IBGE e regiões são da plataforma, não de um estabelecimento
                            'ufs', 'municipalities', 'commercial_regions', 'region_municipalities',
                            -- publicidade (0029): regiões e eventos pertencem à campanha, que tem business_id
-                           'ad_campaign_regions', 'ad_events')
+                           'ad_campaign_regions', 'ad_events',
+                           -- catálogo público (0034): o próprio id é o do estabelecimento (cópia só das colunas públicas)
+                           'business_catalog')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

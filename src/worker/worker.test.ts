@@ -47,3 +47,24 @@ describe('Worker', () => {
     expect(trackingTags('G-ABC123', null)).toBe('<meta name="tucai:ga4-id" content="G-ABC123" />')
   })
 })
+
+import { pageHeaders, shellRequest } from './index'
+describe('Worker — atualizar a página (F5) não pode sair em branco', () => {
+  it('o index.html base é pedido sem cabeçalhos condicionais (evita 304 sem corpo)', () => {
+    const req = new Request('https://site.example/restaurantes', {
+      headers: { 'If-None-Match': '"abc"', 'If-Modified-Since': 'Wed, 12 Nov 2026 10:00:00 GMT', 'Cache-Control': 'max-age=0', 'Accept-Language': 'pt-BR' },
+    })
+    const r = shellRequest(req, new URL(req.url))
+    expect(r.url).toBe('https://site.example/')
+    expect(r.headers.get('if-none-match')).toBeNull()
+    expect(r.headers.get('if-modified-since')).toBeNull()
+    expect(r.headers.get('accept-language')).toBe('pt-BR')
+  })
+  it('a página montada não herda ETag/Last-Modified/tamanho do arquivo base', () => {
+    const h = pageHeaders(new Headers({ ETag: '"abc"', 'Last-Modified': 'x', 'Content-Length': '4728', 'Content-Type': 'text/html' }))
+    expect(h.get('etag')).toBeNull()
+    expect(h.get('last-modified')).toBeNull()
+    expect(h.get('content-length')).toBeNull()
+    expect(h.get('content-type')).toBe('text/html')
+  })
+})

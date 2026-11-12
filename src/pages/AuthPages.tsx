@@ -111,7 +111,7 @@ export function LoginPage() {
 
   if (!loading && session) {
     if (hasFrom) return <Navigate to={target} replace />
-    if (authz || authzError) return <Navigate to={authz ? homeFor(authz) : '/conta'} replace />
+    if (authz || authzError) return <Navigate to={authz ? homeFor(authz) : '/'} replace />
     return <Card title="Entrando…"><p role="status" className="text-sm text-ink-muted">Abrindo o seu painel…</p></Card>
   }
 
@@ -156,7 +156,7 @@ export function SignUpPage() {
     if (error) return setMsg({ kind: 'error', text: 'Não foi possível criar a conta. Verifique os dados.' })
     trackSignUp('email')
     // projeto sem confirmação de e-mail: a sessão já vem aberta
-    if (data.session) return navigate('/conta', { replace: true })
+    if (data.session) return navigate('/', { replace: true })
     setMsg({ kind: 'success', text: 'Conta criada. Confirme seu e-mail para entrar.' })
   })
 

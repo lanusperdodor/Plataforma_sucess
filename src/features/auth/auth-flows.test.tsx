@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ToastProvider } from '../../components/feedback/Toast.tsx'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 
@@ -37,7 +38,8 @@ const fake = vi.hoisted(() => {
     }
     return b
   }
-  return { state, supabase: { auth, from } }
+  const rpc = vi.fn((fn: string, args: Record<string, unknown>) => Promise.resolve(fn === 'set_my_username' ? { data: String(args._username).toLowerCase(), error: null } : { data: null, error: null }))
+  return { state, supabase: { auth, from, rpc } }
 })
 
 vi.mock('../../lib/supabase.ts', () => ({ isSupabaseConfigured: true, supabase: fake.supabase }))
@@ -62,7 +64,7 @@ function Roles() {
 function renderApp(path: string, extra?: ReactNode) {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}>
-      <AuthProvider>
+      <AuthProvider><ToastProvider>
         <Where />
         <Roles />
         {extra}
@@ -73,8 +75,9 @@ function renderApp(path: string, extra?: ReactNode) {
           <Route path="/nova-senha" element={<NewPasswordPage />} />
           <Route path="/conta" element={<RequireAuth><AccountPage /></RequireAuth>} />
           <Route path="/master" element={<RequireAuth role="platform_master"><p>área master</p></RequireAuth>} />
+          <Route path="/" element={<p>Página inicial</p>} />
         </Routes>
-      </AuthProvider>
+      </ToastProvider></AuthProvider>
     </MemoryRouter></QueryClientProvider>,
   )
 }
@@ -169,10 +172,10 @@ describe('login e cadastro', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Usuário, e-mail ou senha incorretos.')
   })
 
-  it('usuário já logado em /entrar segue para a conta', async () => {
+  it('cliente já logado em /entrar segue para a página inicial', async () => {
     renderApp('/entrar')
     emit('INITIAL_SESSION', sess('a'))
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/conta'))
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/))
   })
 
   it('safeRedirect só aceita caminhos internos', () => {
@@ -224,7 +227,7 @@ describe('login e cadastro', () => {
     type('Senha', 'senhaForte123')
     fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
     emit('SIGNED_IN', sess('a'))
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/conta'))
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/))
   })
 })
 
@@ -294,6 +297,18 @@ describe('perfil e logout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Perfil salvo.')
     expect(updates[0]).toMatchObject({ filters: { id: 'a' }, payload: { full_name: 'Ana Souza', phone: '(35) 99999-0000' } })
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/))
+  })
+
+  it('salvar usuário (primeiro acesso) leva para a página inicial com aviso', async () => {
+    renderApp('/conta')
+    emit('INITIAL_SESSION', sess('a'))
+    await waitFor(() => expect(screen.getByLabelText('Nome de usuário (para entrar sem o e-mail)')).toBeInTheDocument())
+    type('Nome de usuário (para entrar sem o e-mail)', 'Ana.Souza')
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar usuário' }))
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/))
+    expect(fake.supabase.rpc).toHaveBeenCalledWith('set_my_username', { _username: 'Ana.Souza' })
+    expect(await screen.findByText('Pronto: você pode entrar com o usuário ana.souza.')).toBeInTheDocument()
   })
 
   it('update bloqueado (0 linhas) é reportado como falha', async () => {

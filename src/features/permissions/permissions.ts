@@ -123,11 +123,12 @@ export const SELF_SERVICE_ROLES: readonly AppRole[] = ['customer']
  * entregador parceiro → área do entregador; demais → Minha conta.
  */
 export function homeFor(ctx: AuthContext | null | undefined): string {
-  if (!ctx) return '/conta'
+  if (!ctx) return '/'
   if (ctx.roles.includes('platform_master') || ctx.roles.includes('platform_operator')) return '/admin'
   // Empresário → painel empresarial; Funcionário → pedidos do estabelecimento; Entregador (independente ou próprio) → entregas
   const m = ctx.memberships.find((x) => x.role !== 'courier_own')
   if (m) return m.role === 'owner' || m.role === 'manager' ? `/painel/${m.businessId}` : `/painel/${m.businessId}/pedidos`
   if (ctx.roles.includes('courier_partner') || ctx.memberships.some((x) => x.role === 'courier_own')) return '/entregador'
-  return '/conta'
+  // cliente → página inicial da Tucaí (dados da conta ficam em Perfil → Dados da conta)
+  return '/'
 }

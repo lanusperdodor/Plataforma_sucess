@@ -1,6 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useToast } from '../components/feedback/toast-context.ts'
+import { homeFor } from '../features/permissions/permissions.ts'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Card, Field, Notice } from '../components/ui.tsx'
@@ -11,7 +13,7 @@ import { supabase } from '../lib/supabase.ts'
 type Msg = { kind: 'error' | 'success'; text: string }
 
 /** Nome de usuário para entrar sem digitar o e-mail (gravado pelo servidor, que valida e evita duplicados). */
-function UsernameForm({ userId }: { userId: string }) {
+function UsernameForm({ userId, onSaved }: { userId: string; onSaved: (text: string) => void }) {
   const [value, setValue] = useState('')
   const [current, setCurrent] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>()
@@ -41,7 +43,8 @@ function UsernameForm({ userId }: { userId: string }) {
     setBusy(false)
     if (error) return setMsg({ kind: 'error', text: error.message || 'Não foi possível salvar.' })
     setCurrent((data as string | null) ?? null)
-    setMsg({ kind: 'success', text: data ? `Pronto: você pode entrar com o usuário ${data as string}.` : 'Nome de usuário removido.' })
+    // salvo: leva para a página inicial (ou o painel do perfil) com o aviso de sucesso
+    onSaved(data ? `Pronto: você pode entrar com o usuário ${data as string}.` : 'Nome de usuário removido.')
   }
   return (
     <form
@@ -111,6 +114,13 @@ function PasswordForm() {
 export function AccountPage() {
   const { session, authz, authzError, signOut } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const toast = useToast()
+  /** Depois de salvar: aviso de sucesso e volta para a página inicial da Tucaí (ou o painel do perfil). */
+  const done = (text: string) => {
+    toast.success(text)
+    navigate(authz ? homeFor(authz) : '/', { replace: true })
+  }
   const location = useLocation()
   const initialNotice = (location.state as { notice?: unknown } | null)?.notice
   const [msg, setMsg] = useState<Msg | undefined>(
@@ -149,8 +159,9 @@ export function AccountPage() {
       .select('id')
     // RLS que bloqueia retorna 0 linhas sem erro: tratar como falha
     const ok = !error && (data?.length ?? 0) === 1
-    setMsg(ok ? { kind: 'success', text: 'Perfil salvo.' } : { kind: 'error', text: 'Não foi possível salvar.' })
-    if (ok) void qc.invalidateQueries({ queryKey: ['me', 'identity'] })
+    if (!ok) return setMsg({ kind: 'error', text: 'Não foi possível salvar.' })
+    void qc.invalidateQueries({ queryKey: ['me', 'identity'] })
+    done('Perfil salvo.')
   })
 
   const onSignOut = async () => {
@@ -172,7 +183,7 @@ export function AccountPage() {
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting || loadFailed}>Salvar</Button>
       </form>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-      {userId && <UsernameForm userId={userId} />}
+      {userId && <UsernameForm userId={userId} onSaved={done} />}
       {userId && <PasswordForm />}
       <Button variant="ghost" className="mt-4 w-full" onClick={() => void onSignOut()}>Sair</Button>
     </Card>

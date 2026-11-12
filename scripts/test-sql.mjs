@@ -100,6 +100,7 @@ async function main() {
       ...one('supabase/tests/rls_accounts.sql'),
       ...one('supabase/tests/e2e_homologacao.sql'),
       ...one('supabase/tests/rls_painel_master.sql'),
+      ...one('supabase/tests/rls_entrega_codigo.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

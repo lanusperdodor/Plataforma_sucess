@@ -165,6 +165,18 @@ export async function shareLocation(lat: number, lng: number): Promise<void> {
 export async function pickupDelivery(orderId: string): Promise<void> {
   await exec(supabase.rpc('courier_pickup_delivery', { _order: orderId }), z.unknown())
 }
+export type CodeCheck = { ok: true } | { ok: false; reason: 'invalido' | 'bloqueado'; lockedUntil: string | null }
+const codeCheckSchema = z
+  .object({ ok: z.boolean(), reason: z.enum(['invalido', 'bloqueado']).optional(), locked_until: z.string().nullable().optional() })
+  .transform((r): CodeCheck => (r.ok ? { ok: true } : { ok: false, reason: r.reason ?? 'invalido', lockedUntil: r.locked_until ?? null }))
+/** Etapa 1: o banco confere o código dito pelo cliente; nunca devolve o código esperado. */
+export async function verifyDeliveryCode(orderId: string, code: string): Promise<CodeCheck> {
+  return exec(supabase.rpc('courier_verify_code', { _order: orderId, _code: code.trim() }), codeCheckSchema)
+}
+/** Etapa 2: finaliza (só com código validado). O identificador da operação torna a repetição segura. */
+export async function finishDelivery(orderId: string, opId: string): Promise<'finalizada' | 'ja_finalizada'> {
+  return exec(supabase.rpc('courier_finish_delivery', { _order: orderId, _op: opId }), z.enum(['finalizada', 'ja_finalizada']))
+}
 /** Devolve true se o código conferiu e a entrega foi concluída. */
 export async function completeDelivery(orderId: string, code: string): Promise<boolean> {
   await exec(supabase.rpc('courier_complete_delivery', { _order: orderId, _code: code.trim() }), z.unknown())

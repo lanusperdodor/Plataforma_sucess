@@ -121,11 +121,10 @@ begin
   perform tste.login(func);
   perform tste.denied(format('select public.merchant_accept_order(%L, 2)', o1), 'tempo de preparo inválido', array['P0001']);
   perform public.merchant_accept_order(o1, 20);
-  perform tste.ok((select status = 'accepted' and prep_minutes = 20 and estimated_ready_at > now() from public.orders where id = o1), 'aceito com previsão');
+  perform tste.ok((select status = 'preparing' and prep_minutes = 20 and estimated_ready_at > now() from public.orders where id = o1), 'aceito com previsão: já em preparo');
   perform tste.step(6, 'restaurante confirmou');
   -- 7-8. cozinha prepara e disponibiliza
   perform tste.login(coz);
-  perform public.update_order_status(o1, 'preparing');
   perform tste.denied(format($q$select public.update_order_status(%L, 'cancelled', 'x')$q$, o1), 'cozinha cancela', array['P0001']);
   perform tste.step(7, 'cozinha preparando');
   -- entregadores de teste ficam disponíveis antes de o pedido ficar pronto
@@ -222,7 +221,6 @@ begin
                            'Cliente Teste Um', '35999990000', 'Rua B, 2, Centro', null, null, null, 'e2e-pedido-0004');
   perform tste.login(dono);
   perform public.merchant_accept_order(o4, 15);
-  perform public.update_order_status(o4, 'preparing');
   perform public.update_order_status(o4, 'ready');
   perform tste.login(k1); perform public.courier_decline_delivery(o4);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'recusada some da lista de quem recusou');
@@ -261,7 +259,6 @@ begin
                            'Cliente Teste Um', '35999990000', 'Rua C, 3, Centro', null, null, null, 'e2e-pedido-0005');
   perform tste.login(dono);
   perform public.merchant_accept_order(o5, 10);
-  perform public.update_order_status(o5, 'preparing');
   perform public.update_order_status(o5, 'ready');
   perform tste.login(k2); perform public.courier_accept_delivery(o5); perform public.courier_release_delivery(o5);
   perform tste.ok(tste.count('select 1 from public.courier_list_offers()') = 0, 'quem liberou não recebe de novo na mesma rodada');
@@ -307,7 +304,8 @@ begin
   select id::text into refri from public.products where business_id = br and name = 'Refrigerante lata';
   select id::text into salada from public.products where business_id = br and name = 'X-Salada';
 
-  -- o caso relatado: cliente compra no Mercadinho (entrega própria)
+  -- entrega própria: o lojista configura o Mercadinho para entregar com a própria equipe (na homologação ele usa parceiro)
+  update public.businesses set delivery_offer = 'own' where id = bl;
   perform tste.login(c1);
   o := public.place_order(bl, jsonb_build_array(jsonb_build_object('product_id', cafe, 'quantity', 2)), 'delivery_own', 'cash',
                           'Cliente Teste Um', '35999990000', 'Rua das Flores, 100, Centro', null, null, null, 'e2e-merc-0001');
@@ -323,7 +321,6 @@ begin
   perform tste.ok(tste.count(format($q$select 1 from public.admin_list_orders('abertos') where id = %L$q$, o)) = 1, 'Master vê o pedido do Mercadinho');
   perform tste.login(lojista);
   perform public.merchant_accept_order(o, 15);
-  perform public.update_order_status(o, 'preparing');
   perform public.update_order_status(o, 'ready');
   perform tste.su();
   perform tste.ok(not exists (select 1 from public.deliveries where order_id = o), 'entrega própria não vira oferta para entregador parceiro');
@@ -338,7 +335,6 @@ begin
                            'Cliente Teste Um', '35999990000', null, null, null, null, 'e2e-ret-0001');
   perform tste.login(dono);
   perform public.merchant_accept_order(o2, 10);
-  perform public.update_order_status(o2, 'preparing');
   perform public.update_order_status(o2, 'ready');
   perform public.update_order_status(o2, 'picked_up');
   perform tste.su();
@@ -359,7 +355,6 @@ begin
                            'Cliente Teste Um', '35999990000', 'Rua D, 4, Centro', null, null, null, 'e2e-semk-0001');
   perform tste.login(dono);
   perform public.merchant_accept_order(o3, 10);
-  perform public.update_order_status(o3, 'preparing');
   perform public.update_order_status(o3, 'ready');
   perform tste.su();
   update public.deliveries set offer_round = 3, offer_expires_at = now() - interval '1 minute' where order_id = o3;

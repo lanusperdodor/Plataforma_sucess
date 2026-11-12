@@ -87,7 +87,7 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
           </span>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggleButton />
-            <AccountMenu />
+            <AccountMenu context="admin" />
           </div>
         </div>
         <nav aria-label="Seções do painel" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 md:hidden">

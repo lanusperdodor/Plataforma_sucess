@@ -2,10 +2,11 @@ import { Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { useActiveContext } from '../../lib/activeContext.ts'
 import {
-  NAV_DESTINATIONS,
   SECONDARY_DESTINATIONS,
   audienceOf,
+  destinationsFor,
   visibleGroups,
   resolveActiveDestination,
 } from './destinations.ts'
@@ -22,10 +23,12 @@ const stickyStyle = {
 
 export function SideNav({ mode, onPrefetch }: SideNavProps) {
   const { pathname } = useLocation()
-  const active = resolveActiveDestination(pathname)
   const [open, setOpen] = useState(false)
   const { session, authz } = useAuth()
-  const groups = visibleGroups(audienceOf(!!session, authz))
+  const ctx = useActiveContext(authz)
+  const items = destinationsFor(ctx)
+  const active = resolveActiveDestination(pathname, items)
+  const groups = visibleGroups(audienceOf(!!session, authz), ctx)
   const rail = mode === 'rail'
   const drawerOpen = rail && open
 
@@ -48,7 +51,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
     } ${isActive ? 'bg-muted font-bold text-brand' : 'font-medium text-ink-muted'}`
 
   const primary = (showLabel: boolean) =>
-    NAV_DESTINATIONS.map((item) => {
+    items.map((item) => {
       const isActive = item.id === active
       const Icon = item.icon
       return (
@@ -69,8 +72,8 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
       )
     })
 
-  const secondary = (items = SECONDARY_DESTINATIONS) =>
-    items.map((item) => {
+  const secondary = (list = SECONDARY_DESTINATIONS) =>
+    list.map((item) => {
       const Icon = item.icon
       const isCurrent = pathname === item.to || pathname.startsWith(`${item.to}/`)
       return (

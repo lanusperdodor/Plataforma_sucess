@@ -18,8 +18,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { AuthContext } from '../../features/permissions/permissions.ts'
+import type { ActiveContext } from '../../lib/activeContext.ts'
 
-export type DestinationId = 'inicio' | 'explorar' | 'conectuai' | 'pedidos' | 'perfil'
+export type DestinationId = 'inicio' | 'explorar' | 'conectuai' | 'pedidos' | 'perfil' | 'loja-pedidos' | 'loja-painel' | 'entregas' | 'notificacoes' | 'master'
 
 export type NavDestination = {
   id: DestinationId
@@ -123,8 +124,37 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 /** Compatibilidade: itens de parceiros visíveis a qualquer visitante. */
 export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = NAV_GROUPS[3]!.items
 
-export function visibleGroups(a: Audience): NavGroup[] {
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.show || i.show(a)) })).filter((g) => g.items.length > 0)
+export function visibleGroups(a: Audience, ctx: ActiveContext = { kind: 'cliente' }): NavGroup[] {
+  // entregador vê só o que é da atividade de entrega; loja e Master não veem "seja parceiro"
+  const groups = ctx.kind === 'entregador' ? NAV_GROUPS.filter((g) => g.id === 'conta' || g.id === 'trabalho')
+    : ctx.kind === 'cliente' ? NAV_GROUPS : NAV_GROUPS.filter((g) => g.id !== 'parceiros')
+  return groups.map((g) => ({ ...g, items: g.items.filter((i) => !i.show || i.show(a)) })).filter((g) => g.items.length > 0)
+}
+
+const PERFIL = NAV_DESTINATIONS.find((d) => d.id === 'perfil')!
+const INICIO = NAV_DESTINATIONS.find((d) => d.id === 'inicio')!
+
+/** Navegação principal do perfil ativo (cliente vê a de compras; loja, entregador e Master, a operacional). */
+export function destinationsFor(ctx: ActiveContext): readonly NavDestination[] {
+  switch (ctx.kind) {
+    case 'loja':
+      return [
+        INICIO,
+        { id: 'loja-pedidos', label: 'Pedidos', to: `/painel/${ctx.businessId}/pedidos`, icon: ReceiptText, prefixes: [`/painel/${ctx.businessId}/pedidos`] },
+        { id: 'loja-painel', label: 'Minha loja', to: `/painel/${ctx.businessId}`, icon: Store, prefixes: ['/painel'] },
+        PERFIL,
+      ]
+    case 'entregador':
+      return [
+        { id: 'entregas', label: 'Entregas', to: '/entregador', icon: Truck, prefixes: ['/entregador'] },
+        { id: 'notificacoes', label: 'Avisos', to: '/notificacoes', icon: Bell, prefixes: ['/notificacoes'] },
+        PERFIL,
+      ]
+    case 'master':
+      return [INICIO, { id: 'master', label: 'Painel Master', to: '/admin', icon: ShieldCheck, prefixes: ['/admin'] }, PERFIL]
+    default:
+      return NAV_DESTINATIONS
+  }
 }
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
@@ -133,9 +163,9 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 }
 
 /** Devolve o id do destino primário ativo (no máximo um) ou null para rotas desconhecidas. */
-export function resolveActiveDestination(pathname: string): DestinationId | null {
+export function resolveActiveDestination(pathname: string, list: readonly NavDestination[] = NAV_DESTINATIONS): DestinationId | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  for (const destination of NAV_DESTINATIONS) {
+  for (const destination of list) {
     if (destination.prefixes.some((prefix) => matchesPrefix(path, prefix))) {
       return destination.id
     }

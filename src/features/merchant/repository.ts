@@ -304,3 +304,61 @@ export async function getMyPlan(businessId: string) {
   const sub = subs[0] ?? null
   return { subscription: sub ? { ...sub, planName: plans.find((p) => p.code === sub.planCode)?.name ?? sub.planCode } : null, charges }
 }
+
+// ---------- finanças do lojista (0024) ----------
+const cents = (text: string): number | null => { try { return parseBRL(text) } catch { return null } }
+export const EXPENSE_CATEGORIES = {
+  mercadorias: 'Compra de mercadorias', ingredientes: 'Ingredientes', embalagens: 'Embalagens', aluguel: 'Aluguel', energia: 'Energia',
+  agua: 'Água', internet: 'Internet', funcionarios: 'Funcionários', marketing: 'Marketing', outros: 'Outros custos',
+} as const
+export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES
+
+const financeSchema = z.object({
+  hoje_cents: z.number(), mes_cents: z.number(), pedidos: z.number(), ticket_medio_cents: z.number(), cancelados: z.number(),
+  faturamento_bruto_cents: z.number(), comissao_cents: z.number(), taxas_entrega_cents: z.number(), custo_produtos_cents: z.number(),
+  itens_sem_custo: z.number(), vendas_itens_com_custo_cents: z.number(), despesas_cents: z.number(),
+  despesas_por_categoria: z.record(z.string(), z.number()), recebido_na_entrega_cents: z.number(), caixa_hoje: z.record(z.string(), z.number()),
+})
+export type MerchantFinance = z.infer<typeof financeSchema>
+export function getMerchantFinance(businessId: string, from: string, to: string): Promise<MerchantFinance> {
+  return exec(supabase.rpc('merchant_finance', { _business: businessId, _from: from, _to: to }), financeSchema)
+}
+
+const expenseSchema = z
+  .object({ id: z.string(), category: z.string(), description: z.string().nullable(), amount_cents: z.number(), spent_on: z.string(), recurrence: z.enum(['unica', 'mensal']) })
+  .transform((r) => ({ id: r.id, category: r.category as ExpenseCategory, description: r.description, amountCents: r.amount_cents, spentOn: r.spent_on, recurrence: r.recurrence }))
+export type Expense = z.output<typeof expenseSchema>
+export function listExpenses(businessId: string): Promise<Expense[]> {
+  return exec(supabase.from('business_expenses').select('id,category,description,amount_cents,spent_on,recurrence').eq('business_id', businessId).order('spent_on', { ascending: false }).limit(200), z.array(expenseSchema))
+}
+export async function addExpense(businessId: string, e: { category: ExpenseCategory; description: string; amount: string; spentOn: string; recurrence: 'unica' | 'mensal' }): Promise<void> {
+  const value = cents(e.amount)
+  if (value === null || value <= 0) throw new RepositoryError('validation', 'Informe um valor válido (ex.: 150,00).')
+  if (!e.spentOn) throw new RepositoryError('validation', 'Informe a data.')
+  await exec(supabase.from('business_expenses').insert({ business_id: businessId, category: e.category, description: e.description.trim() || null, amount_cents: value, spent_on: e.spentOn, recurrence: e.recurrence }).select('id'), z.array(z.object({ id: z.string() })))
+}
+export async function deleteExpense(id: string): Promise<void> {
+  await exec(supabase.from('business_expenses').delete().eq('id', id).select('id'), z.array(z.object({ id: z.string() })))
+}
+
+const costRowSchema = z.object({ id: z.string(), name: z.string(), price_cents: z.number() })
+const costSchema = z.object({ product_id: z.string(), cost_cents: z.number() })
+export interface ProductCost { productId: string; name: string; priceCents: number; costCents: number | null }
+/** Produtos da loja com o custo cadastrado (custo é privado: só a equipe com relatórios vê). */
+export async function listProductCosts(businessId: string): Promise<ProductCost[]> {
+  const [products, costs] = await Promise.all([
+    exec(supabase.from('products').select('id,name,price_cents').eq('business_id', businessId).order('name'), z.array(costRowSchema)),
+    exec(supabase.from('business_product_costs').select('product_id,cost_cents').eq('business_id', businessId), z.array(costSchema)),
+  ])
+  const map = new Map(costs.map((c) => [c.product_id, c.cost_cents]))
+  return products.map((p) => ({ productId: p.id, name: p.name, priceCents: p.price_cents, costCents: map.get(p.id) ?? null }))
+}
+export async function setProductCost(businessId: string, productId: string, value: string): Promise<void> {
+  if (!value.trim()) {
+    await exec(supabase.from('business_product_costs').delete().eq('product_id', productId).select('product_id'), z.array(z.object({ product_id: z.string() })))
+    return
+  }
+  const c = cents(value)
+  if (c === null || c < 0) throw new RepositoryError('validation', 'Custo inválido (ex.: 9,50).')
+  await exec(supabase.from('business_product_costs').upsert({ product_id: productId, business_id: businessId, cost_cents: c, updated_at: new Date().toISOString() }).select('product_id'), z.array(z.object({ product_id: z.string() })))
+}

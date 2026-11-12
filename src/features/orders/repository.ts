@@ -32,11 +32,11 @@ export const payments = ['cash', 'pix_on_delivery', 'card_on_delivery'] as const
 export type Payment = (typeof payments)[number]
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
-  placed: 'Aguardando o estabelecimento',
+  placed: 'Aguardando confirmação',
   accepted: 'Aceito',
   preparing: 'Em preparo',
-  ready: 'Pronto',
-  out_for_delivery: 'Saiu para entrega',
+  ready: 'Pronto para coleta',
+  out_for_delivery: 'Em rota de entrega',
   delivered: 'Entregue',
   picked_up: 'Retirado',
   rejected: 'Recusado',
@@ -76,12 +76,12 @@ export function staffNextSteps(status: OrderStatus, fulfillment: Fulfillment): O
 }
 
 export const STEP_ACTION: Partial<Record<OrderStatus, string>> = {
-  accepted: 'Aceitar',
+  accepted: 'Aceitar pedido',
   rejected: 'Recusar',
   preparing: 'Iniciar preparo',
-  ready: 'Marcar pronto',
+  ready: 'Marcar como pronto',
   out_for_delivery: 'Saiu para entrega',
-  delivered: 'Marcar entregue',
+  delivered: 'Marcar como entregue',
   picked_up: 'Cliente retirou',
   cancelled: 'Cancelar',
 }

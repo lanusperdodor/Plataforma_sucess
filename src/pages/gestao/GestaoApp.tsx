@@ -8,6 +8,7 @@ import { businessHref } from '../../components/cards/BusinessCard.tsx'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { BRAND } from '../../config/brand.ts'
+import { OUTDATED_MESSAGE, RepositoryError } from '../../lib/errors.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { useCategories } from '../../features/catalog/hooks.ts'
 import type { CategoryKind } from '../../features/catalog/schemas.ts'
@@ -274,6 +275,11 @@ function GestaoBusiness() {
         <GestaoHeader />
         <main id="gestao-conteudo" className="flex-1">
           <Section>
+            {plan.error instanceof RepositoryError && plan.error.detail?.field === 'schema' && (
+              <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm text-ink">
+                Alguns módulos do Tucaí Gestão (visão geral, plano, mesas, caixa, equipe, anúncios) aguardam a atualização do banco de dados. {OUTDATED_MESSAGE}
+              </p>
+            )}
             {b.status !== 'active' && (
               <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm text-ink">
                 {STATUS_TEXT[b.status]}

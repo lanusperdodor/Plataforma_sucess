@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { CityCombobox } from '../../components/forms/CityCombobox.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
-import { createTestData, listCities, listTestData, removeAllTestData, removeTestData, type CreatedTestData } from '../../features/admin/repository.ts'
+import { createTestData, getTestAccountsStatus, listCities, listTestData, removeAllTestData, removeTestData, standardizeTestAccounts, type CreatedTestData } from '../../features/admin/repository.ts'
 import { dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
 /** Contas de homologação por cidade (9 perfis, 3 estabelecimentos de teste), sem duplicar e com remoção completa. */
@@ -61,6 +61,18 @@ export function TestDataSection() {
   const [cityId, setCityId] = useState('')
   const [created, setCreated] = useState<CreatedTestData | null>(null)
   const active = (cities.data ?? []).filter((c) => c.isActive)
+  const status = useQuery({ queryKey: ['admin', 'test-data', 'status'], queryFn: getTestAccountsStatus, retry: false })
+  const [stdWord, setStdWord] = useState('')
+  const standardize = useMutation({
+    mutationFn: () => standardizeTestAccounts(cityId, stdWord),
+    onSuccess: (r) => {
+      toast.success(`Padronizado: ${r.removedAccounts} conta(s) excedente(s) removida(s); ${r.created.logins.length} conta(s) criada(s).`)
+      setStdWord('')
+      if (r.created.logins.length > 0) setCreated(r.created)
+      refresh()
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'test-data'] })
     void qc.invalidateQueries({ queryKey: ['catalog'] })
@@ -118,6 +130,43 @@ export function TestDataSection() {
           </form>
         )}
       </Panel>
+      {status.data && (
+        <Panel className={`flex flex-col gap-2 text-sm ${status.data.padrao ? '' : 'border-warm'}`}>
+          <p className="font-semibold text-ink" role="status">
+            {status.data.padrao
+              ? `Padrão em dia: exatamente 7 contas de teste${status.data.cidade ? ` em ${status.data.cidade}` : ''}.`
+              : status.data.contas === 0
+                ? 'Nenhuma conta de teste ainda. Escolha a cidade acima e crie as 7.'
+                : `${status.data.contas} conta(s) de teste ativa(s) — o padrão é exatamente 7, num único conjunto.`}
+          </p>
+          {status.data.excedentes.length > 0 && (
+            <div>
+              <p className="text-ink">Fora do padrão (serão removidas ao padronizar):</p>
+              <ul className="list-disc pl-5 text-ink-muted">{status.data.excedentes.map((x) => <li key={x.email ?? x.label}>{x.label}: <code className="break-all">{x.email}</code></li>)}</ul>
+            </div>
+          )}
+          {status.data.faltando.length > 0 && status.data.contas > 0 && <p className="text-ink-muted">Faltando no conjunto padrão: {status.data.faltando.length} conta(s).</p>}
+          {status.data.bloqueios.length > 0 && (
+            <div role="alert" className="rounded-xl bg-muted p-3 text-ink">
+              <p className="font-semibold">Estas contas de teste têm vínculo com dados reais e impedem a padronização (nada será removido):</p>
+              <ul className="list-disc pl-5">{status.data.bloqueios.map((b) => <li key={b.email ?? ''}>{b.email}: {b.motivos.join(', ')}</li>)}</ul>
+            </div>
+          )}
+          {!status.data.padrao && status.data.contas > 0 && (
+            <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); standardize.mutate() }}>
+              <p className="w-full text-ink-muted">Padronizar remove as contas de teste excedentes (só depois de verificar dependências; usuários reais nunca entram) e deixa as 7 contas na cidade escolhida acima.</p>
+              <div className="min-w-56 flex-1">
+                <label htmlFor="td-std" className="mb-1 block text-sm font-medium text-ink">Digite <strong>PADRONIZAR</strong> para confirmar</label>
+                <input id="td-std" value={stdWord} onChange={(e) => setStdWord(e.target.value)} autoComplete="off" className={inputClass} />
+              </div>
+              <button type="submit" disabled={!cityId || standardize.isPending || stdWord.trim().toUpperCase() !== 'PADRONIZAR'} className={primaryButton}>
+                {standardize.isPending ? 'Padronizando…' : 'Padronizar as 7 contas'}
+              </button>
+              {!cityId && <p className="w-full text-xs text-ink-muted">Escolha a cidade no campo acima.</p>}
+            </form>
+          )}
+        </Panel>
+      )}
       {created && <Created data={created} onClose={() => setCreated(null)} />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold text-ink">Lotes criados</h3>

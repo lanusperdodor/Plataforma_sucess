@@ -38,7 +38,7 @@ begin
   perform tsmn.login(m);
   res := public.admin_create_test_data(city);
   perform tsmn.su();
-  c1 := tsmn.uid('cliente1'); c2 := tsmn.uid('cliente2'); loj := tsmn.uid('empresario1'); k1 := tsmn.uid('entregador'); k2 := tfx.partner_courier(city);
+  c1 := tsmn.uid('cliente1'); c2 := tsmn.uid('cliente2'); loj := tsmn.uid('empresario1'); k1 := tsmn.uid('entregador'); k2 := tsmn.uid('entregador');  -- só um independente entre as sete contas
   select id into bm from public.businesses where owner_id = loj;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
   insert into private.integration_keys(name, key_hash) values ('payments', encode(extensions.digest(key, 'sha256'), 'hex'))
@@ -46,7 +46,6 @@ begin
 
   -- operação normal em andamento: entrega em rota, pedido aguardando, comanda aberta, caixa aberto, cobrança aberta
   perform tsmn.login(k1); perform public.set_courier_online(true);
-  perform tsmn.login(k2); perform public.set_courier_online(true);
   perform tsmn.login(c1);
   o1 := public.place_order(bm, jsonb_build_array(jsonb_build_object('product_id', cheese, 'quantity', 1)), 'delivery_partner', 'pix_on_delivery',
                            'Cliente Teste Um', '(35) 99999-0000', 'Rua das Flores, 100', null, null, null, 'mnt-000000001');
@@ -90,9 +89,7 @@ begin
   perform tsmn.blocked(format($q$update public.businesses set description = 'x' where id = %L$q$, bm), 'alterar loja direto pela API');
   perform tsmn.blocked(format($q$select public.gestao_open_tab(%L, null, 'Novo', 1)$q$, bm), 'abrir comanda nova');
   perform public.merchant_accept_order(o2, 10);           -- pedido já feito pode seguir
-  perform public.update_order_status(o2, 'ready');
-  perform tsmn.login(k2);
-  perform public.courier_accept_delivery(o2);             -- entregador assume pedido já em andamento
+  perform public.update_order_status(o2, 'ready');       -- (o único entregador independente está com o1 em rota)
 
   -- EM MANUTENÇÃO: bloqueio total; só concluir entregas em rota e fechar comanda/caixa abertos
   perform tsmn.login(m, 'aal2');
@@ -115,6 +112,9 @@ begin
   perform public.courier_finish_delivery(o1, gen_random_uuid());
   perform tsmn.su();
   perform tsmn.ok((select status from public.orders where id = o1) = 'delivered', 'entrega em andamento concluída durante a manutenção');
+  perform tsmn.login(k1);
+  perform tsmn.blocked(format('select public.courier_accept_delivery(%L)', o2), 'entregador assume corrida nova durante a manutenção');
+  perform tsmn.su();
   -- webhook de pagamento (sistema, sem usuário) continua sendo registrado
   perform tsmn.anon();
   perform tsmn.ok(public.worker_confirm_payment(key, ch2, 'mp-9001', 1000, 'pix') = 'confirmado', 'webhook confirma pagamento durante a manutenção');
@@ -130,7 +130,7 @@ begin
   res := public.admin_set_maintenance('normal', null, null, 'NORMAL');
   perform tsmn.ok((select bool_and(value::int = 0) from jsonb_each_text(res->'integridade')), 'verificações de integridade zeradas');
   perform tsmn.su();
-  perform tsmn.ok((select status from public.orders where id = o2) = 'ready' and (select status from public.deliveries where order_id = o2) = 'accepted', 'pedido em andamento preservado');
+  perform tsmn.ok((select status from public.orders where id = o2) = 'ready' and (select status from public.deliveries where order_id = o2) = 'offered', 'pedido em andamento preservado (oferta aguardando entregador)');
   perform tsmn.ok((select status from public.orders where id = o3) = 'placed', 'pedido aguardando preservado');
   perform tsmn.ok((select status from public.platform_charges where id = ch) = 'aberta' and (select status from public.platform_charges where id = ch2) = 'paga', 'cobranças preservadas');
   perform tsmn.ok((select count(*) from public.audit_logs where action = 'platform.maintenance') = 3, 'cada mudança auditada');

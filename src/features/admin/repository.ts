@@ -336,6 +336,23 @@ export function removeTestData(runId: string): Promise<void> {
   return rpc('admin_remove_test_data', { _run: runId }, z.any()).then(() => undefined)
 }
 
+const testStatusSchema = z.object({
+  contas: z.number(), lotes: z.number(), padrao: z.boolean(), cidade: z.string().nullable(), faltando: z.array(z.string()),
+  excedentes: z.array(z.object({ label: z.string().nullable(), email: z.string().nullable() })),
+  bloqueios: z.array(z.object({ email: z.string().nullable(), motivos: z.array(z.string()) })),
+})
+export type TestAccountsStatus = z.infer<typeof testStatusSchema>
+/** Diagnóstico global das contas de teste (padrão: exatamente sete, um único conjunto). */
+export async function getTestAccountsStatus(): Promise<TestAccountsStatus> {
+  return rpc('admin_test_accounts_status', undefined, testStatusSchema)
+}
+/** Remove contas de teste excedentes (após verificar dependências) e garante as sete na cidade escolhida. */
+export async function standardizeTestAccounts(cityId: string, confirm: string): Promise<{ removedRuns: number; removedAccounts: number; created: CreatedTestData }> {
+  const r = await rpc('admin_standardize_test_accounts', { _city: cityId, _confirm: confirm },
+    z.object({ lotes_removidos: z.number(), contas_removidas: z.number(), criadas: z.unknown() }))
+  return { removedRuns: r.lotes_removidos, removedAccounts: r.contas_removidas, created: createdSchema.parse(r.criadas) }
+}
+
 /** Exclui todos os lotes e restos marcados como teste (Master, confirmação "EXCLUIR"). Dados reais não entram. */
 export async function removeAllTestData(confirm: string): Promise<{ lotes: number; pedidos: number; estabelecimentos: number; logins: number }> {
   return rpc('admin_remove_all_test_data', { _confirm: confirm }, z.object({ lotes: z.number(), pedidos: z.number(), estabelecimentos: z.number(), logins: z.number() }))

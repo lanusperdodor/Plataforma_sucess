@@ -21,7 +21,7 @@ update public.platform_settings set value = 'false' where key = 'require_admin_m
 do $$
 declare
   city constant uuid := '77779000-0000-0000-0000-000000000001';
-  m uuid; loj uuid; dono uuid; func uuid; coz uuid; caixa uuid; c1 uuid; bm uuid; br uuid; cheese text; cafe text;
+  m uuid; loj uuid; dono uuid; func uuid; caixa uuid; c1 uuid; bm uuid; br uuid; cheese text; cafe text;
   mesa4 uuid; mesa5 uuid; tab uuid; tab2 uuid; balcao uuid; it uuid; op uuid := gen_random_uuid(); closeop uuid := gen_random_uuid(); res jsonb; r record; qr uuid;
 begin
   insert into public.cities(id, name, state, slug) values (city, 'Cidade Gestão', 'MG', 'tsgg-cidade');
@@ -30,7 +30,7 @@ begin
   perform tsgg.login(m);
   res := public.admin_create_test_data(city);
   perform tsgg.su();
-  loj := tsgg.uid('empresario1'); dono := tsgg.uid('empresario2'); func := tsgg.uid('funcionario'); coz := tfx.kitchen((select id from public.businesses where owner_id = tsgg.uid('empresario2'))); c1 := tsgg.uid('cliente1');
+  loj := tsgg.uid('empresario1'); dono := tsgg.uid('empresario2'); func := tsgg.uid('funcionario'); c1 := tsgg.uid('cliente1');
   caixa := private.create_auth_user('gg-caixa@teste.invalid', 'senha-caixa-1', 'Operador Caixa');
   select id into bm from public.businesses where owner_id = loj;
   select id into br from public.businesses where owner_id = dono;
@@ -38,10 +38,9 @@ begin
   select id::text into cafe from public.products where business_id = bm and name = 'Refrigerante lata';
 
   -- equipe do Mercadinho: comandas (atendente), cozinha e operador de caixa (atendente + permissão extra de caixa)
-  res := jsonb_build_object('func', (select email from auth.users where id = func), 'coz', (select email from auth.users where id = coz));
+  res := jsonb_build_object('func', (select email from auth.users where id = func));
   perform tsgg.login(loj);
   -- o Funcionário — Lanchonete já é atendente da lanchonete (atendimento + cozinha)
-  perform public.merchant_invite_member(bm, res->>'coz', 'kitchen');
   perform public.merchant_invite_member(bm, 'gg-caixa@teste.invalid', 'attendant');
   perform tsgg.login(caixa);
   perform tsgg.denied(format('select public.gestao_open_cash(%L, 10000)', bm), 'atendente sem permissão de caixa abre o caixa');
@@ -74,7 +73,7 @@ begin
   perform tsgg.su();
   perform tsgg.ok(private.tab_total(tab) = 2 * 2200 + 600, 'preço do cardápio, calculado no servidor');
   -- cozinha recebe com a origem
-  perform tsgg.login(coz);
+  perform tsgg.login(func);  -- o funcionário também faz a cozinha
   perform tsgg.ok(tsgg.count($q$select 1 from public.gestao_kitchen('$q$ || bm || $q$') where origin = 'mesa' and ref_label = 'Mesa 04 — Comanda #001'$q$) = 2, 'cozinha recebe "Mesa 04 — Comanda #001"');
   for it in select id from public.business_tab_items where tab_id = tab loop
     perform public.gestao_item_status(it, 'em_preparo');
@@ -92,7 +91,7 @@ begin
   perform tsgg.denied(format($q$select public.gestao_open_tab(%L, null, '')$q$, bm), 'balcão sem identificação', array['P0001']);
   balcao := public.gestao_open_tab(bm, null, 'João (balcão)');
   perform public.gestao_add_items(balcao, jsonb_build_array(jsonb_build_object('product_id', cheese, 'quantity', 1)), gen_random_uuid());
-  perform tsgg.login(coz);
+  perform tsgg.login(func);  -- o funcionário também faz a cozinha
   perform tsgg.ok(tsgg.count($q$select 1 from public.gestao_kitchen('$q$ || bm || $q$') where ref_label like 'Balcão — Comanda #002'$q$) = 1, 'cozinha recebe "Balcão — Comanda #002"');
   perform tsgg.login(func);
   select id into it from public.business_tab_items where tab_id = balcao;

@@ -93,9 +93,9 @@ O que já existia e funciona:
 - O entregador pode compartilhar a localização, se quiser. Ela é apagada quando ele fica indisponível.
 - Com pg_cron habilitado, a varredura das ofertas roda a cada minuto. Sem ele, roda quando os painéis são abertos.
 
-**Restaurante e cozinha:**
+**Empresário e Funcionário:**
 - O pedido é aceito com tempo de preparo, e o cliente vê a previsão.
-- A cozinha só inicia e conclui o preparo.
+- O Funcionário faz atendimento e cozinha (aceite, preparo, pronto, retirada). Não existe conta de cozinha separada.
 
 **Master (aba Pedidos):**
 - Filtros: em andamento, com alerta, concluídos, cancelados.
@@ -103,16 +103,17 @@ O que já existia e funciona:
 - Cancelar e redistribuir exigem a permissão `orders.manage` e ficam na Auditoria.
 
 **Contas de homologação:**
-- A aba Logins → Dados de teste cria os perfis: dono do restaurante, funcionário, cozinha, lojista, prestador de serviços, 2 entregadores independentes, 2 clientes e operador administrativo. O Master é a sua conta.
-- Se já houver lote na cidade, só cria os perfis que faltam. A senha aparece uma única vez e nunca é gravada.
+- A aba Logins → Dados de teste mantém **exatamente sete contas em toda a Tucaí** (um único conjunto): Empresário 1 — Lanchonete, Empresário 2 — Supermercado, Funcionário — Lanchonete, Entregador 1 — Independente, Entregador 2 — Próprio, Cliente 1 e Cliente 2. O Master é a sua conta, separada.
+- Criar em outra cidade é recusado; "Padronizar as 7 contas" remove excedentes (lotes antigos) depois de verificar dependências e leva o conjunto para a cidade escolhida. A senha aparece uma única vez e nunca é gravada.
 
 **Tempo real:** pedidos e notificações são publicados no Supabase Realtime, que respeita a RLS. A interface atualiza sem recarregar e recarrega o estado quando a conexão volta.
 
 **Redirecionamento por perfil:**
 - equipe da plataforma → `/admin`;
-- dono → painel;
-- atendimento e cozinha → pedidos;
-- entregador → área do entregador.
+- Empresário → painel empresarial;
+- Funcionário (atendimento e cozinha) → pedidos;
+- Entregador (independente ou próprio) → área do entregador;
+- Cliente → compras.
 
 ## Testes e evidências
 
@@ -123,7 +124,7 @@ O que já existia e funciona:
 | Interface (Vitest): 71 arquivos, 357 testes | **Aprovada** | `npx vitest run` |
 | Pacote SQL aplicado 2 vezes num banco vazio | **Aprovado** (22 aplicadas; a 2ª execução não muda nada) | — |
 | Roteiro Playwright, etapa pública, no site publicado | **Reprovado** (esperado até rodar o SQL): 2 "[Teste]" visíveis ao visitante | `scripts/e2e-homologacao.mjs` |
-| Roteiro Playwright com login (cliente, restaurante, cozinha, entregador, Master) | **Não executado** | Exige o banco publicado com a 0022 e as credenciais de homologação em variáveis de ambiente |
+| Roteiro Playwright com login (Cliente 1, Empresário 1, Funcionário, Entregador 1, Master) | **Não executado** | Exige o banco publicado com a 0033 e as credenciais das sete contas em variáveis de ambiente |
 
 **Cenário obrigatório validado no banco:**
 1. Login do cliente de teste.
@@ -132,14 +133,14 @@ O que já existia e funciona:
 4. Pedido feito com pagamento na entrega (sem cobrança online).
 5. O restaurante recebe e é notificado.
 6. O funcionário confirma com 20 min de preparo.
-7. A cozinha prepara.
+7. O Funcionário (função de cozinha) prepara.
 8. O pedido fica pronto e a oferta é criada com prazo.
-9. Os entregadores de teste são notificados; o entregador real não vê a oferta.
-10. O entregador 1 aceita; o 2 tenta e é recusado.
+9. O Entregador 1 — Independente é notificado; o Entregador 2 — Próprio e o entregador real não veem a oferta.
+10. O Entregador 1 aceita; o Entregador 2 — Próprio tenta e é recusado (não pertence à rede).
 11. A coleta é feita e o cliente vê "saiu para entrega".
 12. A entrega é concluída com o código do cliente; um código errado não conclui.
 13. O cliente vê "entregue".
-14. O Master e o operador veem o histórico, com quem fez cada passo.
+14. O Master vê o histórico, com quem fez cada passo; o Funcionário não acessa a administração.
 15. Conferidos no banco:
     - valores: R$ 58,00 em produtos; R$ 4 de taxa; total R$ 62; comissão de 2% (R$ 1,16); restaurante R$ 2; entregador R$ 5; plataforma R$ 1;
     - a sequência de eventos;
@@ -226,5 +227,8 @@ Contas criadas em Administração → Logins → Dados de teste (senha mostrada 
 | Entregador 2 — Próprio do supermercado | entregador próprio do supermercado | vê só as entregas que o supermercado atribuir; fora da rede independente |
 | Cliente 1 / Cliente 2 | clientes | mesmos papéis e recursos; um não vê os pedidos do outro |
 
-Cargos internos (gerente, cozinha) continuam no banco para quem já os tem. Lotes antigos (10 contas) não são apagados
-nem reaproveitados: remova-os em "Excluir todos os dados de teste" quando quiser. Suíte: `supabase/tests/rls_perfis.sql`.
+Cargos internos (gerente, cozinha) continuam no banco para quem já os tem, mas nenhuma conta de teste usa cozinha,
+prestador, restaurante, lojista ou operador. **Padrão global (0033):** um único conjunto de sete contas; lotes antigos
+aparecem como "fora do padrão" e saem com "Padronizar as 7 contas" (cancelado sem apagar nada se alguma conta tiver
+vínculo com dado real). Suítes: `supabase/tests/rls_perfis.sql` e `supabase/tests/rls_sete_contas.sql`. Os testes do banco
+usam só as sete contas (além de usuários sintéticos de segurança, que existem apenas dentro de cada teste e são revertidos).

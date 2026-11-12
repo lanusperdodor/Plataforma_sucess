@@ -19,7 +19,7 @@ export const SITUATION: Record<Situation, { label: string; hint: string; dot: st
   livre: { label: 'Livre', hint: 'Disponível para atendimento', dot: 'bg-success', tint: 'bg-surface' },
   ocupada: { label: 'Ocupada', hint: 'Comanda aberta', dot: 'bg-brand', tint: 'bg-surface' },
   em_preparo: { label: 'Em preparo', hint: 'Cozinha trabalhando', dot: 'bg-warm', tint: 'bg-warm-soft' },
-  pronto: { label: 'Pronto', hint: 'Itens prontos para servir', dot: 'bg-success', tint: 'bg-success/10' },
+  pronto: { label: 'Pedido pronto', hint: 'Itens prontos para servir', dot: 'bg-success', tint: 'bg-success/10' },
   aguardando_pagamento: { label: 'Aguardando pagamento', hint: 'Solicitou fechamento', dot: 'bg-danger', tint: 'bg-danger/10' },
 }
 const ITEM_STATUS: Record<string, string> = { novo: 'Novo', em_preparo: 'Em preparo', pronto: 'Pronto', servido: 'Servido', cancelado: 'Cancelado' }
@@ -346,6 +346,7 @@ export function TablesTab() {
   const { business: b, niche, can } = useGestao()
   const q = useQuery({ queryKey: ['gestao', 'board', b.id], queryFn: () => getBoard(b.id), refetchInterval: 30_000 })
   const [filter, setFilter] = useState<'todas' | Situation>('todas')
+  const [term, setTerm] = useState('')
   const [selected, setSelected] = useState<{ tableId: string | null; tabId: string | null } | null>(null)
   const [newCounter, setNewCounter] = useState(false)
   const [setup, setSetup] = useState(false)
@@ -354,7 +355,10 @@ export function TablesTab() {
   if (setup) return <TablesSetup onDone={() => setSetup(false)} />
   const tables = board.filter((c) => c.tableId)
   const counter = board.filter((c) => !c.tableId)
-  const visible = (list: BoardCard[]) => (filter === 'todas' ? list : list.filter((c) => c.situation === filter))
+  const fold = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const visible = (list: BoardCard[]) =>
+    list.filter((c) => (filter === 'todas' || c.situation === filter)
+      && (!term.trim() || fold(`${c.tableName ?? ''} ${c.tabLabel ?? ''} ${c.area ?? ''} ${c.tabNumber ?? ''}`).includes(fold(term.trim()))))
   const count = (s: Situation) => board.filter((c) => c.situation === s).length
   const Card = ({ c }: { c: BoardCard }) => {
     const s = SITUATION[c.situation]
@@ -377,6 +381,7 @@ export function TablesTab() {
               <strong className="text-sm tabular-nums text-ink">{formatBRL(c.totalCents)}</strong>
             </span>
           )}
+          {c.tabId && c.lastActivityAt && <span className="text-[11px] text-ink-muted">Último atendimento há {since(c.lastActivityAt)}</span>}
         </button>
       </li>
     )
@@ -391,6 +396,11 @@ export function TablesTab() {
           {can('settings.manage') && <button type="button" onClick={() => setSetup(true)} className={secondary}><Settings2 aria-hidden="true" className="size-4" />Configurar mesas</button>}
         </>}
       />
+      <label className="relative max-w-md">
+        <span className="sr-only">Pesquisar mesa ou comanda</span>
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+        <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Pesquisar mesa, comanda ou área" className={`${field} pl-9`} />
+      </label>
       <div role="group" aria-label="Filtrar por situação" className="flex gap-2 overflow-x-auto pb-1">
         <button type="button" aria-pressed={filter === 'todas'} onClick={() => setFilter('todas')} className={`${filter === 'todas' ? primary : secondary} shrink-0`}>Todas ({board.length})</button>
         {(Object.keys(SITUATION) as Situation[]).map((k) => (

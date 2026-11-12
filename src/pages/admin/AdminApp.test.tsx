@@ -27,7 +27,7 @@ function view(path: string) {
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/admin/entrar" element={<p>Login admin</p>} />
+          <Route path="/entrar" element={<p>Login único</p>} />
           <Route path="/admin/*" element={<AdminApp />} />
         </Routes>
       </MemoryRouter>
@@ -38,10 +38,10 @@ function view(path: string) {
 afterEach(cleanup)
 
 describe('Painel Master — guarda de acesso (UX; o banco autoriza de novo)', () => {
-  it('sem sessão vai para /admin/entrar', async () => {
+  it('sem sessão vai para o login único (/entrar)', async () => {
     h.auth = { ...h.auth, session: null }
     view('/admin')
-    expect(await screen.findByText('Login admin')).toBeInTheDocument()
+    expect(await screen.findByText('Login único')).toBeInTheDocument()
     h.auth = { ...h.auth, session: { user: { id: 'u1', email: 'x@y.z' } } }
   })
 

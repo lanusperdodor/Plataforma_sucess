@@ -46,7 +46,7 @@ function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void
         <button type="button" onClick={onClose} className={secondaryButton}>Já copiei</button>
       </div>
       <p className="text-xs text-ink-muted">
-        Todos entram em /entrar (o operador administrativo em /admin/entrar). Os estabelecimentos “[Teste]” ficam abertos o dia todo e só aparecem para contas de teste e para a equipe:
+        Todos entram pelo mesmo login (/entrar), que reconhece o perfil e abre o painel certo. Os estabelecimentos “[Teste]” ficam abertos o dia todo e só aparecem para contas de teste e para a equipe:
         clientes reais não os veem, contas de teste não compram em lojas reais e entregadores reais não recebem ofertas de teste.
       </p>
     </Panel>

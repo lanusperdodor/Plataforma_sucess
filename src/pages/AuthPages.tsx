@@ -115,7 +115,7 @@ export function LoginPage() {
   }
 
   return (
-    <Card title="Entrar" subtitle="Acesse sua conta Tucaí para pedir, acompanhar e interagir.">
+    <Card title="Entrar" subtitle="Um só acesso para clientes, empresários, funcionários, entregadores e equipe Tucaí. Ao entrar, abrimos o painel do seu perfil.">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="E-mail ou usuário" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.identifier?.message} {...f.register('identifier')} />
         <Field label="Senha" type="password" autoComplete="current-password" error={f.formState.errors.password?.message} {...f.register('password')} />
@@ -126,9 +126,9 @@ export function LoginPage() {
       {error && <Notice kind="error">{error}</Notice>}
       <GoogleButton onError={setError} />
       <ConfigWarning />
-      <p className="mt-4 flex justify-between text-sm">
+      <p className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
         <Link className="text-brand" to="/recuperar-senha">Esqueci a senha</Link>
-        <Link className="text-brand" to="/cadastro">Criar conta</Link>
+        <span className="text-ink-muted">Ainda não tem conta? <Link className="font-semibold text-brand" to="/cadastro">Criar conta</Link></span>
       </p>
     </Card>
   )
@@ -174,7 +174,7 @@ export function SignUpPage() {
       <GoogleButton onError={(text) => setMsg({ kind: 'error', text })} />
       <ConfigWarning />
       <p className="mt-4 text-sm">
-        Já tem conta? <Link className="text-brand" to="/entrar">Entrar</Link>
+        Já sou cadastrado: <Link className="font-semibold text-brand" to="/entrar">Entrar</Link>
       </p>
     </Card>
   )

@@ -83,7 +83,7 @@ try {
       ;[cliente, dono, cozinha, entregador] = await Promise.all([
         login(browser, env.E2E_CLIENTE, pw), login(browser, env.E2E_EMPRESARIO1, pw), login(browser, env.E2E_FUNCIONARIO, pw), login(browser, env.E2E_ENTREGADOR, pw),
       ])
-      if (env.E2E_MASTER && env.E2E_MASTER_PASSWORD) master = await login(browser, env.E2E_MASTER, env.E2E_MASTER_PASSWORD, '/admin/entrar')
+      if (env.E2E_MASTER && env.E2E_MASTER_PASSWORD) master = await login(browser, env.E2E_MASTER, env.E2E_MASTER_PASSWORD)
     })
     await step('Painéis abertos antes do pedido (empresário e funcionário) e entregador disponível', async () => {
       await Promise.all([openOrdersPanel(dono), openOrdersPanel(cozinha)])

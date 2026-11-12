@@ -150,7 +150,7 @@ export function AdminApp() {
   if (loading || (session && access.isLoading)) {
     return <p role="status" className="p-6 text-sm text-ink-muted">Verificando acesso…</p>
   }
-  if (!session) return <Navigate to="/admin/entrar" replace />
+  if (!session) return <Navigate to="/entrar" replace state={{ from: '/admin' }} />
   if (access.isError) {
     return (
       <div className="p-6">

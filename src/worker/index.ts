@@ -95,6 +95,23 @@ declare const HTMLRewriter: {
 }
 
 /** CSP base + domínios estritamente necessários para cada ferramenta configurada. */
+/**
+ * Pedido do index.html base para montar a página. Sem cabeçalhos condicionais: se o navegador mandar
+ * If-None-Match (ao atualizar), o ASSETS responderia 304 sem corpo e a página sairia em branco.
+ */
+export function shellRequest(request: Request, url: URL): Request {
+  const headers = new Headers(request.headers)
+  for (const h of ['if-none-match', 'if-modified-since', 'if-match', 'if-unmodified-since', 'if-range', 'range']) headers.delete(h)
+  return new Request(new URL('/', url).toString(), { headers })
+}
+
+/** Cabeçalhos da página montada: sem ETag/Last-Modified/tamanho do arquivo base (o HTML muda por página). */
+export function pageHeaders(shell: Headers): Headers {
+  const headers = new Headers(shell)
+  for (const h of ['etag', 'last-modified', 'content-length', 'content-range', 'accept-ranges']) headers.delete(h)
+  return headers
+}
+
 export function cspFor(base: string, ga4: string | null, pixel: string | null): string {
   if (!ga4 && !pixel) return base
   const add: Record<string, string[]> = { 'script-src': [], 'connect-src': [], 'img-src': [] }
@@ -165,7 +182,8 @@ export default {
 
     const ga4 = validGa4(env.GA4_ID)
     const pixel = validPixel(env.META_PIXEL_ID)
-    const shell = await env.ASSETS.fetch(new Request(new URL('/', url).toString(), { headers: request.headers }))
+    const shell = await env.ASSETS.fetch(shellRequest(request, url))
+    if (!shell.ok) return withHeaders(new Response('Serviço temporariamente indisponível', { status: 503, headers: { 'Retry-After': '30' } }), {})
     const index = indexingAllowed && meta.index
     const html = new HTMLRewriter()
       .on('title', { element: (el) => el.setInnerContent(meta.title) })
@@ -176,7 +194,7 @@ export default {
       .on('head', { element: (el) => el.append([headTags(meta, siteUrl, index), trackingTags(ga4, pixel)].filter(Boolean).join('\n    '), { html: true }) })
       .on('#boot .boot-box', { element: (el) => el.append(shellHtml(meta), { html: true }) })
       .transform(shell)
-    return withHeaders(new Response(html.body, { status: meta.status ?? 200, headers: shell.headers }), {
+    return withHeaders(new Response(html.body, { status: meta.status ?? 200, headers: pageHeaders(shell.headers) }), {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Security-Policy': cspFor(SECURITY_HEADERS['Content-Security-Policy']!, ga4, pixel),
       'Cache-Control': 'public, max-age=0, must-revalidate',

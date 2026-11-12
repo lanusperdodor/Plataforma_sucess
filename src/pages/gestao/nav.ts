@@ -1,6 +1,6 @@
 import {
   BarChart3, Briefcase, ChefHat, Clock, ClipboardList, LayoutDashboard, LayoutGrid, PackageCheck, PiggyBank, Receipt, ReceiptText,
-  Settings, Star, Store, Users, UtensilsCrossed, Wallet, CalendarClock, FileBarChart,
+  Settings, Star, Store, Users, UtensilsCrossed, Wallet, CalendarClock, FileBarChart, Megaphone,
 } from 'lucide-react'
 import type { BusinessPermission } from '../../features/permissions/permissions.ts'
 
@@ -45,6 +45,7 @@ export function gestaoNav(niche: Niche): GestaoNavItem[] {
     { to: 'vendas', label: 'Vendas', icon: BarChart3, permission: 'reports.view' },
     { to: 'gastos', label: 'Controle de gastos', icon: Receipt, permission: 'reports.view', premium: true },
     { to: 'lucro', label: 'Meu lucro', icon: PiggyBank, permission: 'reports.view', premium: true },
+    { to: 'anuncios', label: 'Anúncios', icon: Megaphone, permission: 'store.customize' },
     { to: 'equipe', label: 'Equipe', icon: Users, permission: 'staff.manage' },
     { to: 'relatorios', label: 'Relatórios', icon: FileBarChart, permission: 'reports.view' },
     { to: 'avaliacoes', label: 'Avaliações', icon: Star, permission: 'store.customize' },

@@ -13,6 +13,7 @@ import { DEFAULT_SITE_URL, OG_IMAGE, robotsTxt, sitemapXml, type PageMeta, type 
 import { ldScript } from '../seo/structured'
 import { validGa4, validPixel } from '../features/tracking/config'
 import { SECURITY_HEADERS } from './securityHeaders'
+import { handleHealth } from './health'
 import { handlePayments, type PaymentsEnv } from './payments'
 
 export interface Env extends PaymentsEnv {
@@ -134,6 +135,8 @@ export default {
     const indexingAllowed = env.ALLOW_INDEXING === 'true' && url.host === new URL(siteUrl).host
     const path = url.pathname
 
+    const health = await handleHealth(request, env)
+    if (health) return health
     const api = await handlePayments(request, env, siteUrl)
     if (api) return api
     if (path === '/robots.txt') {

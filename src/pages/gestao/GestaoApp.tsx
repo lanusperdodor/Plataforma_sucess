@@ -20,6 +20,7 @@ import { setActiveContext } from '../../lib/activeContext.ts'
 import { ExpensesTab, ProfitTab } from '../merchant/MerchantFinance.tsx'
 import { HoursTab, MenuTab, STATUS_TEXT, StoreTab } from '../merchant/MerchantPanel.tsx'
 import { JobsTab, OrdersTab, ReviewsTab, SalesTab } from '../merchant/OperationsTabs.tsx'
+import { AdsTab } from './AdsTab.tsx'
 import { CashRegisterTab } from './CashRegisterTab.tsx'
 import { GestaoContext, useGestao, type GestaoCtx } from './context.ts'
 import { CostingPanel } from './CostingPanel.tsx'
@@ -217,6 +218,7 @@ function GestaoRoutes() {
       <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
       <Route path="gastos" element={prem('reports.view', 'Controle de gastos', <ExpensesTab businessId={b.id} />)} />
       <Route path="lucro" element={prem('reports.view', 'Meu lucro', <><ProfitTab businessId={b.id} /><CostingPanel /></>)} />
+      <Route path="anuncios" element={guard('store.customize', <AdsTab />)} />
       <Route path="equipe" element={guard('staff.manage', <TeamTab />)} />
       <Route path="relatorios" element={guard('reports.view', <ReportsTab />)} />
       <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />

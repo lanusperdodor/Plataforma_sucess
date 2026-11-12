@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { getMyName, setMyName } from '../../features/admin/repository.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { MaintenanceSection } from './AdminMaintenance.tsx'
 import { AdminHeader, errorMessage, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
 function MyNameSection() {
@@ -51,6 +52,7 @@ export function AdminSettings() {
   return (
     <div className="flex flex-col gap-6">
       <AdminHeader title="Configurações" subtitle="Ferramentas do Master para operar e testar a plataforma." />
+      <MaintenanceSection />
       <MyNameSection />
       <Panel className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <span className="flex items-center gap-2 text-ink"><ShieldCheck aria-hidden="true" className="size-5" />Verificação em duas etapas e exigência de MFA da equipe</span>

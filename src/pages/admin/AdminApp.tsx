@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bike, Building2, ClipboardList, Gavel, Lock, LayoutDashboard, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
+import { Bike, Building2, Map as MapIcon, Megaphone, ClipboardList, Gavel, Lock, LayoutDashboard, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -24,6 +24,8 @@ import { AdminLogins } from './AdminLogins.tsx'
 import { AdminOrders } from './AdminOrders.tsx'
 import { AdminTeam } from './AdminTeam.tsx'
 import { AdminAccessContext } from './access-context.ts'
+import { AdminAds } from './AdminAds.tsx'
+import { AdminRegions } from './AdminRegions.tsx'
 
 export const ADMIN_ACCESS_KEY = ['admin', 'access'] as const
 
@@ -41,6 +43,8 @@ const NAV: NavItem[] = [
   { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
   { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
   { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
+  { to: '/admin/regioes', label: 'Regiões', icon: MapIcon, permission: 'master' },
+  { to: '/admin/anuncios', label: 'Anúncios', icon: Megaphone, permission: 'master' },
   { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, permission: 'finance.view' },
   { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard, permission: 'finance.view' },
   { to: '/admin/logins', label: 'Logins', icon: KeyRound, permission: 'users.view' },
@@ -182,6 +186,8 @@ export function AdminApp() {
           <Route path="auditoria" element={<Guard access={data} item={item('/admin/auditoria')}><AdminAudit /></Guard>} />
           <Route path="privacidade" element={<Guard access={data} item={item('/admin/privacidade')}><AdminPrivacy /></Guard>} />
           <Route path="moderacao" element={<Guard access={data} item={item('/admin/moderacao')}><AdminModeration /></Guard>} />
+          <Route path="regioes" element={<Guard access={data} item={item('/admin/regioes')}><AdminRegions /></Guard>} />
+          <Route path="anuncios" element={<Guard access={data} item={item('/admin/anuncios')}><AdminAds /></Guard>} />
           <Route path="financeiro" element={<Guard access={data} item={item('/admin/financeiro')}><AdminFinance /></Guard>} />
           <Route path="pedidos" element={<Guard access={data} item={item('/admin/pedidos')}><AdminOrders /></Guard>} />
           <Route path="logins" element={<Guard access={data} item={item('/admin/logins')}><AdminLogins /></Guard>} />

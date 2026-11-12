@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { businessHref } from '../../components/cards/BusinessCard.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { Dialog } from '../../components/overlays/Dialog.tsx'
+import { canInBusiness } from '../../features/permissions/permissions.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import {
   REPORT_REASONS,
@@ -230,8 +231,8 @@ function SharedPreview({ post }: { post: Omit<Post, 'shared'> }) {
   )
 }
 
-export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: boolean }) {
-  const { session } = useAuth()
+export function PostCard({ post, startOpen = false, sponsored = false }: { post: Post; startOpen?: boolean; sponsored?: boolean }) {
+  const { session, authz } = useAuth()
   const me = session?.user.id ?? null
   const toast = useToast()
   const refresh = useConectaRefresh()
@@ -289,7 +290,7 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
             {!post.business && post.author && <span>@{post.author.handle}</span>}
             <Link to={`/conectuai/${post.id}`} className="hover:underline">{relative(post.createdAt)}</Link>
             {post.editedAt && <span>· editado</span>}
-            {post.isSponsored && <span className="inline-flex items-center gap-0.5 font-semibold text-warm"><Rocket aria-hidden="true" className="size-3" />Patrocinado</span>}
+            {(post.isSponsored || sponsored) && <span className="inline-flex items-center gap-0.5 font-semibold text-warm"><Rocket aria-hidden="true" className="size-3" />Patrocinado</span>}
           </p>
         </div>
         {me && (
@@ -306,6 +307,9 @@ export function PostCard({ post, startOpen = false }: { post: Post; startOpen?: 
                       <Trash2 aria-hidden="true" className="size-4" />Excluir
                     </button>
                   </li>
+                )}
+                {post.business && !post.hidden && canInBusiness(authz, 'store.customize', post.business.id) && (
+                  <li><Link to={`/painel/${post.business.id}/anuncios?post=${post.id}`} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-ink hover:bg-muted"><Rocket aria-hidden="true" className="size-4" />Turbinar publicação</Link></li>
                 )}
                 {!mine && <li><button type="button" onClick={() => setReporting(true)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-ink hover:bg-muted"><Flag aria-hidden="true" className="size-4" />Denunciar</button></li>}
                 {!mine && (

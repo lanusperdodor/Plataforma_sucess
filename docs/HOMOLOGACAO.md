@@ -202,3 +202,8 @@ O que já existia e funciona:
 | MFA administrativo | **Desligado**; ativar antes do piloto |
 | Suporte | Contato por WhatsApp; troca de senha e usuário pela aba Logins; sem chamados |
 | Evidência na interface no ambiente publicado | **Pendente** (roteiro pronto) |
+
+## Tucaí Gestão, cobertura nacional, anúncios e manutenção (pendente de aplicação)
+
+Ver `docs/EXPANSAO_ANUNCIOS_MANUTENCAO.md` (ordem de aplicação, regras e testes) e `docs/RASTREAMENTO.md`
+(arquitetura do rastreamento — só documentação). Suítes locais: 24 SQL + 415 testes de interface passando.

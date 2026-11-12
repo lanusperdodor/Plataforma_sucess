@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, FlaskConical, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
+import { CityCombobox } from '../../components/forms/CityCombobox.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { createTestData, listCities, listTestData, removeAllTestData, removeTestData, type CreatedTestData } from '../../features/admin/repository.ts'
 import { dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
@@ -108,11 +109,7 @@ export function TestDataSection() {
             }}
           >
             <div className="min-w-56 flex-1">
-              <label htmlFor="td-city" className="mb-1 block text-sm font-medium text-ink">Cidade</label>
-              <select id="td-city" value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
-                <option value="">{cities.isLoading ? 'Carregando…' : 'Escolha a cidade'}</option>
-                {active.map((c) => <option key={c.id} value={c.id}>{c.name} - {c.state}</option>)}
-              </select>
+              <CityCombobox id="td-city" label="Cidade" cities={active} value={cityId} onChange={setCityId} loading={cities.isLoading} />
             </div>
             <button type="submit" disabled={!cityId || create.isPending} className={primaryButton}>
               <FlaskConical aria-hidden="true" className="size-4" />{create.isPending ? 'Criando…' : 'Criar dados de teste'}

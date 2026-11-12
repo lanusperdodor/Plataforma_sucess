@@ -12,6 +12,7 @@ export type PresenterMedia =
   | { kind: 'image'; src: string; srcSet?: string }
   | { kind: 'gif'; src: string; staticSrc: string; hasBakedBubble?: boolean }
   | { kind: 'video'; src: string; poster: string; hasBakedBubble?: boolean; width?: number; height?: number }
+  | { kind: 'animation'; src: string; poster: string; hasBakedBubble?: boolean }
 
 /** PNG estático (movimento reduzido e fallback). */
 export const STATIC_PRESENTER: PresenterMedia = {
@@ -20,7 +21,14 @@ export const STATIC_PRESENTER: PresenterMedia = {
   srcSet: ` 600w,  1217w`,
 }
 
-export const DEFAULT_PRESENTER: PresenterMedia = BRAND.assets.presenterVideo.enabled
+export const DEFAULT_PRESENTER: PresenterMedia = BRAND.assets.presenterAnimation.enabled
+  ? {
+      kind: 'animation',
+      src: BRAND.assets.presenterAnimation.src,
+      poster: BRAND.assets.presenterAnimation.poster,
+      hasBakedBubble: BRAND.assets.presenterAnimation.hasBakedBubble,
+    }
+  : BRAND.assets.presenterVideo.enabled
   ? {
       kind: 'video',
       src: BRAND.assets.presenterVideo.src,
@@ -166,8 +174,56 @@ function PresenterVideo({ media }: { media: Extract<PresenterMedia, { kind: 'vid
     </div>
   )
 }
+/**
+ * Animação já recortada (WebP com transparência): começa no quadro parado e troca para a animação
+ * depois que a página carrega e o arquivo termina de baixar. Pausar volta ao quadro parado.
+ */
+function PresenterAnimation({ media }: { media: Extract<PresenterMedia, { kind: 'animation' }> }) {
+  const [ready, setReady] = useState(false)
+  const [playing, setPlaying] = useState(true)
+  useEffect(() => {
+    let cancelled = false
+    const start = () => {
+      const img = new Image()
+      img.onload = () => { if (!cancelled) setReady(true) }
+      img.src = media.src
+    }
+    const idle = (cb: () => void) => {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(cb, { timeout: 2000 })
+      else globalThis.setTimeout(cb, 300)
+    }
+    if (document.readyState === 'complete') idle(start)
+    else window.addEventListener('load', () => idle(start), { once: true })
+    return () => { cancelled = true }
+  }, [media.src])
+  const animating = ready && playing
+  return (
+    <div className="relative">
+      <img
+        src={animating ? media.src : media.poster}
+        width={640}
+        height={360}
+        alt={ALT}
+        data-testid="tuca-animation"
+        draggable={false}
+        decoding="async"
+        className="block aspect-video h-auto w-full select-none"
+      />
+      <button
+        type="button"
+        onClick={() => setPlaying((p) => !p)}
+        aria-label={playing ? 'Pausar animação do Tuca' : 'Reproduzir animação do Tuca'}
+        className="pressable absolute bottom-1 right-1 inline-flex size-11 items-center justify-center rounded-full bg-surface/90 text-ink shadow-[var(--shadow-card)]"
+      >
+        {playing ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
+      </button>
+    </div>
+  )
+}
+
 function Media({ media }: { media: PresenterMedia }) {
   const common = { width: WIDTH, height: HEIGHT, className: MEDIA_CLASS, draggable: false }
+  if (media.kind === 'animation') return <PresenterAnimation media={media} />
   if (media.kind === 'video') return <PresenterVideo media={media} />
   if (media.kind === 'gif') {
     return (
@@ -198,7 +254,7 @@ export interface TucaPresenterProps {
 /** Um único Tuca de corpo inteiro com balão de apresentação acima dele. */
 export function TucaPresenter({ media: requested = DEFAULT_PRESENTER, className = '' }: TucaPresenterProps) {
   const reduced = usePrefersReducedMotion()
-  const media: PresenterMedia = reduced && requested.kind === 'video' ? STATIC_PRESENTER : requested
+  const media: PresenterMedia = reduced && (requested.kind === 'video' || requested.kind === 'animation') ? STATIC_PRESENTER : requested
   const baked = media.kind !== 'image' && media.hasBakedBubble === true
   // Vídeo/GIF não flutuam via CSS: a própria animação já tem movimento.
   const float = media.kind === 'image' ? 'tuca-float' : ''
@@ -223,7 +279,7 @@ export function TucaPresenter({ media: requested = DEFAULT_PRESENTER, className 
           <Media media={media} />
         </div>
         {/* sombra no chão: mantém os pés "apoiados" */}
-        <span aria-hidden="true" className={`block h-2 rounded-full bg-ink/10 blur-[3px] ${media.kind === 'image' ? 'mx-auto -mt-1 w-1/2' : '-mt-3 ml-[60%] w-[25%]'}`} />
+        <span aria-hidden="true" className={`block h-2 rounded-full bg-black/15 blur-[3px] ${media.kind === 'image' ? 'mx-auto -mt-1 w-1/2' : '-mt-3 ml-[60%] w-[25%]'}`} />
       </div>
     </figure>
   )

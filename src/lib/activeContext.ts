@@ -21,11 +21,13 @@ function subscribe(l: () => void) { listeners.add(l); return () => listeners.del
 
 /**
  * Perfis que a conta realmente tem. Lojista/empresário (dono ou equipe de um estabelecimento) usa só o
- * perfil empresarial: não tem perfil de cliente. Os demais sempre têm o de cliente.
+ * perfil empresarial e a equipe da plataforma (Master/operador) só o painel: nenhum dos dois tem perfil de
+ * cliente (sem aba "Pedidos" de compras). Os demais sempre têm o de cliente.
  */
 export function availableContexts(authz: AuthContext | null | undefined): ActiveContext[] {
   const business = (authz?.memberships.length ?? 0) > 0
-  const out: ActiveContext[] = business ? [] : [{ kind: 'cliente' }]
+  const staff = !!authz?.roles.some((r) => r === 'platform_master' || r === 'platform_operator')
+  const out: ActiveContext[] = business || staff ? [] : [{ kind: 'cliente' }]
   for (const m of authz?.memberships ?? []) out.push({ kind: 'loja', businessId: m.businessId })
   if (authz?.roles.includes('courier_partner')) out.push({ kind: 'entregador' })
   if (authz?.roles.includes('platform_master') || authz?.roles.includes('platform_operator')) out.push({ kind: 'master' })

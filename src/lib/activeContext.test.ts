@@ -16,3 +16,21 @@ describe('perfil ativo', () => {
     expect(resolveContext('entregador', ctx(['customer']))).toEqual({ kind: 'cliente' })
   })
 })
+
+import { destinationsFor } from '../components/shell/destinations.ts'
+import { availableContexts as ctxs, resolveContext as resolve } from './activeContext.ts'
+
+describe('aba Pedidos por perfil', () => {
+  const ids = (authz: Parameters<typeof ctxs>[0]) => destinationsFor(resolve('cliente', authz)).map((d) => d.label)
+  it('Master e operador: sem perfil de cliente e sem aba Pedidos', () => {
+    const master = { userId: 'm', roles: ['customer', 'platform_master'] as const, memberships: [] }
+    expect(ctxs(master).map((c) => c.kind)).toEqual(['master'])
+    expect(ids(master)).not.toContain('Pedidos')
+    expect(ids({ userId: 'o', roles: ['platform_operator'], memberships: [] })).not.toContain('Pedidos')
+  })
+  it('cliente, empresário e entregador continuam com seus pedidos/entregas', () => {
+    expect(ids({ userId: 'c', roles: ['customer'], memberships: [] })).toContain('Pedidos')
+    expect(ids({ userId: 'l', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'owner' }] })).toContain('Pedidos')
+    expect(destinationsFor(resolve('entregador', { userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).map((d) => d.label)).toContain('Entregas')
+  })
+})

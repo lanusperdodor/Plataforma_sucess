@@ -40,13 +40,16 @@ describe('Menu de conta', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Entregador/ }))
     expect(localStorage.getItem('tucai:perfil')).toBe('entregador')
   })
-  it('no Painel Master não há "Meus pedidos"', async () => {
+  it('Master não tem perfil de cliente: sem "Meus pedidos" no painel nem no site', async () => {
     h.session = { user: { id: 'm', email: 'admin@tucai.example.com' } }
     h.authz = { userId: 'm', roles: ['customer', 'platform_master'], memberships: [] }
-    render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><AccountMenu context="admin" /></MemoryRouter></QueryClientProvider>)
-    fireEvent.click(await screen.findByRole('button', { name: /Conta de/ }))
-    expect(screen.queryByRole('menuitem', { name: /Meus pedidos/ })).toBeNull()
-    expect(screen.getByRole('menuitemradio', { name: /Painel Master/ })).toHaveAttribute('aria-checked', 'true')
+    for (const context of ['admin', 'site'] as const) {
+      render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><AccountMenu context={context} /></MemoryRouter></QueryClientProvider>)
+      fireEvent.click(await screen.findByRole('button', { name: /Conta de/ }))
+      expect(screen.queryByRole('menuitem', { name: /Meus pedidos/ })).toBeNull()
+      expect(screen.queryByRole('menuitemradio', { name: /Cliente/ })).toBeNull()
+      cleanup()
+    }
   })
   it('sem sessão: Entrar / Criar conta', () => {
     show()

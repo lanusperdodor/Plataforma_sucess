@@ -93,9 +93,10 @@ export function TestDataSection() {
       <h2 id="dados-teste" className="flex items-center gap-2 text-lg font-bold text-ink"><FlaskConical aria-hidden="true" className="size-5" />Dados de teste</h2>
       <Panel className="flex flex-col gap-3 text-sm">
         <p className="text-ink">
-          Cria na cidade escolhida as contas de homologação dos perfis: <strong>dono do restaurante, funcionário, cozinha, lojista, prestador de serviços,
-          2 entregadores independentes, 2 clientes e operador administrativo</strong> (o Master é você), com restaurante, loja e serviço de teste.
-          Se a cidade já tiver um lote, só cria os perfis que faltam.
+          Cria na cidade escolhida as <strong>sete contas operacionais</strong> de homologação: <strong>Empresário 1 — Lanchonete</strong>,{' '}
+          <strong>Empresário 2 — Supermercado</strong>, <strong>Funcionário — Lanchonete</strong> (atendimento e cozinha),{' '}
+          <strong>Entregador 1 — Independente</strong>, <strong>Entregador 2 — Próprio do supermercado</strong>, <strong>Cliente 1</strong> e <strong>Cliente 2</strong>.
+          O Master é você. Se a cidade já tiver um lote neste formato, só cria as contas que faltam.
         </p>
         <p className="text-ink-muted">Tudo fica marcado como teste, isolado dos clientes, lojas e entregadores reais, fora do financeiro, e pode ser removido aqui.</p>
         {cities.isError ? (

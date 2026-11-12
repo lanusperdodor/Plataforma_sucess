@@ -21,7 +21,7 @@ describe('Menu de conta', () => {
     h.authz = { userId: 'u1', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'attendant' }] }
     show()
     expect(await screen.findByText('Carla')).toBeInTheDocument()
-    expect(screen.getByText('Mercadinho Teste — Operador')).toBeInTheDocument()
+    expect(screen.getByText('Mercadinho Teste — Funcionário')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Conta de Carla/ }))
     // lojista/equipe da loja só tem o perfil empresarial: sem "Cliente" e sem "Meus pedidos"
     expect(screen.queryByRole('menuitemradio', { name: /Cliente/ })).toBeNull()

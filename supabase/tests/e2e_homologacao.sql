@@ -48,22 +48,24 @@ begin
   insert into public.couriers(user_id, full_name, phone, city_id, vehicle, status, is_online, terms_version, terms_accepted_at)
   values (kr, 'Entregador Real', '35999990009', city, 'bicicleta', 'approved', true, 't1', now());
 
-  -- ---------- contas de homologação: 9 perfis, sem duplicar ----------
+  -- ---------- contas de homologação: sete perfis operacionais, sem duplicar ----------
   perform tste.login(m);
   res := public.admin_create_test_data(city);
-  perform tste.ok(jsonb_array_length(res->'logins') = 10 and res->>'password' is not null and not (res->>'reused')::boolean, 'cria as 10 contas (9 perfis + 2º entregador)');
+  perform tste.ok(jsonb_array_length(res->'logins') = 7 and res->>'password' is not null and not (res->>'reused')::boolean, 'cria as 7 contas operacionais');
   res2 := public.admin_create_test_data(city);
   perform tste.ok((res2->>'reused')::boolean and jsonb_array_length(res2->'logins') = 0 and res2->>'password' is null, 'segunda chamada reaproveita o lote sem duplicar');
   perform tste.su();
-  dono := tste.uid('restaurante'); func := tste.uid('funcionario'); coz := tste.uid('cozinha'); lojista := tste.uid('lojista');
-  prest := tste.uid('prestador'); k1 := tste.uid('entregador'); k2 := tste.uid('entregador2'); c1 := tste.uid('cliente1'); c2 := tste.uid('cliente2');
-  op := tste.uid('operador');
-  perform tste.ok(dono is not null and func is not null and coz is not null and lojista is not null and prest is not null
-                  and k1 is not null and k2 is not null and c1 is not null and c2 is not null and op is not null, 'todas as contas existem no Auth');
-  perform tste.ok((select count(*) from auth.users where encrypted_password = extensions.crypt(res->>'password', encrypted_password) and email like '%@teste.example.com') = 10,
+  dono := tste.uid('empresario1'); func := tste.uid('funcionario'); lojista := tste.uid('empresario2'); prest := tste.uid('entregador2');
+  k1 := tste.uid('entregador'); c1 := tste.uid('cliente1'); c2 := tste.uid('cliente2');
+  perform tste.ok(dono is not null and func is not null and lojista is not null and prest is not null
+                  and k1 is not null and c1 is not null and c2 is not null, 'as sete contas existem no Auth');
+  -- contas extras só do teste: 2º entregador independente (concorrência), cozinha (papel legado) e operador administrativo
+  k2 := tfx.partner_courier(city); op := tfx.operator(city);
+  perform tste.ok((select count(*) from auth.users where encrypted_password = extensions.crypt(res->>'password', encrypted_password) and email like '%@teste.example.com') = 7,
                   'senha das contas é a informada uma única vez');
   select id into brest from public.businesses where owner_id = dono;
-  perform tste.ok((select is_test from public.businesses where id = brest) and (select count(*) from public.businesses where is_test) = 3, 'restaurante, loja e prestador marcados como teste');
+  coz := tfx.kitchen(brest);
+  perform tste.ok((select is_test from public.businesses where id = brest) and (select count(*) from public.businesses where is_test) = 2, 'lanchonete e supermercado marcados como teste');
   perform tste.ok((select member_role from public.business_members where business_id = brest and user_id = func) = 'attendant'
                   and (select member_role from public.business_members where business_id = brest and user_id = coz) = 'kitchen', 'funcionário e cozinha vinculados');
   select id::text into burger from public.products where business_id = brest and name = 'X-Burger';
@@ -182,7 +184,7 @@ begin
   perform tste.ok(tste.count($q$select 1 from public.admin_list_orders('concluidos')$q$) = 1, 'Master lista o pedido concluído');
   detail := public.admin_order_detail(o1);
   perform tste.ok(jsonb_array_length(detail->'events') >= 7 and detail->'delivery'->>'status' = 'delivered'
-                  and detail->'delivery'->'courier'->>'name' = 'Entregador Teste' and (detail->>'is_test')::boolean, 'detalhe com eventos, entrega e entregador');
+                  and detail->'delivery'->'courier'->>'name' = 'Entregador 1 — Independente' and (detail->>'is_test')::boolean, 'detalhe com eventos, entrega e entregador');
   perform tste.ok((select string_agg(e->>'actor', ',' order by ord) from jsonb_array_elements(detail->'events') with ordinality t(e, ord))
                   = 'cliente,estabelecimento,estabelecimento,estabelecimento,entregador,entregador,entregador', 'quem fez cada passo');
   perform tste.step(14, 'Master vê histórico');
@@ -291,8 +293,8 @@ end $$;
 -- ======================= Mercadinho (entrega própria), retirada e casos extras =======================
 do $$
 declare
-  c1 uuid := tste.uid('cliente1'); lojista uuid := tste.uid('lojista'); dono uuid := tste.uid('restaurante');
-  k1 uuid := tste.uid('entregador'); k2 uuid := tste.uid('entregador2'); m uuid;
+  c1 uuid := tste.uid('cliente1'); lojista uuid := tste.uid('empresario2'); dono uuid := tste.uid('empresario1');
+  k1 uuid := tste.uid('entregador'); k2 uuid := tste.uid('parceiro2'); m uuid;
   bl uuid; br uuid; cafe text; arroz text; refri text; salada text; o uuid; o2 uuid; o3 uuid;
 begin
   perform tste.su();
@@ -304,8 +306,7 @@ begin
   select id::text into refri from public.products where business_id = br and name = 'Refrigerante lata';
   select id::text into salada from public.products where business_id = br and name = 'X-Salada';
 
-  -- entrega própria: o lojista configura o Mercadinho para entregar com a própria equipe (na homologação ele usa parceiro)
-  update public.businesses set delivery_offer = 'own' where id = bl;
+  -- entrega própria: o Supermercado de homologação já entrega com a própria equipe
   perform tste.login(c1);
   o := public.place_order(bl, jsonb_build_array(jsonb_build_object('product_id', cafe, 'quantity', 2)), 'delivery_own', 'cash',
                           'Cliente Teste Um', '35999990000', 'Rua das Flores, 100, Centro', null, null, null, 'e2e-merc-0001');

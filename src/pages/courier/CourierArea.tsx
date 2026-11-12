@@ -23,7 +23,8 @@ import {
   setOnline,
   type CourierDelivery,
 } from '../../features/courier/repository.ts'
-import { PAYMENT_LABEL } from '../../features/orders/repository.ts'
+import { PAYMENT_LABEL, STATUS_LABEL } from '../../features/orders/repository.ts'
+import { ownDeliveries, ownDeliveryStatus, type OwnDelivery } from '../../features/courier/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 
@@ -145,8 +146,64 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
   )
 }
 
+/** Entregador próprio: só as entregas que o comércio atribuiu a ele (não recebe ofertas da rede independente). */
+function OwnCard({ d }: { d: OwnDelivery }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const step = useMutation({
+    mutationFn: (s: 'out_for_delivery' | 'delivered') => ownDeliveryStatus(d.orderId, s),
+    onSuccess: (_v, s) => { toast.success(s === 'delivered' ? 'Entrega concluída!' : 'Saída registrada. O cliente foi avisado.'); void qc.invalidateQueries({ queryKey: ['courier', 'own'] }) },
+    onError: (e) => toast.error(msg(e)),
+  })
+  const tel = phoneDigits(d.customerPhone)
+  const bizTel = phoneDigits(d.businessPhone)
+  return (
+    <li className={`${box} flex flex-col gap-2`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold text-ink">#{d.code} · {d.businessName}</p>
+        <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-ink">{STATUS_LABEL[d.status as keyof typeof STATUS_LABEL] ?? d.status}</span>
+      </div>
+      {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: <a href={mapsHref(d.businessAddress)} target="_blank" rel="noopener noreferrer" className="underline">{d.businessAddress}</a></p>}
+      <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? <>: <a href={mapsHref(d.address)} target="_blank" rel="noopener noreferrer" className="underline">{d.address}</a></> : null}{d.reference ? ` (${d.reference})` : ''}</p>
+      <p className="text-sm text-ink-muted">{PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · troco para ${formatBRL(d.changeForCents)}` : ''}</p>
+      <div className="flex flex-wrap gap-2">
+        {d.status === 'ready' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('out_for_delivery')} className={primary}>Saí para entrega</button>}
+        {d.status === 'out_for_delivery' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('delivered')} className={primary}>Confirmar entrega</button>}
+        {(d.status === 'accepted' || d.status === 'preparing') && <p className="text-sm text-ink-muted">A loja está preparando. A saída é liberada quando o pedido ficar pronto.</p>}
+        {tel && <a href={`tel:${tel}`} className="pressable inline-flex min-h-11 items-center gap-1 rounded-full border border-line px-4 text-sm font-semibold text-ink"><Phone aria-hidden="true" className="size-4" />Cliente</a>}
+        {bizTel && <a href={`tel:${bizTel}`} className="pressable inline-flex min-h-11 items-center gap-1 rounded-full border border-line px-4 text-sm font-semibold text-ink"><Phone aria-hidden="true" className="size-4" />Loja</a>}
+      </div>
+    </li>
+  )
+}
+
+export function OwnDeliveriesPanel() {
+  const active = useQuery({ queryKey: ['courier', 'own', 'active'], queryFn: () => ownDeliveries(true), refetchInterval: 20_000 })
+  const history = useQuery({ queryKey: ['courier', 'own', 'history'], queryFn: () => ownDeliveries(false) })
+  return (
+    <section aria-labelledby="own-deliveries" className="flex flex-col gap-3">
+      <h2 id="own-deliveries" className="text-lg font-semibold text-ink">Entregas da loja</h2>
+      <p className="text-sm text-ink-muted">Você é entregador próprio: aparecem aqui só as entregas que o estabelecimento atribuir a você.</p>
+      {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : (active.data ?? []).length === 0 ? (
+        <EmptyState icon={Truck} title={active.isLoading ? 'Carregando…' : 'Nenhuma entrega atribuída agora'} description="Quando a loja atribuir um pedido a você, ele aparece aqui e você recebe um aviso." />
+      ) : (
+        <ul className="flex flex-col gap-2">{active.data!.map((d) => <OwnCard key={d.orderId} d={d} />)}</ul>
+      )}
+      {(history.data ?? []).length > 0 && (
+        <div>
+          <h3 className="mb-1 text-base font-semibold text-ink">Histórico</h3>
+          <ul className="divide-y divide-line text-sm">
+            {history.data!.map((d) => <li key={d.orderId} className="flex justify-between gap-2 py-2"><span>#{d.code} · {d.businessName}</span><span className="text-ink-muted">{STATUS_LABEL[d.status as keyof typeof STATUS_LABEL] ?? d.status}</span></li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function CourierArea() {
-  const { session } = useAuth()
+  const { session, authz } = useAuth()
+  const ownCourier = !!authz?.memberships.some((m) => m.role === 'courier_own')
   const userId = session?.user.id
   const qc = useQueryClient()
   const toast = useToast()
@@ -191,6 +248,14 @@ export function CourierArea() {
   if (q.isLoading) return <Page><p role="status" className="text-sm text-ink-muted">Carregando…</p></Page>
   if (q.isError) return <Page><ErrorState error={q.error} onRetry={() => void q.refetch()} /></Page>
   const c = q.data
+  if ((!c || c.status !== 'approved') && ownCourier) {
+    return (
+      <Page>
+        <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
+        <OwnDeliveriesPanel />
+      </Page>
+    )
+  }
   if (!c || c.status !== 'approved') {
     return (
       <Page>
@@ -203,6 +268,7 @@ export function CourierArea() {
   return (
     <Page>
       <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${VEHICLE_LABEL[c.vehicle]}${c.plate ? ` · ${c.plate}` : ''}`} />
+      {ownCourier && <OwnDeliveriesPanel />}
       <section aria-labelledby="disp" className={`${box} flex flex-col items-start gap-3`}>
         <h2 id="disp" className="text-lg font-semibold text-ink">Disponibilidade</h2>
         <p className={`inline-flex items-center gap-2 text-sm font-semibold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>

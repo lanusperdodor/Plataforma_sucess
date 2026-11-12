@@ -44,6 +44,7 @@ import {
 import { formatBRL } from '../../lib/money.ts'
 import { useSearchParams } from 'react-router-dom'
 import { getMyPlan } from '../../features/merchant/repository.ts'
+import { assignOwnCourier, currentOwnCourier, listOwnCouriers } from '../../features/courier/repository.ts'
 import { createPaymentLink } from '../../features/payments/repository.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 import { dateTime } from '../OrdersPage.tsx'
@@ -63,6 +64,30 @@ const DELIVERY_TEXT = { offered: 'Procurando entregador', accepted: 'Entregador 
 // ---------- Pedidos ----------
 const PREP_OPTIONS = [10, 15, 20, 30, 45, 60]
 const KITCHEN_STEPS: OrderStatus[] = ['preparing', 'ready']
+
+/** Entrega própria: atribui o pedido a um entregador próprio da equipe (ele vê só o que for atribuído). */
+function OwnCourierPicker({ businessId, orderId }: { businessId: string; orderId: string }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const couriers = useQuery({ queryKey: ['merchant', 'own-couriers', businessId], queryFn: () => listOwnCouriers(businessId), staleTime: 60_000, retry: false })
+  const current = useQuery({ queryKey: ['merchant', 'own-courier-of', orderId], queryFn: () => currentOwnCourier(orderId), retry: false })
+  const assign = useMutation({
+    mutationFn: (id: string | null) => assignOwnCourier(orderId, id),
+    onSuccess: (_v, id) => { toast.success(id ? 'Entregador próprio avisado.' : 'Entregador retirado.'); void qc.invalidateQueries({ queryKey: ['merchant', 'own-courier-of', orderId] }) },
+    onError: (e) => toast.error(msg(e)),
+  })
+  if (couriers.isError || current.isError || !couriers.data) return null
+  if (couriers.data.length === 0) return <p className="text-xs text-ink-muted">Sem entregador próprio na equipe. Convide em Equipe com o cargo “Entregador próprio”.</p>
+  return (
+    <label className="inline-flex flex-wrap items-center gap-2 text-sm text-ink">
+      Entregador próprio
+      <select value={current.data ?? ''} disabled={assign.isPending} onChange={(e) => assign.mutate(e.target.value || null)} className="min-h-11 rounded-xl border border-line bg-surface px-2 text-sm">
+        <option value="">Sem entregador</option>
+        {couriers.data.map((c) => <option key={c.userId} value={c.userId}>{c.name}</option>)}
+      </select>
+    </label>
+  )
+}
 
 export function OrdersTab({ businessId, canUpdate, kitchen = false }: { businessId: string; canUpdate: boolean; kitchen?: boolean }) {
   const qc = useQueryClient()
@@ -135,8 +160,9 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false }: { business
                   </p>
                 )}
                 {o.fulfillment === 'delivery_own' && (o.status === 'ready' || o.status === 'out_for_delivery') && (
-                  <p className="text-sm text-ink-muted">Entrega própria: a sua equipe leva o pedido (não vai para entregador parceiro). Use “Saiu para entrega” e depois “Marcar entregue”.</p>
+                  <p className="text-sm text-ink-muted">Entrega própria: a sua equipe leva o pedido (não vai para entregador parceiro). Atribua um entregador próprio ou use “Saiu para entrega” e depois “Marcar entregue”.</p>
                 )}
+                {canUpdate && o.fulfillment === 'delivery_own' && ['accepted', 'preparing', 'ready'].includes(o.status) && <OwnCourierPicker businessId={businessId} orderId={o.id} />}
                 {d?.attention && <p role="status" className="rounded-xl bg-orange/15 p-2 text-sm font-semibold text-ink">Atenção: {d.attention}. A equipe Tucaí foi avisada.</p>}
                 {o.rejectionReason && <p className="text-sm text-ink-muted">Motivo: {o.rejectionReason}</p>}
                 <p className="text-sm">

@@ -82,6 +82,7 @@ async function main() {
       ...one('supabase/tests/supabase_default_privileges.sql'),
       ...sqlFiles('supabase/migrations'),
       ...sqlFiles('supabase/seed'),
+      ...one('supabase/tests/_fixtures.sql'),
       ...one('supabase/tests/rls_foundation.sql'),
       ...one('supabase/tests/rls_experiencia.sql'),
       ...one('supabase/tests/rls_admin.sql'),
@@ -107,6 +108,7 @@ async function main() {
       ...one('supabase/tests/rls_publicidade.sql'),
       ...one('supabase/tests/rls_manutencao.sql'),
       ...one('supabase/tests/rls_excluir_teste.sql'),
+      ...one('supabase/tests/rls_perfis.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

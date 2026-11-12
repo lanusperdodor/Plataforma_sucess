@@ -43,7 +43,7 @@ begin
   perform public.admin_create_test_data(cb);
   perform tsxt.su();
   select array_agg(u) into test_users from private.test_data_runs r, unnest(r.user_ids) u where r.removed_at is null;
-  loj := tsxt.uid('lojista'); c1 := tsxt.uid('cliente1');
+  loj := tsxt.uid('empresario1'); c1 := tsxt.uid('cliente1');
   select id into bm from public.businesses where owner_id = loj limit 1;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
   -- movimento de teste: pedido, comanda, caixa e cobrança
@@ -56,7 +56,7 @@ begin
   perform tsxt.login(m);
   perform public.admin_create_charge(bm, 'Mensalidade teste', 7900, current_date + 5);
   perform tsxt.su();
-  perform tsxt.ok((select count(*) from public.businesses where is_test) >= 6, 'dois lotes com estabelecimentos de teste');
+  perform tsxt.ok((select count(*) from public.businesses where is_test) >= 4, 'dois lotes com estabelecimentos de teste');
 
   -- só Master, com confirmação
   perform tsxt.login(op, 'aal2');
@@ -66,7 +66,7 @@ begin
   perform tsxt.login(m);
   perform tsxt.denied($q$select public.admin_remove_all_test_data('sim')$q$, 'sem digitar EXCLUIR', array['P0001']);
   res := public.admin_remove_all_test_data('excluir');
-  perform tsxt.ok((res->>'lotes')::int = 2 and (res->>'pedidos')::int >= 1 and (res->>'estabelecimentos')::int >= 6, 'contagens: ' || res::text);
+  perform tsxt.ok((res->>'lotes')::int = 2 and (res->>'pedidos')::int >= 1 and (res->>'estabelecimentos')::int >= 4, 'contagens: ' || res::text);
 
   perform tsxt.su();
   perform tsxt.ok(not exists (select 1 from private.test_data_runs where removed_at is null), 'nenhum lote ativo');

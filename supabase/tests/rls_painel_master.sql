@@ -34,23 +34,23 @@ begin
   perform tspm.login(m);
   res := public.admin_create_test_data(city);
   perform tspm.su();
-  perform tspm.ok((select count(*) from public.businesses where is_test and name like '[Teste]% · lote %') = 3, 'estabelecimentos de teste com código do lote');
+  perform tspm.ok((select count(*) from public.businesses where is_test and name like '[Teste]% · lote %') = 2, 'estabelecimentos de teste com código do lote');
   select id into tcli from auth.users where email like 'cliente1-%@teste.example.com';
   select id into tk from auth.users where email like 'entregador-%@teste.example.com';
 
   -- entregadores: aprovados aparecem em "todos" (antes a tela abria só com pendentes)
   perform tspm.login(op);
-  perform tspm.ok(tspm.count($q$select 1 from public.admin_couriers_page('todos') where status = 'approved' and is_test$q$) = 2, 'entregadores de teste aparecem');
+  perform tspm.ok(tspm.count($q$select 1 from public.admin_couriers_page('todos') where status = 'approved' and is_test$q$) = 1, 'entregador independente de teste aparece (o próprio não entra na rede)');
   perform tspm.ok(tspm.count($q$select 1 from public.admin_couriers_page('pending')$q$) = 0, 'filtro pendentes não traz aprovados');
-  perform tspm.ok(tspm.count($q$select 1 from public.admin_couriers_page('todos', 'dois')$q$) = 1, 'busca por nome');
+  perform tspm.ok(tspm.count($q$select 1 from public.admin_couriers_page('todos', 'independente')$q$) = 1, 'busca por nome');
   perform tspm.ok(tspm.count(format('select 1 from public.admin_courier_history(%L)', tk)) = 0, 'histórico sem entregas');
   perform tspm.login(cli);
   perform tspm.denied($q$select * from public.admin_couriers_page()$q$, 'cliente lista entregadores');
 
   -- estabelecimentos em cards
   perform tspm.login(m);
-  perform tspm.ok(tspm.count(format($q$select 1 from public.admin_businesses_page(null, null, %L)$q$, city)) = 3, 'filtro por cidade');
-  perform tspm.ok(tspm.count(format($q$select 1 from public.admin_businesses_page(null, 'mercadinho', %L, null, 'loja')$q$, city)) = 1, 'busca + tipo');
+  perform tspm.ok(tspm.count(format($q$select 1 from public.admin_businesses_page(null, null, %L)$q$, city)) = 2, 'filtro por cidade');
+  perform tspm.ok(tspm.count(format($q$select 1 from public.admin_businesses_page(null, 'supermercado', %L, null, 'loja')$q$, city)) = 1, 'busca + tipo');
   perform tspm.login(op);
   perform tspm.denied($q$select * from public.admin_businesses_page()$q$, 'operador sem businesses.review');
 

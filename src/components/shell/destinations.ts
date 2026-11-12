@@ -43,8 +43,8 @@ export function audienceOf(signedIn: boolean, authz: AuthContext | null | undefi
   const roles = authz?.roles ?? []
   return {
     signedIn,
-    merchant: (authz?.memberships.length ?? 0) > 0,
-    courier: roles.includes('courier_partner'),
+    merchant: (authz?.memberships ?? []).some((m) => m.role !== 'courier_own'),
+    courier: roles.includes('courier_partner') || (authz?.memberships ?? []).some((m) => m.role === 'courier_own'),
     admin: roles.includes('platform_master') || roles.includes('platform_operator'),
   }
 }

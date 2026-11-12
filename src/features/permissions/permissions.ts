@@ -60,7 +60,8 @@ export const MEMBER_PERMISSIONS: Record<MemberRole, readonly BusinessPermission[
   ],
   attendant: ['orders.view', 'orders.update_status', 'tabs.manage'],
   kitchen: ['orders.view', 'orders.update_status'],
-  courier_own: ['orders.view'],
+  // entregador próprio: só as entregas atribuídas a ele (funções own_courier_*, 0032), sem acesso ao painel da loja
+  courier_own: [],
 }
 
 /** Apenas master concede papéis; operador aprova e consulta. */
@@ -124,8 +125,9 @@ export const SELF_SERVICE_ROLES: readonly AppRole[] = ['customer']
 export function homeFor(ctx: AuthContext | null | undefined): string {
   if (!ctx) return '/conta'
   if (ctx.roles.includes('platform_master') || ctx.roles.includes('platform_operator')) return '/admin'
-  const m = ctx.memberships[0]
+  // Empresário → painel empresarial; Funcionário → pedidos do estabelecimento; Entregador (independente ou próprio) → entregas
+  const m = ctx.memberships.find((x) => x.role !== 'courier_own')
   if (m) return m.role === 'owner' || m.role === 'manager' ? `/painel/${m.businessId}` : `/painel/${m.businessId}/pedidos`
-  if (ctx.roles.includes('courier_partner')) return '/entregador'
+  if (ctx.roles.includes('courier_partner') || ctx.memberships.some((x) => x.role === 'courier_own')) return '/entregador'
   return '/conta'
 }

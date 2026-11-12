@@ -30,11 +30,11 @@ begin
   perform tsec.login(m);
   res := public.admin_create_test_data(city);
   perform tsec.su();
-  c1 := tsec.uid('cliente1'); c2 := tsec.uid('cliente2'); loj := tsec.uid('lojista'); dono := tsec.uid('restaurante');
-  k1 := tsec.uid('entregador'); k2 := tsec.uid('entregador2');
+  c1 := tsec.uid('cliente1'); c2 := tsec.uid('cliente2'); loj := tsec.uid('empresario1'); dono := tsec.uid('empresario2');
+  k1 := tsec.uid('entregador'); k2 := tfx.partner_courier(city);
   select id into bm from public.businesses where owner_id = loj;
   select id into br from public.businesses where owner_id = dono;
-  perform tsec.ok((select delivery_offer = 'partner' and name like '[Teste] Mercadinho Teste%' from public.businesses where id = bm), 'Mercadinho de homologação usa entregador parceiro');
+  perform tsec.ok((select delivery_offer = 'partner' and name like '[Teste] Lanchonete do Tuca%' from public.businesses where id = bm), 'Mercadinho de homologação usa entregador parceiro');
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
   perform tsec.ok(cheese is not null, 'Mercadinho vende Cheeseburger');
 

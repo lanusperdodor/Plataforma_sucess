@@ -1,12 +1,13 @@
 import type { AuthContext } from '../../features/permissions/permissions.ts'
 import type { AccountIdentity } from '../../features/account/repository.ts'
 
+/** Quatro perfis operacionais: Empresário, Funcionário, Entregador e Cliente (cargos internos continuam no banco). */
 const MEMBER_LABEL: Record<string, string> = {
-  owner: 'Proprietário',
+  owner: 'Empresário',
   manager: 'Gerente',
-  attendant: 'Operador',
-  kitchen: 'Cozinha',
-  courier_own: 'Entregador da loja',
+  attendant: 'Funcionário',
+  kitchen: 'Funcionário',
+  courier_own: 'Entregador próprio',
 }
 
 /** Nome de exibição: primeiro nome do perfil; senão usuário; senão parte do e-mail (nunca o e-mail técnico). */

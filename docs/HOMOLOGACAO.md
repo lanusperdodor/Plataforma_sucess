@@ -207,3 +207,24 @@ O que já existia e funciona:
 
 Ver `docs/EXPANSAO_ANUNCIOS_MANUTENCAO.md` (ordem de aplicação, regras e testes) e `docs/RASTREAMENTO.md`
 (arquitetura do rastreamento — só documentação). Suítes locais: 24 SQL + 415 testes de interface passando.
+
+## Perfis e contas de teste (0032)
+
+Quatro perfis operacionais — **Empresário, Funcionário, Entregador, Cliente** — mais o **Master** (separado, com MFA).
+Todos entram pela mesma tela (Supabase Auth) e caem no painel do vínculo: Empresário → painel empresarial;
+Funcionário → pedidos do estabelecimento; Entregador (independente ou próprio) → entregas; Cliente → compras; Master → /admin.
+Uma pessoa com mais de um vínculo alterna pelo menu da conta, sem conta duplicada.
+
+Contas criadas em Administração → Logins → Dados de teste (senha mostrada uma única vez, nunca gravada):
+
+| Conta | Vínculo | Observações |
+|---|---|---|
+| Empresário 1 — Lanchonete | dono de "[Teste] Lanchonete do Tuca" | Premium de homologação (comandas, caixa, Meu Lucro, calculadora); entrega por parceiro |
+| Empresário 2 — Supermercado | dono de "[Teste] Supermercado do Tuca" | Padrão; entrega própria |
+| Funcionário — Lanchonete | atendente da lanchonete | atendimento + cozinha (pedidos, comandas, preparo, pronto, retirada); sem financeiro, equipe ou configurações |
+| Entregador 1 — Independente | parceiro aprovado na rede | recebe só ofertas de parceiro |
+| Entregador 2 — Próprio do supermercado | entregador próprio do supermercado | vê só as entregas que o supermercado atribuir; fora da rede independente |
+| Cliente 1 / Cliente 2 | clientes | mesmos papéis e recursos; um não vê os pedidos do outro |
+
+Cargos internos (gerente, cozinha) continuam no banco para quem já os tem. Lotes antigos (10 contas) não são apagados
+nem reaproveitados: remova-os em "Excluir todos os dados de teste" quando quiser. Suíte: `supabase/tests/rls_perfis.sql`.

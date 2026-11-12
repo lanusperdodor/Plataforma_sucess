@@ -28,12 +28,12 @@ begin
   perform tspe.login(m);
   res := public.admin_create_test_data(city);
   perform tspe.su();
-  c1 := tspe.uid('cliente1'); loj := tspe.uid('lojista'); dono := tspe.uid('restaurante'); func := tspe.uid('funcionario');
-  coz := tspe.uid('cozinha'); k1 := tspe.uid('entregador'); k2 := tspe.uid('entregador2');
+  c1 := tspe.uid('cliente1'); loj := tspe.uid('empresario1'); dono := tspe.uid('empresario2'); func := tspe.uid('funcionario');
+  coz := tfx.kitchen((select id from public.businesses where owner_id = tspe.uid('empresario2'))); k1 := tspe.uid('entregador'); k2 := tfx.partner_courier(city);
   select id into bm from public.businesses where owner_id = loj;
   select id into br from public.businesses where owner_id = dono;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
-  select id::text into salada from public.products where business_id = br and name = 'X-Salada';
+  select id::text into salada from public.products where business_id = bm and name = 'X-Salada';
 
   -- planos: Mercadinho de teste com Premium por concessão de homologação; restaurante sem plano (Padrão = sem Premium)
   perform tspe.login(loj);
@@ -66,15 +66,16 @@ begin
                   'aviso de pedido novo traz os itens');
   perform tspe.login(k1);
   select * into r from public.courier_list_offers() x where x.order_id = o;
-  perform tspe.ok(r.order_status = 'placed' and r.business_name like '[Teste] Mercadinho%' and r.city_name = 'Cidade Empresa' and r.courier_pay_cents = 500, 'oferta antecipada com estabelecimento, cidade, valor e preparo');
+  perform tspe.ok(r.order_status = 'placed' and r.business_name like '[Teste] Lanchonete%' and r.city_name = 'Cidade Empresa' and r.courier_pay_cents = 500, 'oferta antecipada com estabelecimento, cidade, valor e preparo');
   perform public.courier_accept_delivery(o);
   perform tspe.ok((select delivery_address = 'Centro' and customer_name is null from public.courier_my_deliveries(true) where order_id = o), 'antes do aceite da loja: só o bairro, sem dados do cliente');
   perform tspe.denied(format('select public.courier_pickup_delivery(%L)', o), 'coleta antes de pronto', array['P0001']);
-  -- operador de comandas: o lojista convida o funcionário (conta já existente) como atendente do Mercadinho
+  -- Funcionário — Lanchonete: já vinculado como atendente (atendimento + cozinha); convidar de novo é recusado
   perform tspe.su();
+  perform tspe.ok((select member_role from public.business_members where business_id = bm and user_id = func) = 'attendant', 'funcionário vinculado à lanchonete');
   res := jsonb_build_object('email', (select email from auth.users where id = func));
   perform tspe.login(loj);
-  perform tspe.ok(public.merchant_invite_member(bm, res->>'email', 'attendant') = 'vinculado', 'funcionário vira operador de comandas');
+  perform tspe.denied(format($q$select public.merchant_invite_member(%L, %L, 'attendant')$q$, bm, res->>'email'), 'convidar quem já é da equipe', array['P0001']);
   perform tspe.login(c1);
   perform tspe.denied(format('select public.merchant_accept_order(%L, 15)', o), 'cliente aceita o próprio pedido');
   perform tspe.login(func);
@@ -96,10 +97,10 @@ begin
   -- recusa depois de entregador aceitar: entrega cancelada e entregador avisado
   perform tspe.login(k2); perform public.set_courier_online(true);
   perform tspe.login(c1);
-  o2 := public.place_order(br, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',
+  o2 := public.place_order(bm, jsonb_build_array(jsonb_build_object('product_id', salada, 'quantity', 1)), 'delivery_partner', 'cash',
                            'Cliente Teste Um', '35999990000', 'Rua B, 2, Centro', null, null, null, 'pe-0000002');
   perform tspe.login(k2); perform public.courier_accept_delivery(o2);
-  perform tspe.login(dono); perform public.update_order_status(o2, 'rejected', 'Acabou o pão');
+  perform tspe.login(loj); perform public.update_order_status(o2, 'rejected', 'Acabou o pão');
   perform tspe.su();
   perform tspe.ok((select status from public.deliveries where order_id = o2) = 'cancelled'
                   and exists (select 1 from public.notifications where user_id = k2 and message like '%recusado%'), 'recusa cancela a entrega e avisa o entregador');

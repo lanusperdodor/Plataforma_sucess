@@ -38,7 +38,7 @@ begin
   perform tsmn.login(m);
   res := public.admin_create_test_data(city);
   perform tsmn.su();
-  c1 := tsmn.uid('cliente1'); c2 := tsmn.uid('cliente2'); loj := tsmn.uid('lojista'); k1 := tsmn.uid('entregador'); k2 := tsmn.uid('entregador2');
+  c1 := tsmn.uid('cliente1'); c2 := tsmn.uid('cliente2'); loj := tsmn.uid('empresario1'); k1 := tsmn.uid('entregador'); k2 := tfx.partner_courier(city);
   select id into bm from public.businesses where owner_id = loj;
   select id::text into cheese from public.products where business_id = bm and name = 'Cheeseburger';
   insert into private.integration_keys(name, key_hash) values ('payments', encode(extensions.digest(key, 'sha256'), 'hex'))

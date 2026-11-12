@@ -35,7 +35,7 @@ begin
   perform public.admin_set_region_status(itau, 'ativa', 'operação real');
   res := public.admin_create_test_data(city);
   perform tspb.su();
-  loj := tspb.uid('lojista'); func := tspb.uid('funcionario'); c1 := tspb.uid('cliente1'); c2 := tspb.uid('cliente2');
+  loj := tspb.uid('empresario1'); func := tspb.uid('funcionario'); c1 := tspb.uid('cliente1'); c2 := tspb.uid('cliente2');
   select id into bm from public.businesses where owner_id = loj;
   insert into public.social_profiles(user_id, handle, display_name) values (loj, 'mercadinho_pb', 'Mercadinho') on conflict do nothing;
   perform tspb.login(loj);

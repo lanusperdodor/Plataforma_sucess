@@ -33,9 +33,9 @@ begin
   perform tsta2.login(cli);
   perform tsta2.denied('select * from public.admin_list_accounts()', 'cliente lista contas');
   perform tsta2.login(viewer);
-  perform tsta2.ok(tsta2.count($q$select 1 from public.admin_list_accounts(null, 'teste') where is_test$q$) = 10, 'lista as 10 contas de teste');
+  perform tsta2.ok(tsta2.count($q$select 1 from public.admin_list_accounts(null, 'teste') where is_test$q$) = 7, 'lista as 7 contas de teste');
   perform tsta2.ok(tsta2.count($q$select 1 from public.admin_list_accounts('cliente real', 'reais')$q$) = 1, 'busca por nome entre as reais');
-  perform tsta2.ok((select total >= 15 from public.admin_list_accounts(null, 'todos', 1) limit 1), 'total para paginação');
+  perform tsta2.ok((select total >= 12 from public.admin_list_accounts(null, 'todos', 1) limit 1), 'total para paginação');
   perform tsta2.denied(format($q$select public.admin_set_account_name(%L, 'X Y')$q$, cli), 'só leitura altera nome');
 
   -- suporte

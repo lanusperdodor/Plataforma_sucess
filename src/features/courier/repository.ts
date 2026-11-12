@@ -196,3 +196,40 @@ export type CourierEarnings = z.output<typeof earningsSchema>
 export async function getEarnings(): Promise<CourierEarnings> {
   return exec(supabase.rpc('courier_earnings'), earningsSchema)
 }
+
+// ---------- entregador próprio (0032): só as entregas atribuídas pelo comércio ----------
+const ownSchema = z
+  .object({
+    order_id: z.string(), order_code: z.string(), order_status: z.string(), business_id: z.string(), business_name: z.string(),
+    business_address: z.string().nullable(), business_phone: z.string().nullable(), customer_name: z.string(), customer_phone: z.string(),
+    delivery_address: z.string().nullable(), delivery_reference: z.string().nullable(),
+    payment_method: z.enum(['cash', 'pix_on_delivery', 'card_on_delivery']), total_cents: z.number().int(), change_for_cents: z.number().int().nullable(),
+    created_at: z.string(), updated_at: z.string(),
+  })
+  .transform((r) => ({
+    orderId: r.order_id, code: r.order_code, status: r.order_status, businessId: r.business_id, businessName: r.business_name,
+    businessAddress: r.business_address, businessPhone: r.business_phone, customerName: r.customer_name, customerPhone: r.customer_phone,
+    address: r.delivery_address, reference: r.delivery_reference, payment: r.payment_method, totalCents: r.total_cents,
+    changeForCents: r.change_for_cents, createdAt: r.created_at, updatedAt: r.updated_at,
+  }))
+export type OwnDelivery = z.output<typeof ownSchema>
+
+export async function ownDeliveries(active: boolean): Promise<OwnDelivery[]> {
+  return exec(supabase.rpc('own_courier_deliveries', { _active: active }), z.array(ownSchema))
+}
+export async function ownDeliveryStatus(orderId: string, status: 'out_for_delivery' | 'delivered'): Promise<void> {
+  await exec(supabase.rpc('own_courier_set_status', { _order: orderId, _status: status }), z.unknown())
+}
+/** Equipe da loja: entregadores próprios e atribuição da entrega. */
+export async function listOwnCouriers(businessId: string): Promise<{ userId: string; name: string }[]> {
+  return exec(supabase.rpc('merchant_own_couriers', { _business: businessId }), z.array(z.object({ user_id: z.string(), name: z.string() })))
+    .then((rows) => rows.map((r) => ({ userId: r.user_id, name: r.name })))
+}
+export async function assignOwnCourier(orderId: string, courierId: string | null): Promise<void> {
+  await exec(supabase.rpc('merchant_assign_own_courier', { _order: orderId, _courier: courierId }), z.unknown())
+}
+/** Entregador próprio atribuído ao pedido (consulta separada: coluna nova da 0032). */
+export async function currentOwnCourier(orderId: string): Promise<string | null> {
+  const rows = await exec(supabase.from('orders').select('own_courier_id').eq('id', orderId), z.array(z.object({ own_courier_id: z.string().nullable() })))
+  return rows[0]?.own_courier_id ?? null
+}

@@ -3,7 +3,7 @@ import { Copy, FlaskConical, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
-import { createTestData, listCities, listTestData, removeTestData, type CreatedTestData } from '../../features/admin/repository.ts'
+import { createTestData, listCities, listTestData, removeAllTestData, removeTestData, type CreatedTestData } from '../../features/admin/repository.ts'
 import { dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
 /** Contas de homologação por cidade (9 perfis, 3 estabelecimentos de teste), sem duplicar e com remoção completa. */
@@ -70,6 +70,17 @@ export function TestDataSection() {
     onSuccess: (d) => { setCreated(d); refresh() },
     onError: (e) => toast.error(errorMessage(e)),
   })
+  const [purging, setPurging] = useState(false)
+  const [word, setWord] = useState('')
+  const removeAll = useMutation({
+    mutationFn: () => removeAllTestData(word),
+    onSuccess: (r) => {
+      toast.success(`Dados de teste excluídos: ${r.lotes} lote(s), ${r.estabelecimentos} estabelecimento(s), ${r.pedidos} pedido(s), ${r.logins} login(s).`)
+      setPurging(false); setWord(''); setCreated(null); refresh()
+      void qc.invalidateQueries({ queryKey: ['admin'] })
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
   const remove = useMutation({
     mutationFn: removeTestData,
     onSuccess: () => { toast.success('Dados de teste removidos.'); refresh() },
@@ -110,7 +121,30 @@ export function TestDataSection() {
         )}
       </Panel>
       {created && <Created data={created} onClose={() => setCreated(null)} />}
-      <h3 className="text-base font-semibold text-ink">Lotes criados</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-semibold text-ink">Lotes criados</h3>
+        <button type="button" onClick={() => setPurging((v) => !v)} aria-expanded={purging} className={dangerButton}>
+          <Trash2 aria-hidden="true" className="size-4" />Excluir todos os dados de teste
+        </button>
+      </div>
+      {purging && (
+        <Panel className="flex flex-col gap-3 text-sm">
+          <p className="text-ink">
+            Apaga <strong>todos</strong> os lotes de teste de todas as cidades: estabelecimentos “[Teste]”, pedidos, entregas, comandas, caixas,
+            cobranças, campanhas e os logins de teste. Dados reais não são tocados. Não dá para desfazer.
+          </p>
+          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); removeAll.mutate() }}>
+            <div className="min-w-56 flex-1">
+              <label htmlFor="td-purge" className="mb-1 block text-sm font-medium text-ink">Digite <strong>EXCLUIR</strong> para confirmar</label>
+              <input id="td-purge" value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" className={inputClass} />
+            </div>
+            <button type="submit" disabled={removeAll.isPending || word.trim().toUpperCase() !== 'EXCLUIR'} className={dangerButton}>
+              {removeAll.isPending ? 'Excluindo…' : 'Excluir tudo'}
+            </button>
+            <button type="button" onClick={() => { setPurging(false); setWord('') }} className={secondaryButton}>Cancelar</button>
+          </form>
+        </Panel>
+      )}
       {runs.isError ? (
         <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
       ) : (runs.data ?? []).length === 0 ? (

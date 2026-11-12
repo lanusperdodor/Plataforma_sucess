@@ -336,6 +336,11 @@ export function removeTestData(runId: string): Promise<void> {
   return rpc('admin_remove_test_data', { _run: runId }, z.any()).then(() => undefined)
 }
 
+/** Exclui todos os lotes e restos marcados como teste (Master, confirmação "EXCLUIR"). Dados reais não entram. */
+export async function removeAllTestData(confirm: string): Promise<{ lotes: number; pedidos: number; estabelecimentos: number; logins: number }> {
+  return rpc('admin_remove_all_test_data', { _confirm: confirm }, z.object({ lotes: z.number(), pedidos: z.number(), estabelecimentos: z.number(), logins: z.number() }))
+}
+
 // ---------- financeiro (0018) ----------
 const financeSummarySchema = z
   .object({

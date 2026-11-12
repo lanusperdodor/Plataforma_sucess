@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { HeartHandshake, MessagesSquare, ShieldCheck, Users } from 'lucide-react'
 import { ConectuaiNav } from './conectuai/ConectuaiNav.tsx'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
@@ -12,6 +12,8 @@ import { FilterChips } from '../components/nav/FilterChips.tsx'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 import {
+  getPostsByIds,
+  type Post,
   createPost,
   getProfileByUser,
   listFeed,
@@ -21,6 +23,7 @@ import {
   type ProfileForm,
   type SocialProfile,
 } from '../features/conecta/repository.ts'
+import { getSponsoredFeed, trackAd } from '../features/ads/repository.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
 import { listMyBusinesses, listProducts } from '../features/merchant/repository.ts'
 import { canInBusiness } from '../features/permissions/permissions.ts'
@@ -202,6 +205,42 @@ function Composer({ profile }: { profile: SocialProfile }) {
 
 type Tab = 'cidade' | 'seguindo' | 'salvos'
 
+/** Patrocinado: registra impressão (ao aparecer de verdade na tela) e clique; o banco conta uma vez por pessoa/dia. */
+function SponsoredItem({ post, campaignId }: { post: Post; campaignId: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const seen = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver((entries) => {
+      if (!seen.current && entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.5)) {
+        seen.current = true
+        void trackAd(campaignId, 'impressao')
+        io.disconnect()
+      }
+    }, { threshold: [0.5] })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [campaignId])
+  return (
+    <div ref={ref} onClickCapture={(e) => { if ((e.target as HTMLElement).closest('a,button')) void trackAd(campaignId, 'clique') }}>
+      <PostCard post={post} sponsored />
+    </div>
+  )
+}
+
+/** Intercala patrocinados: o primeiro no topo e depois um a cada N publicações (regra do Master). */
+export function interleave<T>(organic: T[], sponsored: T[], every: number): { item: T; sponsored: boolean }[] {
+  const out: { item: T; sponsored: boolean }[] = []
+  let s = 0
+  organic.forEach((p, i) => {
+    if (s < sponsored.length && i % Math.max(every, 1) === 0) out.push({ item: sponsored[s++]!, sponsored: true })
+    out.push({ item: p, sponsored: false })
+  })
+  if (organic.length === 0 && sponsored.length > 0) out.push({ item: sponsored[0]!, sponsored: true })
+  return out
+}
+
 export function Feed({ scope, me, empty }: { scope: FeedScope; me: string | null; empty: { title: string; description: string } }) {
   const key = JSON.stringify(scope)
   const feed = useInfiniteQuery({
@@ -210,13 +249,31 @@ export function Feed({ scope, me, empty }: { scope: FeedScope; me: string | null
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
   })
-  const posts = (feed.data?.pages ?? []).flatMap((p) => p.posts)
+  const cityId = scope.kind === 'city' ? scope.cityId : null
+  // patrocinados só no feed da cidade, para quem está logado; a região vem da cidade escolhida (sem localização precisa)
+  const ads = useQuery({
+    queryKey: ['conecta', 'sponsored', cityId, me ?? ''],
+    queryFn: async () => {
+      const slots = await getSponsoredFeed(cityId!)
+      const posts = await getPostsByIds(slots.map((x) => x.post_id), me)
+      return { every: slots[0]?.slot_every ?? 6, items: slots.flatMap((x) => { const p = posts.find((q) => q.id === x.post_id); return p ? [{ campaignId: x.campaign_id, post: p }] : [] }) }
+    },
+    enabled: !!cityId && !!me,
+    staleTime: 5 * 60_000,
+  })
+  const adIds = new Set((ads.data?.items ?? []).map((a) => a.post.id))
+  const posts = (feed.data?.pages ?? []).flatMap((p) => p.posts).filter((p) => !adIds.has(p.id))
   if (feed.isLoading) return <div className="flex flex-col gap-4">{Array.from({ length: 2 }, (_, i) => <SkeletonCard key={i} />)}</div>
   if (feed.isError) return <ErrorState error={feed.error} onRetry={() => void feed.refetch()} />
-  if (posts.length === 0) return <EmptyState icon={Users} title={empty.title} description={empty.description} />
+  if (posts.length === 0 && adIds.size === 0) return <EmptyState icon={Users} title={empty.title} description={empty.description} />
+  const rows = interleave<{ campaignId: string | null; post: Post }>(posts.map((p) => ({ campaignId: null, post: p })), ads.data?.items ?? [], ads.data?.every ?? 6)
   return (
     <div className="flex flex-col gap-4">
-      <ul className="flex flex-col gap-4">{posts.map((p) => <li key={p.id}><PostCard post={p} /></li>)}</ul>
+      <ul className="flex flex-col gap-4">
+        {rows.map(({ item, sponsored }) => (
+          <li key={`${sponsored ? 'ad' : 'p'}-${item.post.id}`}>{sponsored && item.campaignId ? <SponsoredItem post={item.post} campaignId={item.campaignId} /> : <PostCard post={item.post} />}</li>
+        ))}
+      </ul>
       {feed.hasNextPage && (
         <button type="button" onClick={() => void feed.fetchNextPage()} disabled={feed.isFetchingNextPage} className={`${btn} mx-auto border border-line text-ink`}>
           {feed.isFetchingNextPage ? 'Carregando…' : 'Carregar mais'}

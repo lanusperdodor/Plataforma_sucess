@@ -47,6 +47,10 @@ const secondary = 'pressable inline-flex min-h-11 items-center justify-center ga
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente novamente.')
 const mapsHref = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
 
+const PREP_LABEL: Record<string, string> = {
+  placed: 'Aguardando a loja aceitar', accepted: 'Pedido aceito pela loja', preparing: 'Em preparo', ready: 'Pronto para coleta',
+}
+
 function ActiveDelivery({ d }: { d: CourierDelivery }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -87,7 +91,8 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
           {bizTel && <a href={`tel:${bizTel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para a loja</a>}
         </div>
         <div className={`rounded-xl border p-3 ${d.status === 'picked_up' ? 'border-brand' : 'border-line'}`}>
-          <p className="flex items-center gap-2 text-sm font-semibold text-ink"><MapPin aria-hidden="true" className="size-4" />2. Entregar para {d.customerName}</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-ink"><MapPin aria-hidden="true" className="size-4" />2. Entregar para {d.customerName ?? 'o cliente'}</p>
+          {!d.customerName && <p className="text-sm text-ink-muted">Endereço e contato aparecem quando o estabelecimento aceitar o pedido.</p>}
           {d.address && <a href={mapsHref(d.address)} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.address}</a>}
           {d.reference && <p className="text-sm text-ink-muted">Referência: {d.reference}</p>}
           {tel && <a href={`tel:${tel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para o cliente</a>}
@@ -101,7 +106,8 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
       )}
       {d.status === 'accepted' ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={pickup.isPending} onClick={() => pickup.mutate()} className={primary}>Peguei o pedido</button>
+          <button type="button" disabled={pickup.isPending || (!!d.orderStatus && d.orderStatus !== 'ready')} onClick={() => pickup.mutate()} className={primary}>Peguei o pedido</button>
+          {d.orderStatus && d.orderStatus !== 'ready' && <p className="w-full text-sm text-ink-muted">{PREP_LABEL[d.orderStatus] ?? 'Pedido em preparo'}. A coleta é liberada quando a loja marcar como pronto.</p>}
           <button type="button" disabled={release.isPending} onClick={() => { if (window.confirm('Liberar esta entrega para outro entregador?')) release.mutate() }} className={secondary}>Liberar entrega</button>
         </div>
       ) : (
@@ -224,13 +230,15 @@ export function CourierArea() {
           ) : offers.isError ? (
             <ErrorState error={offers.error} onRetry={() => void offers.refetch()} />
           ) : (offers.data ?? []).length === 0 ? (
-            <EmptyState icon={Navigation} title={offers.isLoading ? 'Buscando ofertas…' : 'Nenhuma oferta agora'} description="A lista atualiza sozinha. Pedidos aparecem quando o estabelecimento marca como pronto." />
+            <EmptyState icon={Navigation} title={offers.isLoading ? 'Buscando ofertas…' : 'Nenhuma oferta agora'} description="A lista atualiza sozinha. Pedidos aparecem assim que são feitos; a coleta é liberada quando a loja marca como pronto." />
           ) : (
             <ul className="flex flex-col gap-2">
               {(offers.data ?? []).map((o) => (
                 <li key={o.orderId} className={`${box} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
                   <div className="text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Nova entrega disponível{o.city ? ` · ${o.city}` : ''}</p>
                     <p className="font-semibold text-ink">{o.businessName}</p>
+                    {o.orderStatus && <p className="text-ink">{PREP_LABEL[o.orderStatus] ?? o.orderStatus}</p>}
                     {o.businessAddress && <p className="text-ink-muted">Coleta: {o.businessAddress}</p>}
                     <p className="text-ink-muted">Destino: {o.neighborhood ?? 'informado após aceitar'} · {o.itemsCount} {o.itemsCount === 1 ? 'item' : 'itens'}</p>
                     <OfferDeadline expiresAt={o.expiresAt} round={o.round} />
@@ -238,13 +246,13 @@ export function CourierArea() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-lg font-bold text-success">{formatBRL(o.payCents)}</span>
                     <button type="button" disabled={decline.isPending} onClick={() => decline.mutate(o.orderId)} className={secondary}>Recusar</button>
-                    <button type="button" disabled={accept.isPending} onClick={() => accept.mutate(o.orderId)} className={primary}>Aceitar</button>
+                    <button type="button" disabled={accept.isPending} onClick={() => accept.mutate(o.orderId)} className={primary}>Aceitar entrega</button>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, quando o estabelecimento marca como pronto. Retiradas e entregas feitas pela própria loja não geram oferta. Distância e tempo não são estimados: a Tucaí ainda não usa serviço de mapas. Endereço completo e contato do cliente aparecem após aceitar.</p>
+          <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, já no momento do pedido (a coleta só é liberada quando a loja marca como pronto). Retiradas e entregas feitas pela própria loja não geram oferta. Distância e tempo não são estimados: a Tucaí ainda não usa serviço de mapas. Endereço completo e contato do cliente aparecem após aceitar.</p>
         </section>
       )}
 

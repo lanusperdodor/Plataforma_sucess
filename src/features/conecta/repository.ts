@@ -245,6 +245,14 @@ export async function getPost(id: string, me: string | null): Promise<Post | nul
   return (await enrich(rows, me))[0] ?? null
 }
 
+/** Publicações por id, na ordem pedida (usado pelos patrocinados do feed). */
+export async function getPostsByIds(ids: string[], me: string | null): Promise<Post[]> {
+  if (ids.length === 0) return []
+  const rows = await exec(supabase.from('posts').select(POST_COLS).in('id', ids).eq('status', 'published'), z.array(postRowSchema))
+  const posts = await enrich(rows, me)
+  return ids.map((id) => posts.find((p) => p.id === id)).filter((p): p is Post => !!p)
+}
+
 export const postInputSchema = z.object({
   body: z.string().trim().min(1, 'Escreva algo para publicar.').max(2000, 'Máximo de 2000 caracteres.'),
   cityId: z.string().nullable(),

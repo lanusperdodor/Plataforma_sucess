@@ -6,15 +6,18 @@ import { subscribeLiveUpdates, type LiveNotification, type LiveTopic } from './r
 
 /** Consultas afetadas por pedidos, entregas e notificações (cliente, estabelecimento, entregador e Master). */
 export const LIVE_KEYS: Record<LiveTopic, readonly (readonly string[])[]> = {
-  orders: [['orders'], ['merchant', 'orders'], ['merchant', 'deliveries'], ['courier'], ['admin', 'orders'], ['admin', 'order']],
+  orders: [['orders'], ['gestao'], ['merchant', 'orders'], ['merchant', 'deliveries'], ['courier'], ['admin', 'orders'], ['admin', 'order']],
   deliveries: [['merchant', 'deliveries'], ['merchant', 'orders'], ['orders'], ['courier'], ['admin', 'orders'], ['admin', 'order']],
   notifications: [['me', 'unread'], ['me', 'notifications'], ['courier'], ['merchant', 'orders'], ['merchant', 'deliveries'], ['orders']],
-  resync: [['orders'], ['merchant'], ['courier'], ['admin', 'orders'], ['admin', 'order'], ['me', 'unread'], ['me', 'notifications']],
+  gestao: [['gestao']],
+  resync: [['orders'], ['gestao'], ['merchant'], ['courier'], ['admin', 'orders'], ['admin', 'order'], ['me', 'unread'], ['me', 'notifications']],
 }
 
 /** Alertas que tocam som: pedido novo para a loja, oferta para o entregador, mudança no pedido do cliente. */
 const SOUND_KINDS = new Set(['order_new', 'delivery_offer', 'order_update', 'ops_alert'])
 const SOUND_KEY = 'tucai:som'
+/** Evento de janela para telas que mostram o alerta do seu jeito (ex.: Tucaí Gestão); preventDefault() dispensa o aviso padrão. */
+export const LIVE_NOTIFICATION_EVENT = 'tucai:notificacao'
 
 export function soundEnabled(): boolean {
   try { return localStorage.getItem(SOUND_KEY) !== 'off' } catch { return true }
@@ -67,7 +70,8 @@ export function LiveUpdates() {
       if (!n.id || seen.has(n.id)) return
       seen.add(n.id)
       if (n.message && SOUND_KINDS.has(n.kind)) {
-        toast.success(n.message)
+        const handledElsewhere = !window.dispatchEvent(new CustomEvent<LiveNotification>(LIVE_NOTIFICATION_EVENT, { detail: n, cancelable: true }))
+        if (!handledElsewhere) toast.success(n.message)
         if (soundEnabled() && document.visibilityState === 'visible') beep()
       }
     }

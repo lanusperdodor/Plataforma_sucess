@@ -197,7 +197,7 @@ begin
   perform tsto.denied(format($q$select public.update_order_status(%L, 'cancelled')$q$, o1), 'cliente cancela depois do aceite', array['P0001']);
   perform tsto.login(att);
   perform public.update_order_status(o1, 'preparing');
-  perform tsto.ok(tsto.count(format($q$select 1 from public.deliveries where order_id = %L$q$, o1)) = 0, 'sem oferta antes de pronto');
+  perform tsto.ok(tsto.count(format($q$select 1 from public.deliveries where order_id = %L and status = 'offered'$q$, o1)) = 1, 'oferta antecipada: demanda criada com o pedido (0026)');
   perform public.update_order_status(o1, 'ready');
   perform tsto.denied(format($q$select public.update_order_status(%L, 'out_for_delivery')$q$, o1), 'loja despacha entrega parceira', array['P0001']);
   perform tsto.denied(format($q$select public.update_order_status(%L, 'delivered')$q$, o1), 'loja marca entregue na entrega parceira', array['P0001']);
@@ -205,8 +205,8 @@ begin
   perform tsto.ok(tsto.count(format($q$select 1 from public.deliveries where order_id = %L and status = 'offered'$q$, o1)) = 1, 'pronto vira oferta');
   perform tsto.su();
   perform tsto.ok(tsto.count(format($q$select 1 from public.notifications where user_id = %L and kind = 'order_update'$q$, cu1)) = 3, 'cliente notificado de cada etapa');
-  perform tsto.ok(tsto.count($q$select 1 from public.notifications where kind = 'delivery_offer'$q$) = 1
-                  and tsto.count(format($q$select 1 from public.notifications where kind = 'delivery_offer' and user_id = %L$q$, k1)) = 1,
+  perform tsto.ok(tsto.count(format($q$select 1 from public.notifications where kind = 'delivery_offer' and user_id <> %L$q$, k1)) = 0
+                  and tsto.count(format($q$select 1 from public.notifications where kind = 'delivery_offer' and user_id = %L$q$, k1)) >= 1,
                   'só entregadores disponíveis da cidade recebem a oferta');
 
   -- ======================= 4. entregas =======================

@@ -56,13 +56,19 @@ describe('TucaPresenter', () => {
     pause.mockRestore()
   })
 
-  it('padrão: vídeo do Tuca em canvas acessível, sem balão HTML duplicado', async () => {
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve())
+  it('padrão: animação já recortada (sem recorte no navegador), quadro parado primeiro e sem botão de pausa', async () => {
+    const OrigImage = window.Image
+    class FakeImage { onload: (() => void) | null = null; set src(_v: string) { globalThis.setTimeout(() => this.onload?.(), 0) } }
+    window.Image = FakeImage as unknown as typeof Image
     const { container } = render(<TucaPresenter />)
-    expect(screen.getByRole('img', { name: /Tuca, o tucano mascote/ })).toHaveAttribute('data-testid', 'tuca-canvas')
-    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', '/brand/tuca-apresentador.mp4'))
+    const img = screen.getByRole('img', { name: /Tuca, o tucano mascote/ })
+    expect(img).toHaveAttribute('data-testid', 'tuca-animation')
+    expect(img).toHaveAttribute('src', '/brand/tuca-animado-quadro.webp')
+    expect(container.querySelector('canvas, video')).toBeNull()
     expect(container.querySelector('.tuca-bubble')).toBeNull()
-    vi.restoreAllMocks()
+    await waitFor(() => expect(img).toHaveAttribute('src', '/brand/tuca-animado.webp'))
+    expect(screen.queryByRole('button', { name: /animação do Tuca/ })).toBeNull()
+    window.Image = OrigImage
   })
 
   it('com movimento reduzido mostra o PNG estático com o balão (sem vídeo)', () => {

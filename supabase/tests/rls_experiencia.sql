@@ -125,10 +125,11 @@ begin
 
   -- nenhuma política using (true)/with check (true) fora da lista pública explícita.
   -- permissions/role_permissions (0001) são catálogos estáticos legíveis só por authenticated.
+  -- ufs/municipalities (0028) são a base pública do IBGE (somente leitura).
   select string_agg(tablename || '.' || policyname, ', ') into bad
     from pg_policies
    where schemaname = 'public'
-     and tablename not in ('cities', 'categories', 'permissions', 'role_permissions')
+     and tablename not in ('cities', 'categories', 'permissions', 'role_permissions', 'ufs', 'municipalities')
      and (lower(regexp_replace(coalesce(qual, ''), '[()\s]', '', 'g')) = 'true'
           or lower(regexp_replace(coalesce(with_check, ''), '[()\s]', '', 'g')) = 'true');
   perform tstx.ok(bad is null, 'política aberta (true) em: ' || coalesce(bad, ''));
@@ -155,7 +156,11 @@ begin
                            -- catálogo de planos da plataforma (0018)
                            'plans',
                            -- recusas de oferta (0022) pertencem à entrega, que tem business_id
-                           'delivery_declines')
+                           'delivery_declines',
+                           -- cobertura nacional (0028): base IBGE e regiões são da plataforma, não de um estabelecimento
+                           'ufs', 'municipalities', 'commercial_regions', 'region_municipalities',
+                           -- publicidade (0029): regiões e eventos pertencem à campanha, que tem business_id
+                           'ad_campaign_regions', 'ad_events')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

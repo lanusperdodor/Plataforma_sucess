@@ -13,8 +13,13 @@ export const BRAND = {
     icon: asset('brand/icone.svg'),
     presenter: asset('brand/tuca-apresentador-600.png'),
     presenter2x: asset('brand/tuca-apresentador.png'),
-    /** Vídeo do Tuca (1280×720, 5 s, balão já embutido). O xadrez gravado no fundo é removido em tempo real (checkerKey). */
-    presenterVideo: { src: asset('brand/tuca-apresentador.mp4'), hasBakedBubble: true, enabled: true },
+    /** Vídeo original do Tuca (1280×720, 5 s, balão embutido, fundo xadrez gravado). Mantido como fonte. */
+    presenterVideo: { src: asset('brand/tuca-apresentador.mp4'), hasBakedBubble: true, enabled: false },
+    /**
+     * Animação do Tuca já recortada (WebP animado com transparência real, 640×360, 12 quadros/s), gerada do vídeo
+     * por scripts/tuca. Sem xadrez e com o branco do tucano igual nos modos claro e escuro.
+     */
+    presenterAnimation: { src: asset('brand/tuca-animado.webp'), poster: asset('brand/tuca-animado-quadro.webp'), hasBakedBubble: true, enabled: true },
   },
   locale: 'pt-BR',
   currency: 'BRL',

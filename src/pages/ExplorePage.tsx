@@ -24,7 +24,7 @@ function AreaTile({ area }: { area: Area }) {
     <Link
       to={area.to}
       className={`hover-lift pressable group flex min-h-32 flex-col justify-between gap-3 rounded-card border p-4 ${
-        area.accent ? 'border-orange bg-orange text-ink' : 'border-line bg-surface text-ink'
+        area.accent ? 'border-transparent bg-orange text-ink' : 'border-line bg-surface text-ink'
       }`}
     >
       <div className="flex items-start justify-between gap-2">

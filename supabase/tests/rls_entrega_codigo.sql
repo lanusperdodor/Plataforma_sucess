@@ -60,7 +60,7 @@ begin
   perform tsec.denied(format($q$select public.update_order_status(%L, 'out_for_delivery')$q$, o), 'pular etapa', array['P0001']);
   perform public.update_order_status(o, 'ready');
   perform tsec.login(c1);
-  perform tsec.ok((select status = 'offered' and confirmation_code is null from public.my_delivery(o)), 'cliente vê procurando entregador, ainda sem código');
+  perform tsec.ok((select status = 'offered' and confirmation_code ~ '^[0-9]{4}$' from public.my_delivery(o)), 'cliente vê procurando entregador e já tem o código (desde a confirmação, 0026)');
   perform tsec.login(k2);
   perform tsec.ok(tsec.count('select 1 from public.courier_list_offers()') = 0, 'entregador offline não vê a oferta');
   perform tsec.login(k1);

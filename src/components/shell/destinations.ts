@@ -133,6 +133,7 @@ export function visibleGroups(a: Audience, ctx: ActiveContext = { kind: 'cliente
 
 const PERFIL = NAV_DESTINATIONS.find((d) => d.id === 'perfil')!
 const INICIO = NAV_DESTINATIONS.find((d) => d.id === 'inicio')!
+const CONECTUAI = NAV_DESTINATIONS.find((d) => d.id === 'conectuai')!
 
 /** Navegação principal do perfil ativo (cliente vê a de compras; loja, entregador e Master, a operacional). */
 export function destinationsFor(ctx: ActiveContext): readonly NavDestination[] {
@@ -142,6 +143,7 @@ export function destinationsFor(ctx: ActiveContext): readonly NavDestination[] {
         INICIO,
         { id: 'loja-pedidos', label: 'Pedidos', to: `/painel/${ctx.businessId}/pedidos`, icon: ReceiptText, prefixes: [`/painel/${ctx.businessId}/pedidos`] },
         { id: 'loja-painel', label: 'Minha loja', to: `/painel/${ctx.businessId}`, icon: Store, prefixes: ['/painel'] },
+        CONECTUAI,
         PERFIL,
       ]
     case 'entregador':

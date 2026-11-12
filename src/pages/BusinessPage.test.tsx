@@ -54,7 +54,7 @@ describe('página pública do estabelecimento', () => {
     expect(screen.getByRole('link', { name: /Ligar/ })).toHaveAttribute('href', 'tel:3530000000')
     expect(screen.getByRole('note')).toHaveTextContent(/Peça pela Tucaí|Fechado agora|ainda não ativou|fale direto/i)
     expect(screen.getByRole('link', { name: 'Entre para seguir' })).toHaveAttribute('href', '/entrar')
-    expect(screen.getByText('feed do estabelecimento')).toBeInTheDocument()
+    expect(screen.getByText('Entre para ver o Conectuaí')).toBeInTheDocument()
   })
   it('estabelecimento inexistente ou inativo mostra "não encontrado"', async () => {
     h.business = null

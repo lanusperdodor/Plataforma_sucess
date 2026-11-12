@@ -36,7 +36,7 @@ describe('Área do entregador', () => {
     expect(screen.getByRole('button', { name: /Compartilhar minha localização/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Recusar' }))
     await vi.waitFor(() => expect(h.decline).toHaveBeenCalledWith('o1'))
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar entrega' }))
     await vi.waitFor(() => expect(h.accept).toHaveBeenCalledWith('o1'))
   })
 })

@@ -9,6 +9,7 @@ import { AuthProvider } from './features/auth/AuthProvider.tsx'
 import { LiveUpdates } from './features/realtime/LiveUpdates.tsx'
 import { PasswordChangeGate } from './components/account/PasswordChangeGate.tsx'
 import { ContextAutoSwitch } from './components/account/ContextAutoSwitch.tsx'
+import { MaintenanceGate } from './components/platform/MaintenanceGate.tsx'
 import './styles/tokens.css'
 
 // Prévia estática (página hospedada sem servidor de rotas): VITE_HASH_ROUTER=1 usa rotas por '#'.
@@ -26,7 +27,9 @@ createRoot(document.getElementById('root')!).render(
             <LiveUpdates />
             <PasswordChangeGate />
             <ContextAutoSwitch />
-            <App />
+            <MaintenanceGate>
+              <App />
+            </MaintenanceGate>
           </ToastProvider>
         </AuthProvider>
       </Router>

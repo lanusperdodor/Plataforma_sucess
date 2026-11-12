@@ -92,14 +92,14 @@ export function customerHeadline(status: string, fulfillment: string, delivery: 
   switch (status) {
     case 'placed': return 'Aguardando confirmação do estabelecimento'
     case 'accepted':
-    case 'preparing': return 'Em preparo'
+    case 'preparing': return 'Pedido aceito! Em preparo.'
     case 'ready':
-      if (fulfillment === 'pickup') return 'Pronto para retirada'
-      if (fulfillment === 'delivery_own') return 'Pronto, saindo para entrega em breve'
-      return delivery === 'accepted' ? 'Entregador encontrado!' : 'Estamos procurando um entregador'
-    case 'out_for_delivery': return 'Seu pedido está em rota'
-    case 'delivered': return 'Pedido entregue'
-    case 'picked_up': return 'Pedido retirado'
+      if (fulfillment === 'pickup') return 'Seu pedido está pronto. Aguardando retirada.'
+      if (fulfillment === 'delivery_partner' && delivery === 'accepted') return 'Entregador encontrado.'
+      return 'Seu pedido está pronto. Aguardando coleta.'
+    case 'out_for_delivery': return 'Seu pedido está a caminho.'
+    case 'delivered': return 'Pedido entregue.'
+    case 'picked_up': return 'Pedido retirado.'
     case 'rejected': return 'Pedido recusado'
     case 'cancelled': return 'Pedido cancelado'
     default: return status
@@ -196,7 +196,7 @@ export function OrderPage() {
           {d.status === 'offered' ? (
             <p className="text-sm text-ink">Estamos procurando um entregador parceiro disponível. Avisaremos assim que alguém aceitar.</p>
           ) : d.status === 'picked_up' && d.code ? (
-            <div className="flex flex-col gap-2 rounded-2xl border-2 border-orange bg-orange/10 p-4">
+            <div className="flex flex-col gap-2 rounded-2xl border border-line bg-warm-soft p-4">
               <p className="text-lg font-bold text-ink">Seu pedido está a caminho!</p>
               <p className="text-sm text-ink">{d.courierName ?? 'O entregador'}{d.vehicle && d.vehicle in VEHICLE_LABEL ? ` · ${VEHICLE_LABEL[d.vehicle as Vehicle]}` : ''} está levando seu pedido.</p>
               <p className="flex flex-wrap items-center gap-2 text-ink">

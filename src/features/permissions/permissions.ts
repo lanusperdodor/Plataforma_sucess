@@ -22,6 +22,8 @@ export type BusinessPermission =
   | 'settings.manage'
   | 'delivery.manage_own'
   | 'jobs.manage'
+  | 'tabs.manage'
+  | 'cash.manage'
 
 export type PlatformPermission =
   | 'platform.approve_business'
@@ -42,6 +44,8 @@ export const MEMBER_PERMISSIONS: Record<MemberRole, readonly BusinessPermission[
     'settings.manage',
     'delivery.manage_own',
     'jobs.manage',
+    'tabs.manage',
+    'cash.manage',
   ],
   manager: [
     'store.customize',
@@ -51,8 +55,10 @@ export const MEMBER_PERMISSIONS: Record<MemberRole, readonly BusinessPermission[
     'reports.view',
     'delivery.manage_own',
     'jobs.manage',
+    'tabs.manage',
+    'cash.manage',
   ],
-  attendant: ['orders.view', 'orders.update_status'],
+  attendant: ['orders.view', 'orders.update_status', 'tabs.manage'],
   kitchen: ['orders.view', 'orders.update_status'],
   courier_own: ['orders.view'],
 }
@@ -84,11 +90,13 @@ export function canInBusiness(
   ctx: AuthContext | null | undefined,
   permission: BusinessPermission,
   businessId: string,
+  extras: readonly string[] = [],
 ): boolean {
   if (!ctx || !businessId) return false
   const membership = ctx.memberships.find((m) => m.businessId === businessId)
   if (!membership) return false
-  return MEMBER_PERMISSIONS[membership.role].includes(permission)
+  // extras: permissões adicionais concedidas ao integrante (business_member_permissions, 0027)
+  return MEMBER_PERMISSIONS[membership.role].includes(permission) || extras.includes(permission)
 }
 
 export function canOnPlatform(

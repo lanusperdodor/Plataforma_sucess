@@ -86,7 +86,7 @@ begin
 
   -- 2. matriz de permissões populada com o tipo correto
   perform tst.ok((select count(*) from public.role_permissions where member_role = 'owner') = (select count(*) from public.permissions), 'owner tem todas as permissões');
-  perform tst.ok((select count(*) from public.role_permissions where member_role = 'attendant') = 2, 'attendant tem 2');
+  perform tst.ok((select count(*) from public.role_permissions where member_role = 'attendant') = 3, 'attendant: pedidos (ver e atualizar) e comandas (0027)');
   perform tst.ok(not exists (select 1 from public.role_permissions where member_role = 'courier_own' and permission <> 'orders.view'), 'courier_own só orders.view');
 
   -- 3. escalada de papéis
@@ -117,7 +117,7 @@ begin
   perform tst.denied($q$delete from public.profiles$q$, 'apagar perfil');
   perform tst.denied($q$insert into public.permissions(code) values ('hack')$q$, 'escrever permissions');
   perform tst.denied($q$insert into public.role_permissions(member_role, permission) values ('attendant','staff.manage')$q$, 'escrever role_permissions');
-  perform tst.ok(tst.count('select 1 from public.permissions') = 9, 'autenticado lê catálogo de permissões (8 + jobs.manage da 0013)');
+  perform tst.ok(tst.count('select 1 from public.permissions') = 11, 'autenticado lê catálogo de permissões (8 + jobs.manage da 0013 + comandas e caixa da 0027)');
 
   -- 5. anon: só lojas ativas, nada mais
   perform tst.anon();

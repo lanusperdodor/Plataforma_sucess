@@ -407,7 +407,7 @@ function Members({ c, myRole }: { c: Community; myRole: string | null }) {
   return (
     <div className="flex flex-col gap-4">
       {isMod && (pending.data ?? []).length > 0 && (
-        <section aria-labelledby="mb-pend" className="rounded-card border border-warm bg-surface p-4">
+        <section aria-labelledby="mb-pend" className="rounded-card border border-line bg-surface p-4">
           <h3 id="mb-pend" className="text-sm font-semibold text-ink">Pedidos de entrada</h3>
           <ul className="divide-y divide-line">{(pending.data ?? []).map((m) => <MemberRow key={m.userId} m={m} c={c} myRole={myRole} pending />)}</ul>
         </section>
@@ -552,7 +552,7 @@ export function TopicPage() {
           {t.title}
         </h1>
         <p className="flex items-center gap-2 text-xs text-ink-muted"><Avatar profile={t.author} size={24} />{t.author?.displayName ?? 'Perfil indisponível'} · {relative(t.createdAt)}{t.editedAt ? ' · editado' : ''}</p>
-        {t.hidden && <p className="rounded-xl border border-warm bg-warm-soft p-2 text-sm text-ink">Tópico ocultado pela moderação.</p>}
+        {t.hidden && <p className="rounded-xl border border-line bg-warm-soft p-2 text-sm text-ink">Tópico ocultado pela moderação.</p>}
         <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-relaxed text-ink">{t.body}</p>
         <div className="flex flex-wrap gap-2">
           {isMod && (

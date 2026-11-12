@@ -176,11 +176,11 @@ function PresenterVideo({ media }: { media: Extract<PresenterMedia, { kind: 'vid
 }
 /**
  * Animação já recortada (WebP com transparência): começa no quadro parado e troca para a animação
- * depois que a página carrega e o arquivo termina de baixar. Pausar volta ao quadro parado.
+ * depois que a página carrega e o arquivo termina de baixar. Sem botão de pausa: quem pede menos
+ * movimento no aparelho vê o Tuca parado (PNG).
  */
 function PresenterAnimation({ media }: { media: Extract<PresenterMedia, { kind: 'animation' }> }) {
   const [ready, setReady] = useState(false)
-  const [playing, setPlaying] = useState(true)
   useEffect(() => {
     let cancelled = false
     const start = () => {
@@ -196,28 +196,17 @@ function PresenterAnimation({ media }: { media: Extract<PresenterMedia, { kind: 
     else window.addEventListener('load', () => idle(start), { once: true })
     return () => { cancelled = true }
   }, [media.src])
-  const animating = ready && playing
   return (
-    <div className="relative">
-      <img
-        src={animating ? media.src : media.poster}
-        width={640}
-        height={360}
-        alt={ALT}
-        data-testid="tuca-animation"
-        draggable={false}
-        decoding="async"
-        className="block aspect-video h-auto w-full select-none"
-      />
-      <button
-        type="button"
-        onClick={() => setPlaying((p) => !p)}
-        aria-label={playing ? 'Pausar animação do Tuca' : 'Reproduzir animação do Tuca'}
-        className="pressable absolute bottom-1 right-1 inline-flex size-11 items-center justify-center rounded-full bg-surface/90 text-ink shadow-[var(--shadow-card)]"
-      >
-        {playing ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
-      </button>
-    </div>
+    <img
+      src={ready ? media.src : media.poster}
+      width={640}
+      height={360}
+      alt={ALT}
+      data-testid="tuca-animation"
+      draggable={false}
+      decoding="async"
+      className="block aspect-video h-auto w-full select-none"
+    />
   )
 }
 

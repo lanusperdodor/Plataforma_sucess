@@ -56,7 +56,7 @@ describe('TucaPresenter', () => {
     pause.mockRestore()
   })
 
-  it('padrão: animação já recortada (sem recorte no navegador), quadro parado primeiro e pausa', async () => {
+  it('padrão: animação já recortada (sem recorte no navegador), quadro parado primeiro e sem botão de pausa', async () => {
     const OrigImage = window.Image
     class FakeImage { onload: (() => void) | null = null; set src(_v: string) { globalThis.setTimeout(() => this.onload?.(), 0) } }
     window.Image = FakeImage as unknown as typeof Image
@@ -67,8 +67,7 @@ describe('TucaPresenter', () => {
     expect(container.querySelector('canvas, video')).toBeNull()
     expect(container.querySelector('.tuca-bubble')).toBeNull()
     await waitFor(() => expect(img).toHaveAttribute('src', '/brand/tuca-animado.webp'))
-    fireEvent.click(screen.getByRole('button', { name: 'Pausar animação do Tuca' }))
-    expect(img).toHaveAttribute('src', '/brand/tuca-animado-quadro.webp')
+    expect(screen.queryByRole('button', { name: /animação do Tuca/ })).toBeNull()
     window.Image = OrigImage
   })
 

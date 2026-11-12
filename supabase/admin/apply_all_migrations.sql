@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0027) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0030) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -8895,5 +8895,1218 @@ $tucai_sql$;
     raise notice 'Tucaí 0027: aplicada agora';
   end if;
 end $tucai_0027$;
+
+-- ===================== supabase/migrations/0028_cobertura_nacional.sql =====================
+do $tucai_0028$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0028') then
+    raise notice 'Tucaí 0028: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0028_cobertura_nacional: Brasil → UF → Região comercial → Município.
+--  * UFs (27, códigos IBGE) e municípios IBGE (código, nome, UF, coordenadas da sede). Os municípios NÃO ficam no
+--    código: são importados pelo arquivo gerado supabase/admin/municipios_ibge.sql (scripts/ibge/), que chama
+--    private.import_municipalities. Mudanças territoriais: reimportar (upsert) e desativar municípios extintos.
+--  * Regiões comerciais dinâmicas (Master): centro (município IBGE) + raio em km, distância geográfica em linha reta
+--    (haversine). Um município pode estar em várias regiões (sobreposição), mas tem UMA região principal.
+--  * Município fora de todos os raios: cobertura administrativa por UF, sinalizada como lacuna (nunca "coberto").
+--  * Separação: cobertura cadastrada ≠ região ativa ≠ cidade com estabelecimento operacional ≠ raio de entrega da loja.
+--    Nada é ativado automaticamente: regiões nascem como rascunho.
+--  * Alterações que afetariam campanhas em andamento são bloqueadas (private.region_in_use, completada na 0029).
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values ('admin.regions', 600, 600)
+on conflict (action) do nothing;
+
+-- texto sem acento/minúsculo para busca ("itau de minas" encontra "Itaú de Minas")
+create or replace function private.fold(_t text) returns text
+language sql immutable parallel safe set search_path = '' as $$
+  select btrim(regexp_replace(lower(translate(coalesce(_t, ''),
+    'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ''’-', 'AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn   ')), '\s+', ' ', 'g'))
+$$;
+
+-- distância geográfica em linha reta (km), raio médio da Terra 6371 km
+create or replace function private.haversine_km(_lat1 numeric, _lng1 numeric, _lat2 numeric, _lng2 numeric) returns numeric
+language sql immutable parallel safe set search_path = '' as $$
+  select (2 * 6371 * asin(least(1, sqrt(
+    power(sin(radians((_lat2 - _lat1)::float8) / 2), 2) +
+    cos(radians(_lat1::float8)) * cos(radians(_lat2::float8)) * power(sin(radians((_lng2 - _lng1)::float8) / 2), 2)))))::numeric
+$$;
+
+create table if not exists public.ufs (
+  code smallint primary key check (code between 11 and 53),
+  sigla text not null unique check (sigla ~ '^[A-Z]{2}$'),
+  name text not null,
+  region text not null check (region in ('Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul'))
+);
+insert into public.ufs(code, sigla, name, region) values
+  (11, 'RO', 'Rondônia', 'Norte'), (12, 'AC', 'Acre', 'Norte'), (13, 'AM', 'Amazonas', 'Norte'), (14, 'RR', 'Roraima', 'Norte'),
+  (15, 'PA', 'Pará', 'Norte'), (16, 'AP', 'Amapá', 'Norte'), (17, 'TO', 'Tocantins', 'Norte'),
+  (21, 'MA', 'Maranhão', 'Nordeste'), (22, 'PI', 'Piauí', 'Nordeste'), (23, 'CE', 'Ceará', 'Nordeste'), (24, 'RN', 'Rio Grande do Norte', 'Nordeste'),
+  (25, 'PB', 'Paraíba', 'Nordeste'), (26, 'PE', 'Pernambuco', 'Nordeste'), (27, 'AL', 'Alagoas', 'Nordeste'), (28, 'SE', 'Sergipe', 'Nordeste'),
+  (29, 'BA', 'Bahia', 'Nordeste'), (31, 'MG', 'Minas Gerais', 'Sudeste'), (32, 'ES', 'Espírito Santo', 'Sudeste'), (33, 'RJ', 'Rio de Janeiro', 'Sudeste'),
+  (35, 'SP', 'São Paulo', 'Sudeste'), (41, 'PR', 'Paraná', 'Sul'), (42, 'SC', 'Santa Catarina', 'Sul'), (43, 'RS', 'Rio Grande do Sul', 'Sul'),
+  (50, 'MS', 'Mato Grosso do Sul', 'Centro-Oeste'), (51, 'MT', 'Mato Grosso', 'Centro-Oeste'), (52, 'GO', 'Goiás', 'Centro-Oeste'), (53, 'DF', 'Distrito Federal', 'Centro-Oeste')
+on conflict (code) do nothing;
+
+create table if not exists public.municipalities (
+  ibge_code integer primary key check (ibge_code between 1100000 and 5399999),
+  name text not null check (char_length(btrim(name)) between 2 and 120),
+  name_fold text generated always as (private.fold(name)) stored,
+  uf_code smallint not null references public.ufs(code),
+  lat numeric(8,5) check (lat is null or lat between -34.0 and 5.5),
+  lng numeric(8,5) check (lng is null or lng between -74.5 and -28.5),
+  is_capital boolean not null default false,
+  active boolean not null default true,   -- extinto/desmembrado: false (nunca apagar; preserva vínculos)
+  source text,
+  updated_at timestamptz not null default now(),
+  check ((lat is null) = (lng is null)),
+  check (ibge_code / 100000 = uf_code)
+);
+create index if not exists municipalities_uf_name_idx on public.municipalities(uf_code, name_fold);
+create index if not exists municipalities_latlng_idx on public.municipalities(lat, lng) where active;
+alter table public.municipalities enable row level security;
+alter table public.ufs enable row level security;
+drop policy if exists municipalities_select on public.municipalities;
+create policy municipalities_select on public.municipalities for select to anon, authenticated using (true);
+drop policy if exists ufs_select on public.ufs;
+create policy ufs_select on public.ufs for select to anon, authenticated using (true);
+revoke all on public.municipalities, public.ufs from public, anon, authenticated;
+grant select on public.municipalities, public.ufs to anon, authenticated;
+
+-- cidades atendidas: a coluna cities.ibge_code já existe (0023, sem chave estrangeira para não travar cadastros
+-- feitos antes da importação). private.link_cities_ibge() preenche pelo nome + UF.
+
+create table if not exists public.commercial_regions (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(btrim(name)) between 2 and 80),
+  slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  kind text not null default 'raio' check (kind in ('raio', 'administrativa')),
+  uf_code smallint references public.ufs(code),
+  center_ibge integer references public.municipalities(ibge_code),
+  center_lat numeric(8,5),
+  center_lng numeric(8,5),
+  radius_km numeric(6,1) check (radius_km is null or radius_km between 1 and 500),
+  status text not null default 'rascunho' check (status in ('rascunho', 'ativa', 'pausada', 'desativada')),
+  suggested boolean not null default false,
+  notes text check (notes is null or char_length(notes) <= 500),
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (kind = 'administrativa' or (center_ibge is not null and center_lat is not null and center_lng is not null and radius_km is not null)),
+  check (kind = 'raio' or uf_code is not null)
+);
+create unique index if not exists commercial_regions_admin_uf_idx on public.commercial_regions(uf_code) where kind = 'administrativa';
+create index if not exists commercial_regions_status_idx on public.commercial_regions(status, uf_code);
+create index if not exists commercial_regions_uf_idx on public.commercial_regions(uf_code);
+create index if not exists commercial_regions_center_idx on public.commercial_regions(center_ibge);
+create index if not exists commercial_regions_created_by_idx on public.commercial_regions(created_by);
+
+create table if not exists public.region_municipalities (
+  region_id uuid not null references public.commercial_regions(id) on delete cascade,
+  ibge_code integer not null references public.municipalities(ibge_code) on delete cascade,
+  distance_km numeric(7,1),
+  source text not null check (source in ('raio', 'manual', 'administrativa')),
+  excluded boolean not null default false,   -- retirado manualmente de dentro do raio (recalcular respeita)
+  is_primary boolean not null default false,
+  primary key (region_id, ibge_code)
+);
+create unique index if not exists region_municipalities_primary_idx on public.region_municipalities(ibge_code) where is_primary;
+create index if not exists region_municipalities_ibge_idx on public.region_municipalities(ibge_code);
+alter table public.commercial_regions enable row level security;
+alter table public.region_municipalities enable row level security;
+-- leitura e escrita só pelas funções (Master) e pelas listagens públicas de regiões ativas
+revoke all on public.commercial_regions, public.region_municipalities from public, anon, authenticated;
+
+-- ---------- importação IBGE (arquivo gerado, executado no SQL Editor) ----------
+create or replace function private.import_municipalities(_rows jsonb, _source text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare ins int := 0; upd int := 0; r jsonb;
+begin
+  if jsonb_typeof(_rows) <> 'array' then raise exception 'Formato inválido.' using errcode = 'P0001'; end if;
+  for r in select * from jsonb_array_elements(_rows) loop
+    insert into public.municipalities as m (ibge_code, name, uf_code, lat, lng, is_capital, source, updated_at)
+    values ((r->>'codigo_ibge')::int, btrim(r->>'nome'), (r->>'codigo_uf')::smallint, nullif(r->>'latitude', '')::numeric,
+            nullif(r->>'longitude', '')::numeric, coalesce((r->>'capital')::int = 1, false), _source, now())
+    on conflict (ibge_code) do update set name = excluded.name, uf_code = excluded.uf_code, lat = excluded.lat, lng = excluded.lng,
+      is_capital = excluded.is_capital, active = true, source = excluded.source, updated_at = now()
+    where (m.name, m.uf_code, m.lat, m.lng, m.is_capital, m.active) is distinct from (excluded.name, excluded.uf_code, excluded.lat, excluded.lng, excluded.is_capital, true);
+    if found then
+      if (select xmax = 0 from public.municipalities where ibge_code = (r->>'codigo_ibge')::int) then ins := ins + 1; else upd := upd + 1; end if;
+    end if;
+  end loop;
+  return jsonb_build_object('inseridos', ins, 'atualizados', upd, 'total', (select count(*) from public.municipalities));
+end $$;
+
+-- liga as cidades atendidas aos municípios IBGE por nome + UF (sem acento)
+create or replace function private.link_cities_ibge() returns integer
+language plpgsql security definer set search_path = '' as $$
+declare n int;
+begin
+  update public.cities c set ibge_code = m.ibge_code
+    from public.municipalities m join public.ufs u on u.code = m.uf_code
+   where c.ibge_code is null and u.sigla = c.state and m.name_fold = private.fold(c.name)
+     and not exists (select 1 from public.cities x where x.ibge_code = m.ibge_code);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- ---------- cálculo da cobertura ----------
+-- 0029 redefine: região com campanhas pagas em andamento não pode mudar centro/raio/status nem perder municípios
+create or replace function private.region_in_use(_region uuid) returns boolean
+language sql stable security definer set search_path = '' as $$ select false $$;
+create or replace function private.region_campaign_count(_region uuid) returns bigint
+language sql stable security definer set search_path = '' as $$ select 0::bigint $$;
+
+-- municípios dentro do raio (prévia por caixa de coordenadas + haversine)
+create or replace function private.region_compute(_region uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare r public.commercial_regions%rowtype; dlat numeric; dlng numeric;
+begin
+  select * into r from public.commercial_regions where id = _region;
+  if not found or r.kind <> 'raio' then return; end if;
+  dlat := r.radius_km / 110.574;
+  dlng := r.radius_km / (111.320 * greatest(cos(radians(r.center_lat::float8)), 0.01)::numeric);
+  delete from public.region_municipalities where region_id = _region and source = 'raio' and not excluded;
+  insert into public.region_municipalities(region_id, ibge_code, distance_km, source)
+  select _region, m.ibge_code, round(private.haversine_km(r.center_lat, r.center_lng, m.lat, m.lng), 1), 'raio'
+    from public.municipalities m
+   where m.active and m.lat between r.center_lat - dlat and r.center_lat + dlat
+     and m.lng between r.center_lng - dlng and r.center_lng + dlng
+     and private.haversine_km(r.center_lat, r.center_lng, m.lat, m.lng) <= r.radius_km
+  on conflict (region_id, ibge_code) do update set distance_km = excluded.distance_km;
+end $$;
+
+-- uma região principal por município; quem fica fora de todo raio entra na cobertura administrativa da UF (lacuna)
+create or replace function private.assign_coverage() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  -- garante uma região administrativa por UF que tenha municípios (nunca ativada automaticamente)
+  insert into public.commercial_regions(name, slug, kind, uf_code, status)
+  select 'Cobertura administrativa — ' || u.sigla, 'administrativa-' || lower(u.sigla), 'administrativa', u.code, 'rascunho'
+    from public.ufs u where exists (select 1 from public.municipalities m where m.uf_code = u.code)
+  on conflict do nothing;
+  -- administrativa = municípios ativos sem nenhum raio vigente (não desativado)
+  delete from public.region_municipalities rm using public.commercial_regions r
+   where r.id = rm.region_id and r.kind = 'administrativa'
+     and exists (select 1 from public.region_municipalities x join public.commercial_regions y on y.id = x.region_id
+                  where x.ibge_code = rm.ibge_code and y.kind = 'raio' and y.status <> 'desativada' and not x.excluded);
+  insert into public.region_municipalities(region_id, ibge_code, source)
+  select r.id, m.ibge_code, 'administrativa'
+    from public.municipalities m join public.commercial_regions r on r.kind = 'administrativa' and r.uf_code = m.uf_code
+   where m.active and not exists (select 1 from public.region_municipalities x join public.commercial_regions y on y.id = x.region_id
+                                   where x.ibge_code = m.ibge_code and y.kind = 'raio' and y.status <> 'desativada' and not x.excluded)
+  on conflict do nothing;
+  -- principal: raio ativo > outro raio > administrativa; manual > mais perto > mais antiga (duas etapas: índice único)
+  create temp table if not exists _best (ibge_code integer primary key, region_id uuid) on commit drop;
+  truncate _best;
+  insert into _best
+  select distinct on (rm.ibge_code) rm.ibge_code, rm.region_id
+    from public.region_municipalities rm join public.commercial_regions r on r.id = rm.region_id
+   where not rm.excluded and r.status <> 'desativada'
+   order by rm.ibge_code, (r.kind = 'administrativa'), (r.status = 'ativa') desc, (rm.source = 'manual') desc, rm.distance_km nulls last, r.created_at, r.id;
+  update public.region_municipalities rm set is_primary = false
+   where rm.is_primary and not exists (select 1 from _best b where b.ibge_code = rm.ibge_code and b.region_id = rm.region_id);
+  update public.region_municipalities rm set is_primary = true
+    from _best b where b.ibge_code = rm.ibge_code and b.region_id = rm.region_id and not rm.is_primary;
+end $$;
+
+create or replace function private.region_slug(_name text, _uf smallint) returns text
+language plpgsql stable security definer set search_path = '' as $$
+declare base text := regexp_replace(private.fold(_name), '[^a-z0-9]+', '-', 'g') || '-' || lower(coalesce((select sigla from public.ufs where code = _uf), 'br'));
+        s text; i int := 1;
+begin
+  base := btrim(base, '-'); s := base;
+  while exists (select 1 from public.commercial_regions where slug = s) loop i := i + 1; s := base || '-' || i; end loop;
+  return s;
+end $$;
+
+create or replace function private.create_region(_name text, _center integer, _radius numeric, _suggested boolean, _by uuid) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare m public.municipalities%rowtype; rid uuid;
+begin
+  select * into m from public.municipalities where ibge_code = _center and active;
+  if not found or m.lat is null then raise exception 'Município central inválido ou sem coordenadas.' using errcode = 'P0001'; end if;
+  insert into public.commercial_regions(name, slug, kind, uf_code, center_ibge, center_lat, center_lng, radius_km, status, suggested, created_by)
+  values (btrim(_name), private.region_slug(_name, m.uf_code), 'raio', m.uf_code, m.ibge_code, m.lat, m.lng, _radius, 'rascunho', _suggested, _by)
+  returning id into rid;
+  perform private.region_compute(rid);
+  return rid;
+end $$;
+
+-- regiões iniciais de exemplo (rascunho; o Master ativa quando houver operação real)
+create or replace function private.seed_initial_regions() returns integer
+language plpgsql security definer set search_path = '' as $$
+declare c record; n int := 0;
+begin
+  for c in select * from (values (3133758, 'Itaú de Minas'), (3106200, 'Belo Horizonte'), (3550308, 'São Paulo'),
+                                 (3516200, 'Franca'), (3543402, 'Ribeirão Preto'), (3304557, 'Rio de Janeiro')) v(code, name) loop
+    if exists (select 1 from public.municipalities where ibge_code = c.code and lat is not null)
+       and not exists (select 1 from public.commercial_regions where center_ibge = c.code and kind = 'raio') then
+      perform private.create_region('Região de ' || c.name, c.code, 100, false, null);
+      n := n + 1;
+    end if;
+  end loop;
+  if exists (select 1 from public.municipalities) then perform private.assign_coverage(); end if;
+  return n;
+end $$;
+
+-- ---------- painel Master ----------
+create or replace function public.admin_coverage_summary() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return (
+    with m as (select * from public.municipalities where active),
+    cov as (
+      select m.ibge_code,
+             bool_or(r.kind = 'raio' and r.status <> 'desativada' and not rm.excluded) as em_raio,
+             bool_or(r.kind = 'raio' and r.status = 'ativa' and not rm.excluded) as em_ativa
+        from m left join public.region_municipalities rm on rm.ibge_code = m.ibge_code
+        left join public.commercial_regions r on r.id = rm.region_id
+       group by m.ibge_code)
+    select jsonb_build_object(
+      'municipios', (select count(*) from m),
+      'com_regiao_principal', (select count(distinct rm.ibge_code) from public.region_municipalities rm join m on m.ibge_code = rm.ibge_code where rm.is_primary),
+      'em_raio', (select count(*) from cov where em_raio),
+      'em_regiao_ativa', (select count(*) from cov where em_ativa),
+      'lacunas', (select count(*) from cov where not coalesce(em_raio, false)),
+      'sem_coordenadas', (select count(*) from m where lat is null),
+      'regioes', (select jsonb_object_agg(status, n) from (select status, count(*) n from public.commercial_regions where kind = 'raio' group by status) x),
+      'cidades_atendidas', (select count(*) from public.cities where is_active and not is_demo),
+      'cidades_com_ibge', (select count(*) from public.cities where ibge_code is not null),
+      'cidades_operacionais', (select count(distinct b.city_id) from public.businesses b where b.status = 'active' and not b.is_demo and not b.is_test),
+      'por_uf', coalesce((select jsonb_agg(jsonb_build_object('sigla', u.sigla, 'nome', u.name, 'municipios', x.total, 'em_raio', x.raio, 'lacunas', x.total - x.raio,
+                                                               'lat', x.lat, 'lng', x.lng) order by u.sigla)
+                            from public.ufs u join (
+                              select m.uf_code, count(*) total, count(*) filter (where cov.em_raio) raio, round(avg(m.lat), 2) lat, round(avg(m.lng), 2) lng
+                                from m join cov on cov.ibge_code = m.ibge_code group by m.uf_code) x on x.uf_code = u.code), '[]'::jsonb)
+    ));
+end $$;
+
+create or replace function public.admin_regions(_uf text default null, _status text default null, _q text default null, _limit integer default 24, _offset integer default 0)
+returns table (id uuid, name text, slug text, kind text, status text, uf text, center_ibge integer, center_name text, center_lat numeric, center_lng numeric,
+               radius_km numeric, suggested boolean, municipalities bigint, primary_municipalities bigint, businesses bigint, active_campaigns bigint,
+               in_use boolean, total_count bigint)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return query
+    with f as (
+      select r.* from public.commercial_regions r left join public.ufs u on u.code = r.uf_code
+       where (_uf is null or u.sigla = upper(_uf)) and (_status is null or r.status = _status)
+         and (_q is null or btrim(_q) = '' or private.fold(r.name) like '%' || private.fold(_q) || '%'
+              or exists (select 1 from public.region_municipalities x join public.municipalities mm on mm.ibge_code = x.ibge_code
+                          where x.region_id = r.id and not x.excluded and mm.name_fold like '%' || private.fold(_q) || '%')))
+    select r.id, r.name, r.slug, r.kind, r.status, u.sigla, r.center_ibge, cm.name, r.center_lat, r.center_lng, r.radius_km, r.suggested,
+           (select count(*) from public.region_municipalities x where x.region_id = r.id and not x.excluded),
+           (select count(*) from public.region_municipalities x where x.region_id = r.id and x.is_primary),
+           (select count(*) from public.businesses b join public.cities c on c.id = b.city_id
+                             join public.region_municipalities x on x.ibge_code = c.ibge_code and x.region_id = r.id and not x.excluded
+             where b.status = 'active' and not b.is_demo),
+           private.region_campaign_count(r.id), private.region_in_use(r.id),
+           count(*) over ()
+      from f r left join public.ufs u on u.code = r.uf_code left join public.municipalities cm on cm.ibge_code = r.center_ibge
+     order by (r.status = 'ativa') desc, (r.kind = 'administrativa'), u.sigla nulls last, r.name
+     limit least(greatest(coalesce(_limit, 24), 1), 200) offset greatest(coalesce(_offset, 0), 0);
+end $$;
+
+-- círculos para o mapa (centro e raio; sem municípios nem polígonos)
+create or replace function public.admin_region_map() returns table (id uuid, name text, status text, lat numeric, lng numeric, radius_km numeric)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return query select r.id, r.name, r.status, r.center_lat, r.center_lng, r.radius_km from public.commercial_regions r
+                where r.kind = 'raio' and r.status <> 'desativada' order by r.name limit 3000;
+end $$;
+
+create or replace function public.admin_region_municipalities(_region uuid, _q text default null, _limit integer default 50, _offset integer default 0)
+returns table (ibge_code integer, name text, uf text, distance_km numeric, source text, excluded boolean, is_primary boolean, primary_region text,
+               served_city boolean, businesses bigint, total_count bigint)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return query
+    select m.ibge_code, m.name, u.sigla, rm.distance_km, rm.source, rm.excluded, rm.is_primary,
+           (select r2.name from public.region_municipalities p join public.commercial_regions r2 on r2.id = p.region_id where p.ibge_code = m.ibge_code and p.is_primary),
+           exists (select 1 from public.cities c where c.ibge_code = m.ibge_code and c.is_active),
+           (select count(*) from public.businesses b join public.cities c on c.id = b.city_id where c.ibge_code = m.ibge_code and b.status = 'active' and not b.is_demo),
+           count(*) over ()
+      from public.region_municipalities rm join public.municipalities m on m.ibge_code = rm.ibge_code join public.ufs u on u.code = m.uf_code
+     where rm.region_id = _region and (_q is null or btrim(_q) = '' or m.name_fold like '%' || private.fold(_q) || '%')
+     order by rm.excluded, rm.distance_km nulls last, m.name
+     limit least(greatest(coalesce(_limit, 50), 1), 200) offset greatest(coalesce(_offset, 0), 0);
+end $$;
+
+-- lacunas: municípios fora de qualquer raio vigente (ficam só na cobertura administrativa)
+create or replace function public.admin_uncovered_municipalities(_uf text default null, _q text default null, _limit integer default 50, _offset integer default 0)
+returns table (ibge_code integer, name text, uf text, lat numeric, lng numeric, reason text, total_count bigint)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return query
+    select m.ibge_code, m.name, u.sigla, m.lat, m.lng, case when m.lat is null then 'sem_coordenadas' else 'fora_dos_raios' end, count(*) over ()
+      from public.municipalities m join public.ufs u on u.code = m.uf_code
+     where m.active and (_uf is null or u.sigla = upper(_uf)) and (_q is null or btrim(_q) = '' or m.name_fold like '%' || private.fold(_q) || '%')
+       and not exists (select 1 from public.region_municipalities x join public.commercial_regions r on r.id = x.region_id
+                        where x.ibge_code = m.ibge_code and r.kind = 'raio' and r.status <> 'desativada' and not x.excluded)
+     order by u.sigla, m.name_fold
+     limit least(greatest(coalesce(_limit, 50), 1), 200) offset greatest(coalesce(_offset, 0), 0);
+end $$;
+
+create or replace function public.admin_municipality_search(_q text, _uf text default null, _limit integer default 20)
+returns table (ibge_code integer, name text, uf text, lat numeric, lng numeric, is_capital boolean)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  if char_length(private.fold(_q)) < 2 then return; end if;
+  return query
+    select m.ibge_code, m.name, u.sigla, m.lat, m.lng, m.is_capital from public.municipalities m join public.ufs u on u.code = m.uf_code
+     where m.active and m.name_fold like '%' || private.fold(_q) || '%' and (_uf is null or u.sigla = upper(_uf))
+     order by (m.name_fold like private.fold(_q) || '%') desc, m.is_capital desc, m.name_fold limit least(greatest(coalesce(_limit, 20), 1), 50);
+end $$;
+
+create or replace function public.admin_save_region(_id uuid, _name text, _center integer, _radius_km numeric, _notes text default null) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare r public.commercial_regions%rowtype; rid uuid; m public.municipalities%rowtype;
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.regions');
+  if char_length(btrim(coalesce(_name, ''))) < 2 then raise exception 'Informe o nome da região.' using errcode = 'P0001'; end if;
+  if _radius_km is null or _radius_km < 1 or _radius_km > 500 then raise exception 'Raio entre 1 e 500 km.' using errcode = 'P0001'; end if;
+  if _id is null then
+    rid := private.create_region(_name, _center, _radius_km, false, auth.uid());
+    update public.commercial_regions set notes = nullif(btrim(coalesce(_notes, '')), '') where id = rid;
+  else
+    select * into r from public.commercial_regions where id = _id for update;
+    if not found then raise exception 'Região não encontrada.' using errcode = 'P0001'; end if;
+    if r.kind = 'administrativa' then raise exception 'A cobertura administrativa é calculada automaticamente.' using errcode = 'P0001'; end if;
+    if (r.center_ibge is distinct from _center or r.radius_km is distinct from _radius_km) and private.region_in_use(_id) then
+      raise exception 'Há campanhas em andamento nesta região. Altere centro ou raio depois que terminarem (ou crie outra região).' using errcode = 'P0001';
+    end if;
+    select * into m from public.municipalities where ibge_code = _center and active;
+    if not found or m.lat is null then raise exception 'Município central inválido ou sem coordenadas.' using errcode = 'P0001'; end if;
+    update public.commercial_regions set name = btrim(_name), center_ibge = m.ibge_code, center_lat = m.lat, center_lng = m.lng, uf_code = m.uf_code,
+           radius_km = _radius_km, notes = nullif(btrim(coalesce(_notes, '')), ''), suggested = false, updated_at = now()
+     where id = _id;
+    rid := _id;
+    if r.center_ibge is distinct from _center or r.radius_km is distinct from _radius_km then perform private.region_compute(rid); end if;
+  end if;
+  perform private.assign_coverage();
+  perform private.audit('regions.save', 'commercial_regions', rid::text, jsonb_build_object('name', _name, 'center', _center, 'radius_km', _radius_km, 'new', _id is null));
+  return rid;
+end $$;
+
+create or replace function public.admin_set_region_status(_id uuid, _status text, _reason text default null) returns void
+language plpgsql security definer set search_path = '' as $$
+declare r public.commercial_regions%rowtype;
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.regions');
+  if _status not in ('rascunho', 'ativa', 'pausada', 'desativada') then raise exception 'Situação inválida.' using errcode = 'P0001'; end if;
+  select * into r from public.commercial_regions where id = _id for update;
+  if not found then raise exception 'Região não encontrada.' using errcode = 'P0001'; end if;
+  if _status <> 'ativa' and r.status = 'ativa' and private.region_in_use(_id) then
+    raise exception 'Há campanhas pagas em andamento nesta região. Pause ou encerre as campanhas antes.' using errcode = 'P0001';
+  end if;
+  update public.commercial_regions set status = _status, updated_at = now() where id = _id;
+  perform private.assign_coverage();
+  perform private.audit('regions.status', 'commercial_regions', _id::text, jsonb_build_object('from', r.status, 'to', _status, 'reason', _reason));
+end $$;
+
+-- incluir município manualmente ou retirá-lo do raio (a retirada é lembrada ao recalcular)
+create or replace function public.admin_region_member(_region uuid, _ibge integer, _include boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+declare r public.commercial_regions%rowtype; m public.municipalities%rowtype; cur public.region_municipalities%rowtype;
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.regions');
+  select * into r from public.commercial_regions where id = _region for update;
+  if not found or r.kind <> 'raio' then raise exception 'Região inválida.' using errcode = 'P0001'; end if;
+  select * into m from public.municipalities where ibge_code = _ibge;
+  if not found then raise exception 'Município não encontrado.' using errcode = 'P0001'; end if;
+  select * into cur from public.region_municipalities where region_id = _region and ibge_code = _ibge;
+  if _include then
+    insert into public.region_municipalities(region_id, ibge_code, distance_km, source)
+    values (_region, _ibge, case when m.lat is not null then round(private.haversine_km(r.center_lat, r.center_lng, m.lat, m.lng), 1) end, 'manual')
+    on conflict (region_id, ibge_code) do update set excluded = false;
+  else
+    if private.region_in_use(_region) then raise exception 'Há campanhas em andamento nesta região: não é possível retirar municípios agora.' using errcode = 'P0001'; end if;
+    if cur.source = 'manual' then delete from public.region_municipalities where region_id = _region and ibge_code = _ibge;
+    else update public.region_municipalities set excluded = true, is_primary = false where region_id = _region and ibge_code = _ibge; end if;
+  end if;
+  perform private.assign_coverage();
+  perform private.audit('regions.member', 'commercial_regions', _region::text, jsonb_build_object('ibge', _ibge, 'include', _include));
+end $$;
+
+-- gerador: sugere centros até cobrir os municípios sem raio (guloso; até _max por chamada)
+create or replace function public.admin_suggest_regions(_radius_km numeric default 100, _max integer default 20, _uf text default null, _create boolean default false)
+returns table (seq integer, center_ibge integer, center_name text, uf text, newly_covered integer, region_id uuid)
+language plpgsql security definer set search_path = '' as $$
+declare seed public.municipalities%rowtype; best_code int; best_n int; c record; n int; i int := 0; dlat numeric; dlng numeric; rid uuid; ufc smallint;
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.regions');
+  if _radius_km is null or _radius_km < 10 or _radius_km > 500 then raise exception 'Raio entre 10 e 500 km.' using errcode = 'P0001'; end if;
+  if _uf is not null then select code into ufc from public.ufs where sigla = upper(_uf); end if;
+  create temp table if not exists _cov (ibge_code integer primary key) on commit drop;
+  truncate _cov;
+  insert into _cov select distinct x.ibge_code from public.region_municipalities x join public.commercial_regions r on r.id = x.region_id
+                    where r.kind = 'raio' and r.status <> 'desativada' and not x.excluded;
+  while i < least(greatest(coalesce(_max, 20), 1), 100) loop
+    select m.* into seed from public.municipalities m
+     where m.active and m.lat is not null and (ufc is null or m.uf_code = ufc) and not exists (select 1 from _cov k where k.ibge_code = m.ibge_code)
+     order by m.is_capital desc, m.lat desc, m.lng limit 1;
+    exit when not found;
+    best_code := seed.ibge_code; best_n := 0;
+    dlat := (_radius_km / 2) / 110.574; dlng := (_radius_km / 2) / (111.320 * greatest(cos(radians(seed.lat::float8)), 0.01)::numeric);
+    -- candidatos: municípios não cobertos perto da semente; vence quem cobre mais municípios ainda sem raio
+    for c in select m.ibge_code, m.lat, m.lng from public.municipalities m
+              where m.active and m.lat between seed.lat - dlat and seed.lat + dlat and m.lng between seed.lng - dlng and seed.lng + dlng
+                and private.haversine_km(seed.lat, seed.lng, m.lat, m.lng) <= _radius_km / 2
+                and not exists (select 1 from _cov k where k.ibge_code = m.ibge_code)
+              order by private.haversine_km(seed.lat, seed.lng, m.lat, m.lng) limit 40 loop
+      select count(*) into n from public.municipalities m
+       where m.active and m.lat between c.lat - _radius_km / 110.574 and c.lat + _radius_km / 110.574
+         and m.lng between c.lng - _radius_km / (111.320 * greatest(cos(radians(c.lat::float8)), 0.01)::numeric)
+                       and c.lng + _radius_km / (111.320 * greatest(cos(radians(c.lat::float8)), 0.01)::numeric)
+         and private.haversine_km(c.lat, c.lng, m.lat, m.lng) <= _radius_km
+         and not exists (select 1 from _cov k where k.ibge_code = m.ibge_code);
+      if n > best_n then best_n := n; best_code := c.ibge_code; end if;
+    end loop;
+    select m.* into seed from public.municipalities m where m.ibge_code = best_code;
+    insert into _cov select m.ibge_code from public.municipalities m
+     where m.active and m.lat between seed.lat - _radius_km / 110.574 and seed.lat + _radius_km / 110.574
+       and private.haversine_km(seed.lat, seed.lng, m.lat, m.lng) <= _radius_km
+    on conflict do nothing;
+    insert into _cov values (seed.ibge_code) on conflict do nothing;
+    i := i + 1;
+    rid := null;
+    if _create then
+      rid := private.create_region('Região de ' || seed.name, seed.ibge_code, _radius_km, true, auth.uid());
+    end if;
+    seq := i; center_ibge := seed.ibge_code; center_name := seed.name; uf := (select sigla from public.ufs where code = seed.uf_code);
+    newly_covered := greatest(best_n, 1); region_id := rid;
+    return next;
+  end loop;
+  if _create and i > 0 then
+    perform private.assign_coverage();
+    perform private.audit('regions.suggest_create', 'commercial_regions', null, jsonb_build_object('created', i, 'radius_km', _radius_km, 'uf', _uf));
+  end if;
+end $$;
+
+-- ---------- uso pelo app (anunciante, seletor) ----------
+create or replace function public.active_regions(_q text default null, _uf text default null, _limit integer default 30)
+returns table (id uuid, name text, uf text, center_name text, radius_km numeric, municipalities bigint)
+language sql stable security definer set search_path = '' as $$
+  select r.id, r.name, u.sigla, m.name, r.radius_km,
+         (select count(*) from public.region_municipalities x where x.region_id = r.id and not x.excluded)
+    from public.commercial_regions r join public.ufs u on u.code = r.uf_code left join public.municipalities m on m.ibge_code = r.center_ibge
+   where auth.uid() is not null and r.status = 'ativa' and r.kind = 'raio'
+     and (_uf is null or u.sigla = upper(_uf))
+     and (_q is null or btrim(_q) = '' or private.fold(r.name) like '%' || private.fold(_q) || '%'
+          or exists (select 1 from public.region_municipalities x join public.municipalities mm on mm.ibge_code = x.ibge_code
+                      where x.region_id = r.id and not x.excluded and mm.name_fold like '%' || private.fold(_q) || '%'))
+   order by r.name limit least(greatest(coalesce(_limit, 30), 1), 100)
+$$;
+
+-- regiões ativas que incluem uma cidade atendida (sem localização precisa: só a cidade escolhida)
+create or replace function public.city_regions(_city uuid) returns table (id uuid, name text)
+language sql stable security definer set search_path = '' as $$
+  select r.id, r.name from public.cities c
+    join public.region_municipalities x on x.ibge_code = c.ibge_code and not x.excluded
+    join public.commercial_regions r on r.id = x.region_id and r.status = 'ativa' and r.kind = 'raio'
+   where c.id = _city
+$$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array[
+    'private.fold(text)', 'private.haversine_km(numeric, numeric, numeric, numeric)', 'private.import_municipalities(jsonb, text)',
+    'private.link_cities_ibge()', 'private.region_in_use(uuid)', 'private.region_campaign_count(uuid)', 'private.region_compute(uuid)',
+    'private.assign_coverage()', 'private.region_slug(text, smallint)', 'private.create_region(text, integer, numeric, boolean, uuid)',
+    'private.seed_initial_regions()'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+  end loop;
+  foreach f in array array[
+    'public.admin_coverage_summary()', 'public.admin_regions(text, text, text, integer, integer)', 'public.admin_region_map()',
+    'public.admin_region_municipalities(uuid, text, integer, integer)', 'public.admin_uncovered_municipalities(text, text, integer, integer)',
+    'public.admin_municipality_search(text, text, integer)', 'public.admin_save_region(uuid, text, integer, numeric, text)',
+    'public.admin_set_region_status(uuid, text, text)', 'public.admin_region_member(uuid, integer, boolean)',
+    'public.admin_suggest_regions(numeric, integer, text, boolean)', 'public.active_regions(text, text, integer)', 'public.city_regions(uuid)'] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+-- se os municípios já tiverem sido importados, cria as regiões de exemplo (rascunho) e liga as cidades
+do $$
+begin
+  if exists (select 1 from public.municipalities limit 1) then
+    perform private.link_cities_ibge();
+    perform private.seed_initial_regions();
+  end if;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0028', '0028_cobertura_nacional.sql', 'applied');
+    raise notice 'Tucaí 0028: aplicada agora';
+  end if;
+end $tucai_0028$;
+
+-- ===================== supabase/migrations/0029_publicidade.sql =====================
+do $tucai_0029$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0029') then
+    raise notice 'Tucaí 0029: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0029_publicidade: publicações patrocinadas ("Turbinar publicação") no Conecta, por região comercial.
+--  * Proprietário/gerente escolhe publicação do estabelecimento, objetivo, regiões ATIVAS, dias e orçamento total.
+--    Preço mínimo (configurável pelo Master): R$ 10 por campanha e R$ 5/dia por região. Diário = total ÷ dias.
+--    Cobrança fixa pelo período e abrangência contratados — sem promessa de alcance ou resultado.
+--  * Pagamento pelo sistema existente: a campanha gera uma cobrança (platform_charges, tipo 'outro') paga pelo
+--    checkout do Mercado Pago (/api/pagamentos/checkout). A baixa (webhook com valor conferido, sem duplicidade)
+--    dispara a campanha. Ativa só com PAGAMENTO CONFIRMADO + APROVAÇÃO do Master; o período começa na ativação.
+--  * Uma campanha em andamento por publicação; repetir a mesma operação (op_id) não cria outra cobrança.
+--  * Distribuição: cidade escolhida pela pessoa → município IBGE → regiões ativas da campanha. Sem localização precisa.
+--  * Métricas verificáveis: impressão e clique únicos por pessoa/campanha/dia (chave com hash, sem o id da pessoa);
+--    clique só conta com impressão; equipe do próprio estabelecimento não conta. Expiradas encerram sozinhas.
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values
+  ('ads.create', 30, 600), ('ads.track', 900, 600), ('admin.ads', 600, 600)
+on conflict (action) do nothing;
+
+create table if not exists private.ad_settings (
+  id boolean primary key default true check (id),
+  min_total_cents integer not null default 1000 check (min_total_cents >= 100),
+  min_daily_cents_per_region integer not null default 500 check (min_daily_cents_per_region >= 0),
+  min_days smallint not null default 1 check (min_days >= 1),
+  max_days smallint not null default 30 check (max_days between 1 and 90),
+  max_regions smallint not null default 10 check (max_regions between 1 and 50),
+  feed_every smallint not null default 6 check (feed_every between 3 and 50),            -- 1 patrocinado a cada N publicações
+  max_campaigns_per_viewer_day smallint not null default 8 check (max_campaigns_per_viewer_day between 1 and 50),
+  updated_by uuid, updated_at timestamptz not null default now()
+);
+insert into private.ad_settings(id) values (true) on conflict do nothing;
+revoke all on private.ad_settings from public, anon, authenticated;
+
+create table if not exists public.ad_campaigns (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  post_id uuid references public.posts(id) on delete set null,
+  objective text not null check (objective in ('alcance', 'visitas', 'pedidos', 'mensagens')),
+  total_cents integer not null check (total_cents between 100 and 100000000),
+  days smallint not null check (days between 1 and 90),
+  daily_cents integer generated always as (total_cents / days) stored,
+  status text not null default 'pendente' check (status in ('pendente', 'ativa', 'pausada', 'recusada', 'encerrada', 'cancelada')),
+  charge_id uuid unique references public.platform_charges(id) on delete restrict,
+  paid_at timestamptz,
+  approved_at timestamptz,
+  approved_by uuid references auth.users(id) on delete set null,
+  review_note text check (review_note is null or char_length(review_note) <= 300),
+  starts_at timestamptz,
+  ends_at timestamptz,
+  pricing jsonb not null default '{}'::jsonb,
+  op_id uuid not null unique,
+  is_test boolean not null default false,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check ((status = 'ativa') <= (paid_at is not null and approved_at is not null and starts_at is not null))
+);
+create unique index if not exists ad_campaigns_post_running_idx on public.ad_campaigns(post_id) where status in ('pendente', 'ativa', 'pausada');
+create index if not exists ad_campaigns_business_idx on public.ad_campaigns(business_id, created_at desc);
+create index if not exists ad_campaigns_post_idx on public.ad_campaigns(post_id);
+create index if not exists ad_campaigns_active_idx on public.ad_campaigns(status, ends_at);
+create index if not exists ad_campaigns_approved_by_idx on public.ad_campaigns(approved_by);
+create index if not exists ad_campaigns_created_by_idx on public.ad_campaigns(created_by);
+
+create table if not exists public.ad_campaign_regions (
+  campaign_id uuid not null references public.ad_campaigns(id) on delete cascade,
+  region_id uuid not null references public.commercial_regions(id) on delete restrict,
+  primary key (campaign_id, region_id)
+);
+create index if not exists ad_campaign_regions_region_idx on public.ad_campaign_regions(region_id);
+
+create table if not exists public.ad_events (
+  campaign_id uuid not null references public.ad_campaigns(id) on delete cascade,
+  kind text not null check (kind in ('impressao', 'clique')),
+  viewer_key text not null check (char_length(viewer_key) = 64),
+  day date not null,
+  created_at timestamptz not null default now(),
+  primary key (campaign_id, kind, viewer_key, day)
+);
+create index if not exists ad_events_viewer_day_idx on public.ad_events(viewer_key, day);
+alter table public.ad_campaigns enable row level security;
+alter table public.ad_campaign_regions enable row level security;
+alter table public.ad_events enable row level security;
+-- tudo pelas funções abaixo (anunciante, feed e Master)
+revoke all on public.ad_campaigns, public.ad_campaign_regions, public.ad_events from public, anon, authenticated;
+
+-- regiões: campanha paga em andamento trava centro, raio, status e retirada de municípios (0028)
+create or replace function private.region_in_use(_region uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.ad_campaign_regions cr join public.ad_campaigns c on c.id = cr.campaign_id
+                  where cr.region_id = _region
+                    and (c.status in ('ativa', 'pausada') or (c.status = 'pendente' and c.paid_at is not null)))
+$$;
+create or replace function private.region_campaign_count(_region uuid) returns bigint
+language sql stable security definer set search_path = '' as $$
+  select count(*) from public.ad_campaign_regions cr join public.ad_campaigns c on c.id = cr.campaign_id
+   where cr.region_id = _region and c.status = 'ativa' and c.ends_at > now()
+$$;
+
+create or replace function private.ad_status_label(c public.ad_campaigns) returns text
+language sql stable set search_path = '' as $$
+  select case
+    when c.status = 'pendente' and c.paid_at is null then 'aguardando_pagamento'
+    when c.status = 'pendente' then 'aguardando_aprovacao'
+    when c.status = 'ativa' and c.ends_at <= now() then 'encerrada'
+    else c.status end
+$$;
+
+-- ativa quando pago + aprovado; o período contratado começa agora
+create or replace function private.ad_try_activate(_campaign uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.ad_campaigns set status = 'ativa', starts_at = now(), ends_at = now() + make_interval(days => days), updated_at = now()
+   where id = _campaign and status = 'pendente' and paid_at is not null and approved_at is not null;
+end $$;
+
+create or replace function private.ad_sweep() returns integer
+language plpgsql security definer set search_path = '' as $$
+declare n int;
+begin
+  update public.ad_campaigns set status = 'encerrada', updated_at = now() where status in ('ativa', 'pausada') and ends_at <= now();
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- baixa da cobrança (webhook do Mercado Pago ou registro manual do Master) → campanha
+create or replace function private.ad_on_charge_change() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid;
+begin
+  if new.status = 'paga' and old.status is distinct from 'paga' then
+    update public.ad_campaigns set paid_at = coalesce(new.paid_at, now()), updated_at = now()
+     where charge_id = new.id and paid_at is null and status = 'pendente' returning id into cid;
+    if cid is not null then perform private.ad_try_activate(cid); end if;
+  elsif new.status = 'cancelada' and old.status = 'aberta' then
+    update public.ad_campaigns set status = 'cancelada', updated_at = now() where charge_id = new.id and status = 'pendente' and paid_at is null;
+  end if;
+  return new;
+end $$;
+drop trigger if exists platform_charges_ads on public.platform_charges;
+create trigger platform_charges_ads after update of status on public.platform_charges for each row execute function private.ad_on_charge_change();
+
+-- ---------- anunciante ----------
+create or replace function private.ad_price(_regions integer, _days integer, _total integer) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'min_cents', greatest(s.min_total_cents, s.min_daily_cents_per_region * greatest(_regions, 1) * greatest(_days, 1)),
+    'min_total_cents', s.min_total_cents, 'min_daily_cents_per_region', s.min_daily_cents_per_region,
+    'min_days', s.min_days, 'max_days', s.max_days, 'max_regions', s.max_regions,
+    'total_cents', _total, 'daily_cents', case when _days > 0 then _total / _days end)
+    from private.ad_settings s where s.id
+$$;
+
+create or replace function public.ad_quote(_regions uuid[], _days integer, _total_cents integer) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare p jsonb; n int := coalesce(cardinality(_regions), 0); ok_regions int;
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  select count(*) into ok_regions from public.commercial_regions where id = any(coalesce(_regions, '{}')) and status = 'ativa' and kind = 'raio';
+  p := private.ad_price(n, coalesce(_days, 0), coalesce(_total_cents, 0));
+  return p || jsonb_build_object('regions', n, 'valid_regions', ok_regions,
+    'ok', n > 0 and ok_regions = n and n <= (p->>'max_regions')::int and _days between (p->>'min_days')::int and (p->>'max_days')::int
+          and _total_cents >= (p->>'min_cents')::int);
+end $$;
+
+create or replace function public.merchant_create_campaign(_business uuid, _post uuid, _objective text, _regions uuid[], _days integer, _total_cents integer, _op uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare b public.businesses%rowtype; p jsonb; n int; cid uuid; chid uuid; existing public.ad_campaigns%rowtype; names text;
+begin
+  if not public.has_business_permission(_business, 'store.customize') then raise exception 'forbidden' using errcode = '42501'; end if;
+  if _op is null then raise exception 'Operação inválida.' using errcode = 'P0001'; end if;
+  select * into existing from public.ad_campaigns where op_id = _op;
+  if found then
+    if existing.business_id <> _business then raise exception 'forbidden' using errcode = '42501'; end if;
+    return jsonb_build_object('campaign_id', existing.id, 'charge_id', existing.charge_id, 'amount_cents', existing.total_cents, 'repetida', true);
+  end if;
+  perform private.limit_for('ads.create');
+  select * into b from public.businesses where id = _business;
+  if b.status <> 'active' then raise exception 'O estabelecimento precisa estar publicado para anunciar.' using errcode = 'P0001'; end if;
+  if not exists (select 1 from public.posts where id = _post and business_id = _business and status = 'published') then
+    raise exception 'Escolha uma publicação do próprio estabelecimento.' using errcode = 'P0001';
+  end if;
+  if _objective not in ('alcance', 'visitas', 'pedidos', 'mensagens') then raise exception 'Objetivo inválido.' using errcode = 'P0001'; end if;
+  select array_agg(distinct x) into _regions from unnest(coalesce(_regions, '{}')) x;
+  n := coalesce(cardinality(_regions), 0);
+  p := private.ad_price(n, coalesce(_days, 0), coalesce(_total_cents, 0));
+  if n = 0 then raise exception 'Escolha ao menos uma região.' using errcode = 'P0001'; end if;
+  if n > (p->>'max_regions')::int then raise exception 'Máximo de % regiões por campanha.', p->>'max_regions' using errcode = 'P0001'; end if;
+  if (select count(*) from public.commercial_regions where id = any(_regions) and status = 'ativa' and kind = 'raio') <> n then
+    raise exception 'Alguma região escolhida não está ativa.' using errcode = 'P0001';
+  end if;
+  if _days is null or _days < (p->>'min_days')::int or _days > (p->>'max_days')::int then
+    raise exception 'Duração entre % e % dias.', p->>'min_days', p->>'max_days' using errcode = 'P0001';
+  end if;
+  if _total_cents is null or _total_cents < (p->>'min_cents')::int then
+    raise exception 'Investimento mínimo para esta abrangência: R$ %.', to_char((p->>'min_cents')::int / 100.0, 'FM999990D00') using errcode = 'P0001';
+  end if;
+  if exists (select 1 from public.ad_campaigns where post_id = _post and status in ('pendente', 'ativa', 'pausada')) then
+    raise exception 'Esta publicação já tem uma campanha em andamento.' using errcode = 'P0001';
+  end if;
+  select string_agg(name, ', ' order by name) into names from public.commercial_regions where id = any(_regions);
+  insert into public.platform_charges(business_id, kind, description, amount_cents, due_on, created_by)
+  values (_business, 'outro', left('Publicação patrocinada · ' || _days || ' dia(s) · ' || names, 200), _total_cents, current_date + 3, auth.uid())
+  returning id into chid;
+  insert into public.ad_campaigns(business_id, post_id, objective, total_cents, days, charge_id, pricing, op_id, is_test, created_by)
+  values (_business, _post, _objective, _total_cents, _days, chid, p, _op, coalesce(b.is_test, false), auth.uid())
+  returning id into cid;
+  insert into public.ad_campaign_regions(campaign_id, region_id) select cid, r from unnest(_regions) r;
+  perform private.audit('ads.create', 'ad_campaigns', cid::text, jsonb_build_object('business', _business, 'total', _total_cents, 'days', _days, 'regions', _regions));
+  return jsonb_build_object('campaign_id', cid, 'charge_id', chid, 'amount_cents', _total_cents, 'repetida', false);
+exception when unique_violation then
+  raise exception 'Esta publicação já tem uma campanha em andamento.' using errcode = 'P0001';
+end $$;
+
+create or replace function public.merchant_cancel_campaign(_campaign uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.ad_campaigns%rowtype;
+begin
+  select * into c from public.ad_campaigns where id = _campaign for update;
+  if not found or not public.has_business_permission(c.business_id, 'store.customize') then raise exception 'forbidden' using errcode = '42501'; end if;
+  if c.status <> 'pendente' or c.paid_at is not null then
+    raise exception 'Campanha já paga: fale com a Tucaí para pausar ou encerrar.' using errcode = 'P0001';
+  end if;
+  update public.ad_campaigns set status = 'cancelada', updated_at = now() where id = _campaign;
+  update public.platform_charges set status = 'cancelada' where id = c.charge_id and status = 'aberta';
+  perform private.audit('ads.cancel', 'ad_campaigns', _campaign::text, '{}'::jsonb);
+end $$;
+
+create or replace function public.merchant_campaigns(_business uuid)
+returns table (id uuid, post_id uuid, post_excerpt text, objective text, status text, total_cents integer, days smallint, daily_cents integer,
+               regions text[], starts_at timestamptz, ends_at timestamptz, paid boolean, approved boolean, review_note text,
+               charge_id uuid, charge_status text, impressions bigint, clicks bigint, created_at timestamptz)
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.has_business_permission(_business, 'store.customize') then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.ad_sweep();
+  return query
+    select c.id, c.post_id, left(p.body, 120), c.objective, private.ad_status_label(c), c.total_cents, c.days, c.daily_cents,
+           (select array_agg(r.name order by r.name) from public.ad_campaign_regions cr join public.commercial_regions r on r.id = cr.region_id where cr.campaign_id = c.id),
+           c.starts_at, c.ends_at, c.paid_at is not null, c.approved_at is not null, c.review_note, c.charge_id, ch.status::text,
+           (select count(*) from public.ad_events e where e.campaign_id = c.id and e.kind = 'impressao'),
+           (select count(*) from public.ad_events e where e.campaign_id = c.id and e.kind = 'clique'),
+           c.created_at
+      from public.ad_campaigns c left join public.posts p on p.id = c.post_id left join public.platform_charges ch on ch.id = c.charge_id
+     where c.business_id = _business
+     order by c.created_at desc limit 100;
+end $$;
+
+-- ---------- feed ----------
+create or replace function public.sponsored_feed(_city uuid, _limit integer default 3)
+returns table (campaign_id uuid, post_id uuid, slot_every smallint)
+language plpgsql security definer set search_path = '' as $$
+declare s private.ad_settings%rowtype; seen_today int;
+begin
+  if auth.uid() is null or _city is null then return; end if;
+  perform private.ad_sweep();
+  select * into s from private.ad_settings where id;
+  -- teto diário de campanhas diferentes por pessoa (evita excesso)
+  select count(distinct e.campaign_id) into seen_today from public.ad_events e
+   where e.kind = 'impressao' and e.day = (now() at time zone 'America/Sao_Paulo')::date
+     and e.viewer_key = encode(extensions.digest(auth.uid()::text || ':' || e.campaign_id::text, 'sha256'), 'hex');
+  return query
+    with eligible as (
+      select distinct c.id, c.post_id,
+             exists (select 1 from public.ad_events e where e.campaign_id = c.id and e.kind = 'impressao'
+                      and e.day = (now() at time zone 'America/Sao_Paulo')::date
+                      and e.viewer_key = encode(extensions.digest(auth.uid()::text || ':' || c.id::text, 'sha256'), 'hex')) as seen
+        from public.ad_campaigns c
+        join public.posts p on p.id = c.post_id and p.status = 'published'
+        join public.ad_campaign_regions cr on cr.campaign_id = c.id
+        join public.commercial_regions r on r.id = cr.region_id and r.status = 'ativa'
+        join public.region_municipalities x on x.region_id = r.id and not x.excluded
+        join public.cities ci on ci.ibge_code = x.ibge_code and ci.id = _city
+       where c.status = 'ativa' and now() >= c.starts_at and now() < c.ends_at
+         and (not c.is_test or public.viewer_sees_tests())
+         and not public.is_blocked_between(auth.uid(), p.author_id))
+    select e.id, e.post_id, s.feed_every from eligible e
+     where e.seen or seen_today < s.max_campaigns_per_viewer_day
+     order by e.seen, random()
+     limit least(greatest(coalesce(_limit, 3), 1), 5);
+end $$;
+
+-- impressão/clique válidos: únicos por pessoa/campanha/dia; clique exige impressão; equipe da loja não conta
+create or replace function public.ad_track(_campaign uuid, _kind text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare c public.ad_campaigns%rowtype; vk text; d date := (now() at time zone 'America/Sao_Paulo')::date; n int;
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  if _kind not in ('impressao', 'clique') then raise exception 'Tipo inválido.' using errcode = 'P0001'; end if;
+  perform private.limit_for('ads.track');
+  select * into c from public.ad_campaigns where id = _campaign;
+  if not found or c.status <> 'ativa' or now() < c.starts_at or now() >= c.ends_at then return false; end if;
+  if public.is_business_member(c.business_id) then return false; end if;
+  vk := encode(extensions.digest(auth.uid()::text || ':' || _campaign::text, 'sha256'), 'hex');
+  if _kind = 'clique' and not exists (select 1 from public.ad_events where campaign_id = _campaign and kind = 'impressao' and viewer_key = vk and day = d) then
+    return false;
+  end if;
+  insert into public.ad_events(campaign_id, kind, viewer_key, day) values (_campaign, _kind, vk, d) on conflict do nothing;
+  get diagnostics n = row_count;
+  return n = 1;
+end $$;
+
+-- ---------- Master ----------
+create or replace function public.admin_ads_summary() returns jsonb
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  perform private.ad_sweep();
+  return jsonb_build_object(
+    'receita_cents', coalesce((select sum(total_cents) from public.ad_campaigns where paid_at is not null and not is_test and status <> 'recusada'), 0),
+    'receita_mes_cents', coalesce((select sum(total_cents) from public.ad_campaigns where paid_at >= date_trunc('month', now()) and not is_test and status <> 'recusada'), 0),
+    'ativas', (select count(*) from public.ad_campaigns where status = 'ativa' and ends_at > now()),
+    'aguardando_aprovacao', (select count(*) from public.ad_campaigns where status = 'pendente' and paid_at is not null),
+    'aguardando_pagamento', (select count(*) from public.ad_campaigns where status = 'pendente' and paid_at is null),
+    'reembolso_pendente', (select count(*) from public.ad_campaigns where status = 'recusada' and paid_at is not null),
+    'impressoes', (select count(*) from public.ad_events where kind = 'impressao'),
+    'cliques', (select count(*) from public.ad_events where kind = 'clique'),
+    'config', (select to_jsonb(s) - 'id' - 'updated_by' from private.ad_settings s where s.id));
+end $$;
+
+create or replace function public.admin_ad_campaigns(_status text default null, _region uuid default null, _q text default null, _limit integer default 20, _offset integer default 0)
+returns table (id uuid, business_id uuid, business_name text, post_excerpt text, objective text, status text, total_cents integer, days smallint,
+               regions text[], starts_at timestamptz, ends_at timestamptz, paid boolean, approved boolean, review_note text, is_test boolean,
+               impressions bigint, clicks bigint, created_at timestamptz, total_count bigint)
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  return query
+    select c.id, c.business_id, b.name, left(p.body, 160), c.objective, private.ad_status_label(c), c.total_cents, c.days,
+           (select array_agg(r.name order by r.name) from public.ad_campaign_regions cr join public.commercial_regions r on r.id = cr.region_id where cr.campaign_id = c.id),
+           c.starts_at, c.ends_at, c.paid_at is not null, c.approved_at is not null, c.review_note, c.is_test,
+           (select count(*) from public.ad_events e where e.campaign_id = c.id and e.kind = 'impressao'),
+           (select count(*) from public.ad_events e where e.campaign_id = c.id and e.kind = 'clique'),
+           c.created_at, count(*) over ()
+      from public.ad_campaigns c join public.businesses b on b.id = c.business_id left join public.posts p on p.id = c.post_id
+     where (_status is null or private.ad_status_label(c) = _status)
+       and (_region is null or exists (select 1 from public.ad_campaign_regions cr where cr.campaign_id = c.id and cr.region_id = _region))
+       and (_q is null or btrim(_q) = '' or private.fold(b.name) like '%' || private.fold(_q) || '%')
+     order by (c.status = 'pendente' and c.paid_at is not null) desc, c.created_at desc
+     limit least(greatest(coalesce(_limit, 20), 1), 100) offset greatest(coalesce(_offset, 0), 0);
+end $$;
+
+create or replace function public.admin_review_campaign(_campaign uuid, _approve boolean, _note text default null) returns text
+language plpgsql security definer set search_path = '' as $$
+declare c public.ad_campaigns%rowtype; note text := nullif(btrim(coalesce(_note, '')), '');
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.ads');
+  select * into c from public.ad_campaigns where id = _campaign for update;
+  if not found then raise exception 'Campanha não encontrada.' using errcode = 'P0001'; end if;
+  if c.status <> 'pendente' then raise exception 'Só campanhas pendentes passam por aprovação.' using errcode = 'P0001'; end if;
+  if _approve then
+    update public.ad_campaigns set approved_at = now(), approved_by = auth.uid(), review_note = note, updated_at = now() where id = _campaign;
+    perform private.ad_try_activate(_campaign);
+    perform private.audit('ads.approve', 'ad_campaigns', _campaign::text, jsonb_build_object('note', note));
+    return case when c.paid_at is null then 'aprovada_aguardando_pagamento' else 'ativa' end;
+  end if;
+  if note is null then raise exception 'Informe o motivo da recusa (o anunciante verá).' using errcode = 'P0001'; end if;
+  update public.ad_campaigns set status = 'recusada', review_note = note, approved_by = auth.uid(), updated_at = now() where id = _campaign;
+  if c.paid_at is null then update public.platform_charges set status = 'cancelada' where id = c.charge_id and status = 'aberta'; end if;
+  perform private.audit('ads.reject', 'ad_campaigns', _campaign::text, jsonb_build_object('note', note, 'paid', c.paid_at is not null));
+  return case when c.paid_at is not null then 'recusada_reembolso_pendente' else 'recusada' end;
+end $$;
+
+-- pausar/retomar/encerrar (pausa não estende o período contratado)
+create or replace function public.admin_set_campaign_status(_campaign uuid, _status text, _reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.ad_campaigns%rowtype;
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.ads');
+  if nullif(btrim(coalesce(_reason, '')), '') is null then raise exception 'Informe o motivo.' using errcode = 'P0001'; end if;
+  select * into c from public.ad_campaigns where id = _campaign for update;
+  if not found then raise exception 'Campanha não encontrada.' using errcode = 'P0001'; end if;
+  if not ((c.status = 'ativa' and _status in ('pausada', 'encerrada')) or (c.status = 'pausada' and _status in ('ativa', 'encerrada'))) then
+    raise exception 'Mudança não permitida.' using errcode = 'P0001';
+  end if;
+  update public.ad_campaigns set status = _status, review_note = left(_reason, 300), updated_at = now() where id = _campaign;
+  perform private.audit('ads.status', 'ad_campaigns', _campaign::text, jsonb_build_object('from', c.status, 'to', _status, 'reason', _reason));
+end $$;
+
+create or replace function public.admin_ad_settings_set(_min_total_cents integer, _min_daily_cents_per_region integer, _min_days integer, _max_days integer,
+                                                        _max_regions integer, _feed_every integer, _max_campaigns_per_viewer_day integer) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.require_master();
+  perform private.limit_for('admin.ads');
+  update private.ad_settings set min_total_cents = _min_total_cents, min_daily_cents_per_region = _min_daily_cents_per_region, min_days = _min_days,
+         max_days = _max_days, max_regions = _max_regions, feed_every = _feed_every, max_campaigns_per_viewer_day = _max_campaigns_per_viewer_day,
+         updated_by = auth.uid(), updated_at = now() where id;
+  if _min_days > _max_days then raise exception 'Duração mínima maior que a máxima.' using errcode = 'P0001'; end if;
+  perform private.audit('ads.settings', 'ad_settings', 'ads', jsonb_build_object('min_total', _min_total_cents, 'min_daily_region', _min_daily_cents_per_region,
+    'days', jsonb_build_array(_min_days, _max_days), 'max_regions', _max_regions, 'feed_every', _feed_every, 'cap', _max_campaigns_per_viewer_day));
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['private.ad_status_label(public.ad_campaigns)', 'private.ad_try_activate(uuid)', 'private.ad_sweep()', 'private.ad_on_charge_change()',
+                           'private.ad_price(integer, integer, integer)', 'private.region_in_use(uuid)', 'private.region_campaign_count(uuid)'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+  end loop;
+  foreach f in array array[
+    'public.ad_quote(uuid[], integer, integer)', 'public.merchant_create_campaign(uuid, uuid, text, uuid[], integer, integer, uuid)',
+    'public.merchant_cancel_campaign(uuid)', 'public.merchant_campaigns(uuid)', 'public.sponsored_feed(uuid, integer)', 'public.ad_track(uuid, text)',
+    'public.admin_ads_summary()', 'public.admin_ad_campaigns(text, uuid, text, integer, integer)', 'public.admin_review_campaign(uuid, boolean, text)',
+    'public.admin_set_campaign_status(uuid, text, text)', 'public.admin_ad_settings_set(integer, integer, integer, integer, integer, integer, integer)'] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0029', '0029_publicidade.sql', 'applied');
+    raise notice 'Tucaí 0029: aplicada agora';
+  end if;
+end $tucai_0029$;
+
+-- ===================== supabase/migrations/0030_manutencao.sql =====================
+do $tucai_0030$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0030') then
+    raise notice 'Tucaí 0030: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0030_manutencao: modo manutenção global, controlado pelo Master (com MFA).
+--  Estados: normal → preparando (novas operações bloqueadas; o que já começou pode terminar) → manutencao
+--  (bloqueio total para usuários comuns; só concluir entregas em rota e fechar comandas/caixas já abertos) → normal.
+--  * Bloqueio NO BANCO: gatilho único (private.maintenance_guard) nas tabelas de escrita — vale para RPCs e para
+--    escrita direta pela API. Não depende de esconder telas.
+--  * Não bloqueia: Master (MFA), processos do sistema sem usuário (webhook de pagamento via Worker, varreduras),
+--    notificações/auditoria/eventos gerados dentro de operações permitidas. Nenhuma transação é interrompida:
+--    o gatilho só recusa a próxima gravação; nada é cancelado ou apagado.
+--  * Recuperação independente: supabase/admin/manutencao_recuperar.sql (SQL Editor) e /api/health no Worker.
+
+insert into private.rate_limit_rules(action, max_hits, window_seconds) values ('admin.maintenance', 60, 600)
+on conflict (action) do nothing;
+
+create table if not exists private.platform_state (
+  id boolean primary key default true check (id),
+  mode text not null default 'normal' check (mode in ('normal', 'preparando', 'manutencao')),
+  reason text check (reason is null or char_length(reason) <= 300),
+  eta timestamptz,
+  changed_by uuid,
+  changed_at timestamptz not null default now(),
+  prepared_at timestamptz,
+  started_at timestamptz
+);
+insert into private.platform_state(id) values (true) on conflict do nothing;
+revoke all on private.platform_state from public, anon, authenticated;
+
+create or replace function private.platform_mode() returns text
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select mode from private.platform_state where id), 'normal')
+$$;
+
+create or replace function private.maintenance_block() returns void
+language plpgsql set search_path = '' as $$
+begin
+  raise exception 'A Tucaí está em manutenção. Tente novamente em breve.' using errcode = 'P0001', hint = 'manutencao';
+end $$;
+
+-- operações comuns bloqueadas fora do modo normal (para RPCs que não gravam, ex.: abrir checkout)
+create or replace function private.require_operational() returns void
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if private.platform_mode() <> 'normal' and auth.uid() is not null and not private.is_master_ok() then
+    perform private.maintenance_block();
+  end if;
+end $$;
+
+create or replace function private.maintenance_guard() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare m text := private.platform_mode(); v_full boolean;
+begin
+  if m = 'normal' or auth.uid() is null or private.is_master_ok() then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  v_full := m = 'manutencao';
+  case tg_table_name
+    when 'orders' then
+      -- sem pedidos novos; em manutenção só avanços que encerram (rota, entregue, retirado, cancelado, recusado)
+      if tg_op = 'INSERT' then perform private.maintenance_block(); end if;
+      if v_full and tg_op = 'UPDATE' and new.status is distinct from old.status
+         and new.status::text not in ('out_for_delivery', 'delivered', 'picked_up', 'cancelled', 'rejected') then
+        perform private.maintenance_block();
+      end if;
+    when 'deliveries' then
+      -- corridas em andamento continuam (coleta, código, entrega, liberação); em manutenção ninguém assume corrida nova
+      if v_full and tg_op = 'UPDATE' and new.status::text = 'accepted' and old.status::text is distinct from 'accepted' then
+        perform private.maintenance_block();
+      end if;
+    when 'business_tabs' then
+      if tg_op = 'INSERT' then perform private.maintenance_block(); end if;
+      if v_full and tg_op = 'UPDATE' and new.status not in ('fechada', 'cancelada') and new.status is distinct from old.status then
+        perform private.maintenance_block();
+      end if;
+    when 'business_tab_items' then
+      if tg_op = 'INSERT' then perform private.maintenance_block(); end if;
+    when 'cash_sessions' then
+      if tg_op = 'INSERT' then perform private.maintenance_block(); end if;      -- fechar caixa aberto continua possível
+    when 'cash_movements' then
+      if tg_op = 'INSERT' and new.tab_id is null then perform private.maintenance_block(); end if;  -- só o pagamento ao fechar comanda
+    when 'couriers' then
+      if tg_op = 'INSERT' then perform private.maintenance_block(); end if;      -- ficar indisponível continua possível
+    else
+      perform private.maintenance_block();                                       -- novas publicações, cardápio, loja, cobranças…
+  end case;
+  return case when tg_op = 'DELETE' then old else new end;
+end $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'orders', 'deliveries', 'business_tabs', 'business_tab_items', 'cash_sessions', 'cash_movements', 'couriers',
+    'platform_charges', 'ad_campaigns', 'posts', 'post_comments', 'post_likes', 'scraps', 'testimonials', 'community_topics', 'topic_replies',
+    'communities', 'community_members', 'poll_votes', 'follows', 'friendships', 'business_follows', 'reviews', 'products', 'menu_categories',
+    'option_groups', 'options', 'services', 'business_hours', 'businesses', 'business_members', 'business_tables', 'business_expenses',
+    'business_ingredients', 'product_recipe_items', 'business_product_costs', 'jobs', 'job_applications', 'profiles', 'social_profiles'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('drop trigger if exists %I on public.%I', t || '_maintenance', t);
+      execute format('create trigger %I before insert or update or delete on public.%I for each row execute function private.maintenance_guard()', t || '_maintenance', t);
+    end if;
+  end loop;
+end $$;
+
+-- checkout de cobrança (Worker) também respeita a manutenção; a confirmação do webhook não passa por aqui
+create or replace function public.payable_charge(_charge uuid)
+returns table (id uuid, business_id uuid, business_name text, description text, amount_cents integer, kind public.charge_kind)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.require_operational();
+  perform private.limit_for('payments.checkout');
+  return query
+    select ch.id, ch.business_id, b.name, ch.description, ch.amount_cents, ch.kind
+      from public.platform_charges ch join public.businesses b on b.id = ch.business_id
+     where ch.id = _charge and ch.status = 'aberta'
+       and (public.has_business_permission(ch.business_id, 'settings.manage') or public.has_business_permission(ch.business_id, 'reports.view')
+            or private.is_master_ok());
+end $$;
+
+-- ---------- público: só o necessário para a página de manutenção ----------
+create or replace function public.platform_status() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('mode', s.mode, 'eta', s.eta) from private.platform_state s where s.id
+$$;
+
+-- ---------- Master ----------
+create or replace function private.maintenance_inflight() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'pedidos_abertos', (select count(*) from public.orders where status in ('placed', 'accepted', 'preparing', 'ready', 'out_for_delivery')),
+    'pedidos_aguardando_aceite', (select count(*) from public.orders where status = 'placed'),
+    'entregas_em_rota', (select count(*) from public.deliveries where status in ('accepted', 'picked_up')),
+    'comandas_abertas', (select count(*) from public.business_tabs where status in ('aberta', 'aguardando_pagamento')),
+    'caixas_abertos', (select count(*) from public.cash_sessions where status = 'aberto'),
+    'cobrancas_em_aberto', (select count(*) from public.platform_charges where status = 'aberta'),
+    'campanhas_aguardando_pagamento', (select count(*) from public.ad_campaigns where status = 'pendente' and paid_at is null))
+$$;
+
+-- verificações de integridade (relatório; não corrige nada sozinho)
+create or replace function private.maintenance_integrity() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'pedido_em_rota_sem_coleta', (select count(*) from public.orders o join public.deliveries d on d.order_id = o.id
+                                   where o.status = 'out_for_delivery' and d.status not in ('picked_up', 'delivered')),
+    'entrega_coletada_pedido_inconsistente', (select count(*) from public.deliveries d join public.orders o on o.id = d.order_id
+                                               where d.status = 'picked_up' and o.status not in ('out_for_delivery', 'delivered')),
+    'comanda_fechada_pagamento_diferente', (select count(*) from public.business_tabs t
+                                             where t.status = 'fechada' and coalesce((select sum(amount_cents) from public.cash_movements m where m.tab_id = t.id and m.kind = 'venda'), 0)
+                                                   <> private.tab_total(t.id) - t.discount_cents),
+    'caixa_aberto_mais_de_24h', (select count(*) from public.cash_sessions where status = 'aberto' and opened_at < now() - interval '24 hours'),
+    'campanha_ativa_vencida', (select count(*) from public.ad_campaigns where status = 'ativa' and ends_at <= now()))
+$$;
+
+create or replace function public.admin_maintenance_status() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare s private.platform_state%rowtype;
+begin
+  perform private.require_master();
+  select * into s from private.platform_state where id;
+  return jsonb_build_object('mode', s.mode, 'reason', s.reason, 'eta', s.eta, 'changed_at', s.changed_at,
+    'changed_by', (select full_name from public.profiles where id = s.changed_by), 'prepared_at', s.prepared_at, 'started_at', s.started_at,
+    'em_andamento', private.maintenance_inflight(), 'integridade', private.maintenance_integrity(),
+    'mfa', private.current_aal() = 'aal2');
+end $$;
+
+-- transições: normal→preparando→manutencao; preparando/manutencao→normal. Exige MFA, motivo e confirmação digitada.
+create or replace function public.admin_set_maintenance(_mode text, _reason text, _eta timestamptz, _confirm text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare s private.platform_state%rowtype; r text := nullif(btrim(coalesce(_reason, '')), '');
+begin
+  perform private.require_master_mfa();
+  perform private.limit_for('admin.maintenance');
+  select * into s from private.platform_state where id for update;
+  if _mode not in ('normal', 'preparando', 'manutencao') then raise exception 'Estado inválido.' using errcode = 'P0001'; end if;
+  if _mode = s.mode then raise exception 'A plataforma já está neste estado.' using errcode = 'P0001'; end if;
+  if s.mode = 'normal' and _mode = 'manutencao' then
+    raise exception 'Passe primeiro por "Preparando manutenção" para as operações em andamento terminarem.' using errcode = 'P0001';
+  end if;
+  if upper(btrim(coalesce(_confirm, ''))) <> (case when _mode = 'normal' then 'NORMAL' else 'MANUTENCAO' end) then
+    raise exception 'Digite % para confirmar.', (case when _mode = 'normal' then 'NORMAL' else 'MANUTENCAO' end) using errcode = 'P0001';
+  end if;
+  if _mode <> 'normal' and (r is null or char_length(r) < 5) then raise exception 'Informe o motivo (mínimo 5 caracteres).' using errcode = 'P0001'; end if;
+  if _eta is not null and _eta <= now() then raise exception 'A previsão de retorno precisa ser no futuro.' using errcode = 'P0001'; end if;
+  update private.platform_state set mode = _mode, reason = case when _mode = 'normal' then null else coalesce(r, reason) end,
+         eta = case when _mode = 'normal' then null else coalesce(_eta, eta) end, changed_by = auth.uid(), changed_at = now(),
+         prepared_at = case when _mode = 'preparando' then now() when _mode = 'normal' then null else prepared_at end,
+         started_at = case when _mode = 'manutencao' then now() when _mode = 'normal' then null else started_at end
+   where id;
+  perform private.audit('platform.maintenance', 'platform_state', _mode, jsonb_build_object('from', s.mode, 'to', _mode, 'reason', r, 'eta', _eta,
+    'em_andamento', private.maintenance_inflight()));
+  if _mode = 'normal' then perform private.ad_sweep(); end if;
+  return jsonb_build_object('mode', _mode, 'em_andamento', private.maintenance_inflight(), 'integridade', private.maintenance_integrity());
+end $$;
+
+-- recuperação independente do app (SQL Editor, como postgres): volta ao normal e registra na auditoria
+create or replace function private.maintenance_force_normal(_reason text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare s private.platform_state%rowtype;
+begin
+  select * into s from private.platform_state where id for update;
+  update private.platform_state set mode = 'normal', reason = null, eta = null, changed_by = null, changed_at = now(), prepared_at = null, started_at = null where id;
+  insert into public.audit_logs(actor_id, action, entity, entity_id, details)
+  values (null, 'platform.maintenance_recovery', 'platform_state', 'normal', jsonb_build_object('from', s.mode, 'reason', coalesce(_reason, 'recuperação manual')));
+  return jsonb_build_object('mode', 'normal', 'anterior', s.mode, 'integridade', private.maintenance_integrity());
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['private.maintenance_force_normal(text)', 'private.platform_mode()', 'private.maintenance_block()', 'private.require_operational()', 'private.maintenance_guard()',
+                           'private.maintenance_inflight()', 'private.maintenance_integrity()'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+  end loop;
+  revoke all on function public.platform_status() from public;
+  grant execute on function public.platform_status() to anon, authenticated;
+  foreach f in array array['public.admin_maintenance_status()', 'public.admin_set_maintenance(text, text, timestamptz, text)'] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0030', '0030_manutencao.sql', 'applied');
+    raise notice 'Tucaí 0030: aplicada agora';
+  end if;
+end $tucai_0030$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

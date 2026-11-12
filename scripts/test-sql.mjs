@@ -103,6 +103,9 @@ async function main() {
       ...one('supabase/tests/rls_entrega_codigo.sql'),
       ...one('supabase/tests/rls_painel_empresarial.sql'),
       ...one('supabase/tests/rls_gestao.sql'),
+      ...one('supabase/tests/rls_regioes.sql'),
+      ...one('supabase/tests/rls_publicidade.sql'),
+      ...one('supabase/tests/rls_manutencao.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

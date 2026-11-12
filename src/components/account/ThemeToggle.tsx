@@ -29,7 +29,7 @@ export function ThemeChooser() {
   )
 }
 
-/** Botão compacto: alterna entre claro e escuro. */
+/** Botão de tema bem visível: pílula com borda, ícone e o nome do modo para onde vai (no celular, só o ícone em destaque). */
 export function ThemeToggleButton({ className = '' }: { className?: string }) {
   const { resolved, setPreference } = useTheme()
   const dark = resolved === 'dark'
@@ -38,10 +38,11 @@ export function ThemeToggleButton({ className = '' }: { className?: string }) {
       type="button"
       onClick={() => setPreference(dark ? 'light' : 'dark')}
       aria-label={dark ? 'Usar modo claro' : 'Usar modo escuro'}
-      title={dark ? 'Modo claro' : 'Modo escuro'}
-      className={`pressable inline-flex size-11 items-center justify-center rounded-full text-ink ${className}`}
+      title={dark ? 'Mudar para o modo claro' : 'Mudar para o modo escuro'}
+      className={`pressable inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border-2 border-orange bg-orange/15 px-2.5 text-sm font-semibold text-ink md:px-3 ${className}`}
     >
-      {dark ? <Sun aria-hidden="true" className="size-5" /> : <Moon aria-hidden="true" className="size-5" />}
+      {dark ? <Sun aria-hidden="true" className="size-5 text-accent" /> : <Moon aria-hidden="true" className="size-5 text-accent" />}
+      <span className="hidden md:inline">{dark ? 'Claro' : 'Escuro'}</span>
     </button>
   )
 }

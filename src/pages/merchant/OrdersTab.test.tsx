@@ -40,7 +40,7 @@ describe('Pedidos do estabelecimento', () => {
     h.status = 'placed'
     show(false)
     fireEvent.change(await screen.findByLabelText('Preparo'), { target: { value: '30' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar pedido' }))
     await vi.waitFor(() => expect(h.accept).toHaveBeenCalledWith('o1', 30))
   })
 
@@ -48,7 +48,7 @@ describe('Pedidos do estabelecimento', () => {
     h.status = 'placed'
     show(true)
     await screen.findByText(/#ABC123/)
-    expect(screen.queryByRole('button', { name: 'Aceitar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Aceitar pedido' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Recusar' })).toBeNull()
     cleanup()
     h.status = 'accepted'

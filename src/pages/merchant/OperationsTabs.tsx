@@ -58,7 +58,7 @@ function Label({ htmlFor, children }: { htmlFor: string; children: ReactNode }) 
   return <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-ink">{children}</label>
 }
 
-const DELIVERY_TEXT = { offered: 'Aguardando entregador parceiro', accepted: 'Entregador a caminho da loja', picked_up: 'Com o entregador', delivered: 'Entregue', cancelled: 'Entrega cancelada' } as const
+const DELIVERY_TEXT = { offered: 'Procurando entregador', accepted: 'Entregador designado · aguardando coleta', picked_up: 'Em rota de entrega', delivered: 'Entregue ao cliente', cancelled: 'Entrega cancelada' } as const
 
 // ---------- Pedidos ----------
 const PREP_OPTIONS = [10, 15, 20, 30, 45, 60]

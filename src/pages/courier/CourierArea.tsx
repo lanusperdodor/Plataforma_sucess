@@ -12,7 +12,8 @@ import {
   acceptDelivery,
   declineOffer,
   shareLocation,
-  completeDelivery,
+  finishDelivery,
+  verifyDeliveryCode,
   getEarnings,
   getMyCourier,
   listOffers,
@@ -53,14 +54,24 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
   const refresh = () => void qc.invalidateQueries({ queryKey: ['courier'] })
   const pickup = useMutation({ mutationFn: () => pickupDelivery(d.orderId), onSuccess: () => { toast.success('Coleta confirmada.'); refresh() }, onError: (e) => toast.error(msg(e)) })
   const release = useMutation({ mutationFn: () => releaseDelivery(d.orderId), onSuccess: () => { toast.success('Entrega liberada para outro entregador.'); refresh() }, onError: (e) => toast.error(msg(e)) })
-  const complete = useMutation({
-    mutationFn: () => completeDelivery(d.orderId, code),
-    onSuccess: (ok) => {
-      if (ok) toast.success(`Entrega concluída! +${formatBRL(d.payCents)}`)
-      else toast.error('Código incorreto. Peça ao cliente o código de 4 dígitos.')
+  const [verified, setVerified] = useState(false)
+  const [codeMsg, setCodeMsg] = useState<string | null>(null)
+  // um identificador por entrega: tocar duas vezes em finalizar não conclui duas vezes
+  const [opId] = useState(() => globalThis.crypto.randomUUID())
+  const verify = useMutation({
+    mutationFn: () => verifyDeliveryCode(d.orderId, code),
+    onSuccess: (r) => {
       setCode('')
-      refresh()
+      if (r.ok) { setVerified(true); setCodeMsg(null); return }
+      setCodeMsg(r.reason === 'bloqueado'
+        ? `Muitas tentativas. Aguarde${r.lockedUntil && new Date(r.lockedUntil).getFullYear() < 2100 ? ` até ${new Date(r.lockedUntil).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ' o suporte da Tucaí'} para tentar de novo.`
+        : 'Código inválido. Confira com o cliente.')
     },
+    onError: (e) => toast.error(msg(e)),
+  })
+  const finish = useMutation({
+    mutationFn: () => finishDelivery(d.orderId, opId),
+    onSuccess: () => { toast.success(`Entrega concluída! +${formatBRL(d.payCents)}`); refresh() },
     onError: (e) => toast.error(msg(e)),
   })
   const tel = phoneDigits(d.customerPhone)
@@ -94,19 +105,35 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
           <button type="button" disabled={release.isPending} onClick={() => { if (window.confirm('Liberar esta entrega para outro entregador?')) release.mutate() }} className={secondary}>Liberar entrega</button>
         </div>
       ) : (
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (/^\d{4}$/.test(code)) complete.mutate()
-          }}
-        >
-          <div>
-            <label htmlFor={`code-${d.orderId}`} className="mb-1 block text-sm font-medium text-ink">Código do cliente</label>
-            <input id={`code-${d.orderId}`} inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="min-h-12 w-32 rounded-xl border border-line bg-surface px-3 text-center text-xl tracking-widest text-ink" />
+        verified ? (
+          <div role="status" className="flex flex-col items-start gap-2 rounded-xl border border-success p-3">
+            <p className="text-base font-bold text-success">Código confirmado!</p>
+            <p className="text-sm text-ink">Pode entregar o pedido ao cliente.</p>
+            <button type="button" disabled={finish.isPending} onClick={() => finish.mutate()} className={primary}>
+              {finish.isPending ? 'Finalizando…' : 'FINALIZAR ENTREGA'}
+            </button>
           </div>
-          <button type="submit" disabled={complete.isPending || code.length !== 4} className={primary}>Confirmar entrega</button>
-        </form>
+        ) : (
+          <form
+            className="flex flex-col gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (/^\d{4}$/.test(code)) verify.mutate()
+            }}
+          >
+            <p className="text-sm text-ink">Ao chegar, peça ao cliente o código de 4 dígitos que aparece no app dele.</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label htmlFor={`code-${d.orderId}`} className="mb-1 block text-sm font-medium text-ink">Código do cliente</label>
+                <input id={`code-${d.orderId}`} inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={4} value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="min-h-12 w-32 rounded-xl border border-line bg-surface px-3 text-center text-xl tracking-widest text-ink" />
+              </div>
+              <button type="submit" disabled={verify.isPending || code.length !== 4} className={primary}>{verify.isPending ? 'Conferindo…' : 'Confirmar código'}</button>
+            </div>
+            {codeMsg && <p role="alert" className="text-sm font-semibold text-danger">{codeMsg}</p>}
+          </form>
+        )
       )}
     </section>
   )

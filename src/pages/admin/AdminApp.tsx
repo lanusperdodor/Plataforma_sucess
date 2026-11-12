@@ -5,6 +5,7 @@ import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { StateShell } from '../../components/feedback/StateShell.tsx'
 import { AccountMenu } from '../../components/account/AccountMenu.tsx'
+import { ThemeToggleButton } from '../../components/account/ThemeToggle.tsx'
 import { BRAND } from '../../config/brand.ts'
 import { canAdmin, getMyAccess, type AdminAccess, type PlatformPermissionCode } from '../../features/admin/repository.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
@@ -84,8 +85,9 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
           <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-ink-muted sm:inline">
             {access.isMaster ? 'Master' : 'Operador'}
           </span>
-          <div className="ml-auto">
-            <AccountMenu />
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggleButton />
+            <AccountMenu context="admin" />
           </div>
         </div>
         <nav aria-label="Seções do painel" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 md:hidden">

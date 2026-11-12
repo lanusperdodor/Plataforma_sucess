@@ -1,5 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { NAV_DESTINATIONS, resolveActiveDestination } from './destinations.ts'
+import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { useActiveContext } from '../../lib/activeContext.ts'
+import { destinationsFor, resolveActiveDestination } from './destinations.ts'
 
 export type BottomNavProps = {
   /** Prefetch do chunk da rota em hover/foco. */
@@ -8,7 +10,9 @@ export type BottomNavProps = {
 
 export function BottomNav({ onPrefetch }: BottomNavProps) {
   const { pathname } = useLocation()
-  const active = resolveActiveDestination(pathname)
+  const { authz } = useAuth()
+  const items = destinationsFor(useActiveContext(authz))
+  const active = resolveActiveDestination(pathname, items)
 
   return (
     <nav
@@ -20,8 +24,8 @@ export function BottomNav({ onPrefetch }: BottomNavProps) {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <ul className="m-0 grid h-full list-none grid-cols-5 p-0">
-        {NAV_DESTINATIONS.map((item) => {
+      <ul className="m-0 grid h-full list-none p-0" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((item) => {
           const isActive = item.id === active
           const Icon = item.icon
           return (

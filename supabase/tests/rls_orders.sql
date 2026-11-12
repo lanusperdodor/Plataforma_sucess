@@ -243,6 +243,12 @@ begin
   perform tsto.ok(tsto.count('select * from public.courier_my_deliveries(true)') = 0, 'entrega liberada');
   perform tsto.login(k2);
   perform public.courier_accept_delivery(o1);
+  -- a entrega voltou a ser oferecida antes: o código anterior foi invalidado e há um novo (0024)
+  perform tsto.su();
+  perform tsto.ok((select code_version from public.deliveries where order_id = o1) >= 2, 'nova tentativa gera nova versão do código');
+  perform tsto.login(cu1);
+  select confirmation_code into code from public.my_delivery(o1);
+  perform tsto.login(k2);
   perform tsto.denied(format('select public.courier_complete_delivery(%L, %L)', o1, code), 'conclui sem coletar', array['P0001']);
   perform public.courier_pickup_delivery(o1);
   perform tsto.denied(format('select public.courier_release_delivery(%L)', o1), 'libera depois da coleta', array['P0001']);

@@ -87,6 +87,25 @@ function ReviewBox({ orderId }: { orderId: string }) {
   )
 }
 
+/** O que o cliente lê no topo, conforme o pedido e a entrega (a fonte é o banco). */
+export function customerHeadline(status: string, fulfillment: string, delivery: string | null | undefined): string {
+  switch (status) {
+    case 'placed': return 'Aguardando confirmação do estabelecimento'
+    case 'accepted':
+    case 'preparing': return 'Em preparo'
+    case 'ready':
+      if (fulfillment === 'pickup') return 'Pronto para retirada'
+      if (fulfillment === 'delivery_own') return 'Pronto, saindo para entrega em breve'
+      return delivery === 'accepted' ? 'Entregador encontrado!' : 'Estamos procurando um entregador'
+    case 'out_for_delivery': return 'Seu pedido está em rota'
+    case 'delivered': return 'Pedido entregue'
+    case 'picked_up': return 'Pedido retirado'
+    case 'rejected': return 'Pedido recusado'
+    case 'cancelled': return 'Pedido cancelado'
+    default: return status
+  }
+}
+
 export function OrderPage() {
   const { id = '' } = useParams()
   const { session } = useAuth()
@@ -143,7 +162,7 @@ export function OrderPage() {
       <PageHeader icon={ReceiptText} title={`Pedido #${o.code}`} subtitle={`${business?.name ?? 'Estabelecimento'} · ${dateTime.format(new Date(o.createdAt))}`} />
 
       <section aria-labelledby="st" className={box}>
-        <h2 id="st" className="mb-3 text-lg font-semibold text-ink" aria-live="polite">{STATUS_LABEL[o.status]}</h2>
+        <h2 id="st" className="mb-3 text-lg font-semibold text-ink" aria-live="polite">{customerHeadline(o.status, o.fulfillment, d?.status)}</h2>
         {o.estimatedReadyAt && (o.status === 'accepted' || o.status === 'preparing') && (
           <p className="mb-3 text-sm text-ink">Previsão do estabelecimento: pronto por volta das <strong>{new Date(o.estimatedReadyAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong>.</p>
         )}
@@ -175,9 +194,20 @@ export function OrderPage() {
         <section aria-labelledby="ent" className={`${box} flex flex-col gap-2`}>
           <h2 id="ent" className="flex items-center gap-2 text-base font-semibold text-ink"><Bike aria-hidden="true" className="size-5" />Entrega</h2>
           {d.status === 'offered' ? (
-            <p className="text-sm text-ink">Procurando um entregador parceiro disponível.</p>
+            <p className="text-sm text-ink">Estamos procurando um entregador parceiro disponível. Avisaremos assim que alguém aceitar.</p>
+          ) : d.status === 'picked_up' && d.code ? (
+            <div className="flex flex-col gap-2 rounded-2xl border-2 border-orange bg-orange/10 p-4">
+              <p className="text-lg font-bold text-ink">Seu pedido está a caminho!</p>
+              <p className="text-sm text-ink">{d.courierName ?? 'O entregador'}{d.vehicle && d.vehicle in VEHICLE_LABEL ? ` · ${VEHICLE_LABEL[d.vehicle as Vehicle]}` : ''} está levando seu pedido.</p>
+              <p className="flex flex-wrap items-center gap-2 text-ink">
+                <KeyRound aria-hidden="true" className="size-5" />Código de confirmação:
+                <strong className="text-3xl tracking-[0.3em]" aria-label={`Código ${d.code.split('').join(' ')}`}>{d.code}</strong>
+              </p>
+              <p className="text-sm text-ink-muted">Informe este código ao entregador somente quando ele chegar e você estiver recebendo seu pedido.</p>
+            </div>
           ) : (
             <>
+              <p className="text-sm font-semibold text-ink">Entregador encontrado!</p>
               <p className="text-sm text-ink">{d.courierName ?? 'Entregador'}{d.vehicle && d.vehicle in VEHICLE_LABEL ? ` · ${VEHICLE_LABEL[d.vehicle as Vehicle]}` : ''} {d.status === 'picked_up' ? 'está a caminho.' : 'vai buscar seu pedido.'}</p>
               {d.code && (
                 <p className="flex items-center gap-2 rounded-xl bg-muted p-3 text-sm text-ink">

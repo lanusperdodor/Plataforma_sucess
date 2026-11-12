@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BarChart3, Briefcase, CreditCard, Clock, ExternalLink, LayoutGrid, Plus, ReceiptText, Star, Store, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Briefcase, CreditCard, Clock, ExternalLink, LayoutGrid, PiggyBank, Plus, Receipt, ReceiptText, Star, Store, Trash2, Wallet } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
 import { businessHref } from '../../components/cards/BusinessCard.tsx'
@@ -33,6 +33,7 @@ import {
   type ProductForm,
   type StoreForm,
 } from '../../features/merchant/repository.ts'
+import { CashTab, ExpensesTab, ProfitTab } from './MerchantFinance.tsx'
 import { canInBusiness, type BusinessPermission } from '../../features/permissions/permissions.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { JobsTab, OrdersTab, PlanTab, ReviewsTab, SalesTab } from './OperationsTabs.tsx'
@@ -360,8 +361,11 @@ const TABS: { to: string; label: string; icon: typeof Store; permission: Busines
   { to: '', label: 'Loja', icon: Store, permission: 'store.customize' },
   { to: 'horarios', label: 'Horários', icon: Clock, permission: 'store.customize' },
   { to: 'cardapio', label: 'Cardápio', icon: LayoutGrid, permission: 'menu.manage' },
-  { to: 'pedidos', label: 'Pedidos', icon: ReceiptText, permission: 'orders.view' },
+  { to: 'pedidos', label: 'Pedidos recebidos', icon: ReceiptText, permission: 'orders.view' },
   { to: 'vendas', label: 'Vendas', icon: BarChart3, permission: 'reports.view' },
+  { to: 'caixa', label: 'Caixa', icon: Wallet, permission: 'reports.view' },
+  { to: 'gastos', label: 'Gastos', icon: Receipt, permission: 'reports.view' },
+  { to: 'lucro', label: 'Meu lucro', icon: PiggyBank, permission: 'reports.view' },
   { to: 'avaliacoes', label: 'Avaliações', icon: Star, permission: 'store.customize' },
   { to: 'vagas', label: 'Vagas', icon: Briefcase, permission: 'jobs.manage' },
   { to: 'plano', label: 'Plano', icon: CreditCard, permission: 'reports.view' },
@@ -402,6 +406,9 @@ function BusinessPanel() {
         <Route path="cardapio" element={guard('menu.manage', <MenuTab b={b} />)} />
         <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={allowed('orders.update_status')} kitchen={authz?.memberships.find((m) => m.businessId === b.id)?.role === 'kitchen'} />)} />
         <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
+        <Route path="caixa" element={guard('reports.view', <CashTab businessId={b.id} />)} />
+        <Route path="gastos" element={guard('reports.view', <ExpensesTab businessId={b.id} />)} />
+        <Route path="lucro" element={guard('reports.view', <ProfitTab businessId={b.id} />)} />
         <Route path="avaliacoes" element={guard('store.customize', <ReviewsTab businessId={b.id} />)} />
         <Route path="plano" element={guard('reports.view', <PlanTab businessId={b.id} />)} />
         <Route path="vagas" element={guard('jobs.manage', <JobsTab businessId={b.id} active={b.status === 'active'} />)} />

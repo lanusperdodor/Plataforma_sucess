@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NAV_DESTINATIONS, SECONDARY_DESTINATIONS, audienceOf, resolveActiveDestination, visibleGroups } from './destinations.ts'
+import { NAV_DESTINATIONS, SECONDARY_DESTINATIONS, audienceOf, destinationsFor, resolveActiveDestination, visibleGroups } from './destinations.ts'
 
 describe('resolveActiveDestination', () => {
   it.each([
@@ -59,5 +59,16 @@ describe('visibilidade por perfil', () => {
     expect(courier).not.toContain('Seja entregador')
     const admin = labels(audienceOf(true, { userId: 'u', roles: ['customer', 'platform_operator'], memberships: [] }))
     expect(admin).toContain('Painel Master')
+  })
+})
+
+describe('navegação por perfil ativo', () => {
+  const a = { signedIn: true, merchant: true, courier: true, admin: true }
+  it('cliente vê compras; loja vê pedidos recebidos; entregador só operação; Master sem "Pedidos" de compra', () => {
+    expect(destinationsFor({ kind: 'cliente' }).map((d) => d.id)).toContain('pedidos')
+    expect(destinationsFor({ kind: 'loja', businessId: 'b1' }).map((d) => d.to)).toEqual(['/', '/painel/b1/pedidos', '/painel/b1', '/perfil'])
+    expect(destinationsFor({ kind: 'entregador' }).map((d) => d.id)).toEqual(['entregas', 'notificacoes', 'perfil'])
+    expect(destinationsFor({ kind: 'master' }).map((d) => d.id)).not.toContain('pedidos')
+    expect(visibleGroups(a, { kind: 'entregador' }).map((g) => g.id)).toEqual(['conta', 'trabalho'])
   })
 })

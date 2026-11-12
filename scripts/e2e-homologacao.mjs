@@ -6,7 +6,8 @@
 //   E2E_BASE_URL            site a testar (ex.: https://plataforma-sucess.marcossonopi.workers.dev)
 //   E2E_PASSWORD            senha das contas de homologação (mostrada uma vez na aba Logins)
 //   E2E_CLIENTE, E2E_DONO, E2E_COZINHA, E2E_ENTREGADOR   e-mails das contas de teste
-//   E2E_RESTAURANTE_SLUG    slug do "[Teste] Lanchonete do Tuca"
+//   E2E_RESTAURANTE_SLUG    slug do estabelecimento de teste (ex.: o "[Teste] Mercadinho Teste")
+//   E2E_PRODUTO             produto a comprar (padrão: Cheeseburger, sem adicionais obrigatórios)
 //   E2E_MASTER, E2E_MASTER_PASSWORD (opcional; sem MFA ativo) para conferir o histórico no painel Master
 // Sem as credenciais, roda só a etapa pública (estabelecimentos de teste não podem aparecer para visitantes).
 //
@@ -91,12 +92,8 @@ try {
     })
     await step('2-4. Cliente escolhe o restaurante, adiciona dois produtos e faz o pedido', async () => {
       await cliente.goto(`${base}/restaurantes/${env.E2E_RESTAURANTE_SLUG}`)
-      await cliente.getByRole('button', { name: 'Adicionar X-Burger' }).click()
-      await cliente.getByLabel('Ao ponto').check()
-      await cliente.getByLabel('Bacon').check()
-      await cliente.getByRole('button', { name: /^Adicionar/ }).last().click()
-      await cliente.getByRole('button', { name: 'Fechar' }).click()
-      await cliente.getByRole('button', { name: 'Adicionar X-Salada' }).click()
+      const produto = env.E2E_PRODUTO ?? 'Cheeseburger'
+      await cliente.getByRole('button', { name: `Adicionar ${produto}` }).click()
       await cliente.getByRole('button', { name: /^Adicionar/ }).last().click()
       await cliente.getByRole('button', { name: 'Fechar' }).click()
       await cliente.goto(base + '/sacola')
@@ -119,12 +116,12 @@ try {
     await step('6. Restaurante confirma com tempo de preparo', async () => {
       await dono.getByLabel('Preparo').first().selectOption('20')
       await dono.getByRole('button', { name: 'Aceitar' }).first().click()
-      await cliente.getByText('Previsão do estabelecimento').waitFor({ timeout: LIVE_MS })
+      await cliente.getByRole('heading', { name: 'Em preparo' }).waitFor({ timeout: LIVE_MS })
     })
     await step('7-8. Cozinha recebe, prepara e disponibiliza para coleta', async () => {
-      await cozinha.getByRole('button', { name: 'Iniciar preparo' }).first().waitFor({ timeout: LIVE_MS })
-      await cozinha.getByRole('button', { name: 'Iniciar preparo' }).first().click()
-      await cozinha.getByRole('button', { name: 'Marcar pronto' }).first().click()
+      await cozinha.getByRole('button', { name: 'Marcar como pronto' }).first().waitFor({ timeout: LIVE_MS })
+      await cozinha.getByRole('button', { name: 'Marcar como pronto' }).first().click()
+      await cliente.getByRole('heading', { name: 'Estamos procurando um entregador' }).waitFor({ timeout: LIVE_MS })
       await shot(cozinha, '05-cozinha-pronto')
     })
     await step('9-10. Entregador recebe a oferta e aceita', async () => {
@@ -132,22 +129,27 @@ try {
       await shot(entregador, '06-oferta')
       await entregador.getByRole('button', { name: 'Aceitar' }).first().click()
       await entregador.getByText(`#${code}`).first().waitFor()
+      await cliente.getByRole('heading', { name: 'Entregador encontrado!' }).waitFor({ timeout: LIVE_MS })
     })
     await step('11. Entregador coleta e o cliente vê "saiu para entrega"', async () => {
       await entregador.getByRole('button', { name: 'Peguei o pedido' }).click()
-      await cliente.getByText('Código de entrega').waitFor({ timeout: LIVE_MS })
+      await cliente.getByText('Seu pedido está a caminho!').waitFor({ timeout: LIVE_MS })
     })
     await step('12-13. Entregador conclui com o código do cliente; cliente vê entregue', async () => {
-      const txt = (await cliente.getByText('Código de entrega').textContent()) ?? ''
-      const pin = txt.replace(/\D/g, '').slice(-4)
+      const pin = ((await cliente.getByLabel(/^Código \d/).textContent()) ?? '').replace(/\D/g, '')
+      await entregador.getByLabel('Código do cliente').fill(pin === '0000' ? '1111' : '0000')
+      await entregador.getByRole('button', { name: 'Confirmar código' }).click()
+      await entregador.getByText('Código inválido. Confira com o cliente.').waitFor()
       await entregador.getByLabel('Código do cliente').fill(pin)
-      await entregador.getByRole('button', { name: 'Confirmar entrega' }).click()
-      await cliente.getByRole('heading', { name: 'Entregue' }).waitFor({ timeout: LIVE_MS })
+      await entregador.getByRole('button', { name: 'Confirmar código' }).click()
+      await entregador.getByText('Código confirmado!').waitFor()
+      await entregador.getByRole('button', { name: 'FINALIZAR ENTREGA' }).click()
+      await cliente.getByRole('heading', { name: 'Pedido entregue' }).waitFor({ timeout: LIVE_MS })
       await shot(cliente, '07-cliente-entregue')
     })
     await step('Estado recuperado ao recarregar a página', async () => {
       await cliente.reload()
-      await cliente.getByRole('heading', { name: 'Entregue' }).waitFor()
+      await cliente.getByRole('heading', { name: 'Pedido entregue' }).waitFor()
     })
     if (master) {
       await step('14. Master vê o histórico completo', async () => {

@@ -68,8 +68,8 @@ describe('painel inicial por perfil', () => {
     expect(homeFor(ctx(['customer'], [{ businessId: 'b1', role: 'kitchen' }]))).toBe('/painel/b1/pedidos')
     expect(homeFor(ctx(['customer'], [{ businessId: 'b1', role: 'attendant' }]))).toBe('/painel/b1/pedidos')
     expect(homeFor(ctx(['customer', 'courier_partner']))).toBe('/entregador')
-    expect(homeFor(ctx(['customer']))).toBe('/conta')
-    expect(homeFor(null)).toBe('/conta')
+    expect(homeFor(ctx(['customer']))).toBe('/')
+    expect(homeFor(null)).toBe('/')
   })
 })
 
@@ -81,7 +81,7 @@ describe('destino após o login (quatro perfis + Master)', () => {
     expect(home({ userId: 'f', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'attendant' }] })).toBe('/painel/b1/pedidos')
     expect(home({ userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).toBe('/entregador')
     expect(home({ userId: 'p', roles: ['customer'], memberships: [{ businessId: 'b2', role: 'courier_own' }] })).toBe('/entregador')
-    expect(home({ userId: 'c', roles: ['customer'], memberships: [] })).toBe('/conta')
+    expect(home({ userId: 'c', roles: ['customer'], memberships: [] })).toBe('/')
   })
   it('funcionário não tem financeiro, equipe nem configurações por padrão', () => {
     const f = { userId: 'f', roles: ['customer'] as const, memberships: [{ businessId: 'b1', role: 'attendant' as const }] }

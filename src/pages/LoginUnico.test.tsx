@@ -44,7 +44,7 @@ describe('login único da Tucaí', () => {
       [['customer'], [{ businessId: 'b1', role: 'attendant' }], '/painel/b1/pedidos'],
       [['customer', 'courier_partner'], [], '/entregador'],
       [['customer'], [{ businessId: 'b2', role: 'courier_own' }], '/entregador'],
-      [['customer'], [], '/conta'],
+      [['customer'], [], '/'],
     ]
     for (const [roles, ms, dest] of cases) {
       logged(roles, ms)

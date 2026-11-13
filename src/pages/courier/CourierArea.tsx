@@ -185,9 +185,25 @@ function OwnCard({ d }: { d: OwnDelivery }) {
   )
 }
 
-export function OwnDeliveriesPanel() {
-  const active = useQuery({ queryKey: ['courier', 'own', 'active'], queryFn: () => ownDeliveries(true), refetchInterval: 20_000 })
-  const history = useQuery({ queryKey: ['courier', 'own', 'history'], queryFn: () => ownDeliveries(false) })
+/** Entregas do entregador próprio. `view`: em andamento, histórico ou ambos. */
+export function OwnDeliveriesPanel({ view = 'tudo' }: { view?: 'ativas' | 'historico' | 'tudo' }) {
+  const active = useQuery({ queryKey: ['courier', 'own', 'active'], queryFn: () => ownDeliveries(true), refetchInterval: 20_000, enabled: view !== 'historico' })
+  const history = useQuery({ queryKey: ['courier', 'own', 'history'], queryFn: () => ownDeliveries(false), enabled: view !== 'ativas' })
+  if (view === 'historico') {
+    return (
+      <section aria-labelledby="own-history" className="flex flex-col gap-3">
+        <h2 id="own-history" className="text-lg font-semibold text-ink">Histórico de entregas da loja</h2>
+        {history.isError ? <ErrorState error={history.error} onRetry={() => void history.refetch()} /> : (history.data ?? []).length === 0 ? (
+          <EmptyState icon={Truck} title={history.isLoading ? 'Carregando…' : 'Nenhuma entrega concluída ainda'} />
+        ) : (
+          <ul className={`${box} divide-y divide-line text-sm`}>
+            {history.data!.map((d) => <li key={d.orderId} className="flex justify-between gap-2 py-2"><span className="min-w-0 truncate text-ink">#{d.code} · {d.businessName}</span><span className="text-ink-muted">{STATUS_LABEL[d.status as keyof typeof STATUS_LABEL] ?? d.status}</span></li>)}
+          </ul>
+        )}
+        <p className="text-xs text-ink-muted">Como entregador próprio, seu pagamento é combinado diretamente com o estabelecimento.</p>
+      </section>
+    )
+  }
   return (
     <section aria-labelledby="own-deliveries" className="flex flex-col gap-3">
       <h2 id="own-deliveries" className="text-lg font-semibold text-ink">Entregas da loja</h2>
@@ -197,7 +213,7 @@ export function OwnDeliveriesPanel() {
       ) : (
         <ul className="flex flex-col gap-2">{active.data!.map((d) => <OwnCard key={d.orderId} d={d} />)}</ul>
       )}
-      {(history.data ?? []).length > 0 && (
+      {view === 'tudo' && (history.data ?? []).length > 0 && (
         <div>
           <h3 className="mb-1 text-base font-semibold text-ink">Histórico</h3>
           <ul className="divide-y divide-line text-sm">
@@ -260,7 +276,13 @@ export function CourierArea() {
     return (
       <Page>
         <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
-        <OwnDeliveriesPanel />
+        <CourierTabs mode="proprio" available={0} />
+        <Routes>
+          <Route index element={<OwnDeliveriesPanel view="ativas" />} />
+          <Route path="entregas" element={<OwnDeliveriesPanel view="ativas" />} />
+          <Route path="historico" element={<OwnDeliveriesPanel view="historico" />} />
+          <Route path="*" element={<Navigate to="/entregador" replace />} />
+        </Routes>
       </Page>
     )
   }
@@ -275,6 +297,7 @@ export function CourierArea() {
   const e = earnings.data
   const deliveriesView = (
     <>
+      {ownCourier && <OwnDeliveriesPanel view="ativas" />}
       <section aria-labelledby="disp" className={`${box} flex flex-col items-start gap-3`}>
         <h2 id="disp" className="text-lg font-semibold text-ink">Disponibilidade</h2>
         <p className={`inline-flex items-center gap-2 text-sm font-semibold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>
@@ -333,8 +356,7 @@ export function CourierArea() {
   return (
     <Page>
       <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${VEHICLE_LABEL[c.vehicle]}${c.plate ? ` · ${c.plate}` : ''}`} />
-      {ownCourier && <OwnDeliveriesPanel />}
-      <CourierTabs available={e?.availableCents ?? 0} />
+      <CourierTabs mode="parceiro" available={e?.availableCents ?? 0} />
       <Routes>
         <Route index element={deliveriesView} />
         <Route path="entregas" element={deliveriesView} />
@@ -349,14 +371,18 @@ export function CourierArea() {
 const dayBR = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 
 /** Abas do entregador: entregas, ganhos e saques (cada uma com sua cor). */
-function CourierTabs({ available }: { available: number }) {
-  const tabs = [
+/** Abas do painel do entregador: o mesmo painel para o independente e o próprio; o próprio não tem carteira Tucaí. */
+function CourierTabs({ available, mode }: { available: number; mode: 'parceiro' | 'proprio' }) {
+  const tabs = mode === 'parceiro' ? [
     { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
     { to: '/entregador/ganhos', label: 'Ganhos', icon: PiggyBank, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
     { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
+  ] : [
+    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
+    { to: '/entregador/historico', label: 'Histórico', icon: Clock, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ]
   return (
-    <nav aria-label="Seções do entregador" className="grid grid-cols-3 gap-2">
+    <nav aria-label="Seções do entregador" className={`grid gap-2 ${tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
       {tabs.map((t) => (
         <NavLink
           key={t.to}

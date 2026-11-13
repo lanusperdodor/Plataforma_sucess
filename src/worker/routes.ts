@@ -39,11 +39,12 @@ export interface RouteFailure { status: number; code?: string | number; message?
 
 /** Motivo da recusa do provedor, sem nada que possa conter a chave (só código e mensagem curta). */
 async function failure(res: Response): Promise<RouteFailure> {
-  const body = (await res.json().catch(() => null)) as { error?: unknown; message?: unknown } | null
+  const text = await res.text().catch(() => '')
+  const body = ((): { error?: unknown; message?: unknown } | null => { try { return JSON.parse(text) as { error?: unknown; message?: unknown } } catch { return null } })()
   const e = body?.error
   const code = e && typeof e === 'object' ? (e as { code?: string | number }).code : undefined
-  const raw = e && typeof e === 'object' ? (e as { message?: unknown }).message : typeof e === 'string' ? e : body?.message
-  const message = typeof raw === 'string' ? raw.replace(/[A-Za-z0-9_=-]{24,}/g, '…').slice(0, 160) : undefined
+  const raw = e && typeof e === 'object' ? (e as { message?: unknown }).message : typeof e === 'string' ? e : typeof body?.message === 'string' ? body.message : text.replace(/<[^>]*>/g, ' ')
+  const message = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').replace(/[A-Za-z0-9_=-]{24,}/g, '…').trim().slice(0, 160) || undefined : undefined
   return { status: res.status, code, message }
 }
 

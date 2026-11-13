@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Bike, Building2, Map as MapIcon, Megaphone, ClipboardList, Gavel, Lock, LayoutDashboard, MapPinned, ShieldCheck, Users, type LucideIcon, CreditCard, KeyRound, ReceiptText, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Route, Routes } from 'react-router-dom'
+import { PanelDrawer, PanelMenuButton, PanelSidebar, usePanelDrawer, type PanelNavGroup } from '../../components/panel/PanelNav.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { StateShell } from '../../components/feedback/StateShell.tsx'
 import { AccountMenu } from '../../components/account/AccountMenu.tsx'
@@ -33,27 +34,42 @@ interface NavItem {
   to: string
   label: string
   icon: LucideIcon
+  group: GroupId
   /** Permissão exigida; `master` = reservado ao Master; ausente = qualquer integrante. */
   permission?: PlatformPermissionCode | 'master'
 }
 
+type GroupId = 'visao' | 'operacao' | 'estabelecimentos' | 'financeiro' | 'cidades' | 'usuarios' | 'comunidade' | 'seguranca' | 'config'
+/** Grupos do menu do Master, só com os módulos que existem. */
+const GROUPS: { id: GroupId; label: string }[] = [
+  { id: 'visao', label: 'Visão geral' },
+  { id: 'operacao', label: 'Pedidos e operação' },
+  { id: 'estabelecimentos', label: 'Estabelecimentos' },
+  { id: 'financeiro', label: 'Financeiro' },
+  { id: 'cidades', label: 'Cidades e regiões' },
+  { id: 'usuarios', label: 'Usuários e permissões' },
+  { id: 'comunidade', label: 'Tucaí Conecta' },
+  { id: 'seguranca', label: 'Segurança e auditoria' },
+  { id: 'config', label: 'Configurações' },
+]
+
 const NAV: NavItem[] = [
-  { to: '/admin', label: 'Painel', icon: LayoutDashboard, permission: 'admin.dashboard' },
-  { to: '/admin/pedidos', label: 'Pedidos', icon: ReceiptText, permission: 'orders.view' },
-  { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
-  { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
-  { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
-  { to: '/admin/regioes', label: 'Regiões', icon: MapIcon, permission: 'master' },
-  { to: '/admin/anuncios', label: 'Anúncios', icon: Megaphone, permission: 'master' },
-  { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, permission: 'finance.view' },
-  { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard, permission: 'finance.view' },
-  { to: '/admin/logins', label: 'Logins', icon: KeyRound, permission: 'users.view' },
-  { to: '/admin/equipe', label: 'Equipe', icon: Users, permission: 'master' },
-  { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, permission: 'audit.view' },
-  { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, permission: 'privacy.manage' },
-  { to: '/admin/moderacao', label: 'Moderação', icon: Gavel, permission: 'moderation.manage' },
-  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings, permission: 'master' },
-  { to: '/admin/seguranca', label: 'Segurança', icon: ShieldCheck },
+  { to: '/admin', label: 'Painel', icon: LayoutDashboard, group: 'visao', permission: 'admin.dashboard' },
+  { to: '/admin/pedidos', label: 'Pedidos', icon: ReceiptText, group: 'operacao', permission: 'orders.view' },
+  { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, group: 'estabelecimentos', permission: 'businesses.review' },
+  { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, group: 'operacao', permission: 'couriers.review' },
+  { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, group: 'cidades', permission: 'cities.manage' },
+  { to: '/admin/regioes', label: 'Regiões', icon: MapIcon, group: 'cidades', permission: 'master' },
+  { to: '/admin/anuncios', label: 'Anúncios', icon: Megaphone, group: 'estabelecimentos', permission: 'master' },
+  { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, group: 'financeiro', permission: 'finance.view' },
+  { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard, group: 'financeiro', permission: 'finance.view' },
+  { to: '/admin/logins', label: 'Logins', icon: KeyRound, group: 'usuarios', permission: 'users.view' },
+  { to: '/admin/equipe', label: 'Equipe', icon: Users, group: 'usuarios', permission: 'master' },
+  { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, group: 'seguranca', permission: 'audit.view' },
+  { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, group: 'seguranca', permission: 'privacy.manage' },
+  { to: '/admin/moderacao', label: 'Moderação', icon: Gavel, group: 'comunidade', permission: 'moderation.manage' },
+  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings, group: 'config', permission: 'master' },
+  { to: '/admin/seguranca', label: 'Segurança', icon: ShieldCheck, group: 'seguranca' },
 ]
 
 function allowed(access: AdminAccess, item: NavItem): boolean {
@@ -78,14 +94,23 @@ function Guard({ access, item, children }: { access: AdminAccess; item: NavItem;
 
 function Layout({ access, children }: { access: AdminAccess; children: ReactNode }) {
   const items = NAV.filter((i) => allowed(access, i) || !i.permission)
+  const groups: PanelNavGroup[] = GROUPS.map((g) => ({
+    id: g.id, label: g.label,
+    items: items.filter((i) => i.group === g.id).map((i) => ({ to: i.to, label: i.label, icon: i.icon, end: i.to === '/admin' })),
+  }))
+  const drawer = usePanelDrawer()
+  const brand = (
+    <>
+      <img src={BRAND.assets.icon} alt="" width={28} height={28} className="size-7 rounded-lg" />
+      <span>Painel Master</span>
+    </>
+  )
   return (
-    <div className="flex min-h-dvh flex-col bg-muted">
+    <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-[var(--z-nav)] border-b border-line bg-surface">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-          <Link to="/admin" className="inline-flex min-h-11 items-center gap-2" aria-label="Painel Master — início">
-            <img src={BRAND.assets.icon} alt="" width={28} height={28} className="size-7 rounded-lg" />
-            <span className="text-sm font-bold text-ink">Painel Master</span>
-          </Link>
+        <div className="flex h-14 items-center gap-2 px-2 sm:px-4">
+          <PanelMenuButton open={drawer.open} onClick={() => drawer.setOpen(true)} />
+          <Link to="/admin" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-ink" aria-label="Painel Master — início">{brand}</Link>
           <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-ink-muted sm:inline">
             {access.isMaster ? 'Master' : 'Operador'}
           </span>
@@ -94,43 +119,12 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
             <AccountMenu context="admin" />
           </div>
         </div>
-        <nav aria-label="Seções do painel" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 md:hidden">
-          {items.map((i) => (
-            <NavLink
-              key={i.to}
-              to={i.to}
-              end={i.to === '/admin'}
-              className={({ isActive }) =>
-                `pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm ${isActive ? 'bg-brand font-semibold text-surface' : 'text-ink-muted'}`
-              }
-            >
-              <i.icon aria-hidden="true" className="size-4" />
-              {i.label}
-            </NavLink>
-          ))}
-        </nav>
       </header>
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6">
-        <nav aria-label="Menu do painel" className="hidden w-52 shrink-0 md:block">
-          <ul className="sticky top-20 flex flex-col gap-1">
-            {items.map((i) => (
-              <li key={i.to}>
-                <NavLink
-                  to={i.to}
-                  end={i.to === '/admin'}
-                  className={({ isActive }) =>
-                    `pressable flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm ${isActive ? 'bg-surface font-bold text-brand shadow-[var(--shadow-card)]' : 'font-medium text-ink-muted'}`
-                  }
-                >
-                  <i.icon aria-hidden="true" className="size-5" />
-                  {i.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <main id="conteudo" className="min-w-0 flex-1">
-          {children}
+      <PanelDrawer open={drawer.open} onClose={drawer.close} groups={groups} scope="admin" label="Menu do painel" title={brand} />
+      <div className="flex flex-1">
+        <PanelSidebar groups={groups} scope="admin" label="Menu do painel" />
+        <main id="conteudo" className="min-w-0 flex-1 px-4 py-6 lg:px-8">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

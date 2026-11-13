@@ -41,7 +41,7 @@ describe('Worker', () => {
     const ga = cspFor(base, 'G-ABC123', null)
     expect(ga).toMatch(/script-src 'self' https:\/\/www\.googletagmanager\.com;/)
     expect(ga).not.toContain('facebook')
-    expect(cspFor(base, null, '123456789')).toMatch(/connect-src 'self' https:\/\/\*\.supabase\.co wss:\/\/\*\.supabase\.co https:\/\/www\.facebook\.com/)
+    expect(cspFor(base, null, '123456789')).toMatch(/connect-src 'self' https:\/\/\*\.supabase\.co wss:\/\/\*\.supabase\.co https:\/\/tiles\.openfreemap\.org https:\/\/www\.facebook\.com/)
     expect(cspFor(base, 'G-ABC123', '123456789')).not.toMatch(/unsafe-inline|unsafe-eval/)
     expect(trackingTags(null, null)).toBe('')
     expect(trackingTags('G-ABC123', null)).toBe('<meta name="tucai:ga4-id" content="G-ABC123" />')

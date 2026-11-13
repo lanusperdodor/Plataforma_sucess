@@ -56,7 +56,7 @@ describe('Pedidos do Master', () => {
   it('detalhe mostra valores, histórico com autores e trata a ocorrência', async () => {
     show()
     fireEvent.click(await screen.findByRole('button', { name: /#ABC123/ }))
-    expect(await screen.findByText('Comissão Tucaí')).toBeInTheDocument()
+    expect(await screen.findByText('Tucaí recebe (por entrega)')).toBeInTheDocument()
     expect(screen.getByText(/Rodada 3 · 2 recusa/)).toBeInTheDocument()
     expect(screen.getByText(/Preparo estimado em 20 min/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Redistribuir entrega/ }))
@@ -70,7 +70,7 @@ describe('Pedidos do Master', () => {
     h.access = { isMaster: false, mfaOk: true, permissions: ['orders.view'] }
     show()
     fireEvent.click(await screen.findByRole('button', { name: /#ABC123/ }))
-    await screen.findByText('Comissão Tucaí')
+    await screen.findByText('Tucaí recebe (por entrega)')
     expect(screen.queryByRole('button', { name: /Cancelar pedido/ })).toBeNull()
     h.access = { isMaster: true, mfaOk: true, permissions: [] }
   })

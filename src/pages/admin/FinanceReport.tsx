@@ -119,8 +119,7 @@ export function FinanceReportSection() {
           ]} note="Mensalidades e comissões cobradas. Só conta como recebido o que foi confirmado (Mercado Pago ou baixa manual registrada)." />
           <Box title="Entregadores" items={[
             ['Devido (entregas concluídas)', d.confirmado.devido_entregadores_cents],
-            ['Repassado', d.repassado.registrado ? d.repassado.entregadores_cents : 'sem registro'],
-          ]} note="Ainda não há módulo de repasse: o valor devido vem das entregas concluídas; nenhum repasse é inventado." />
+          ]} note="Saques pagos, em análise e saldo dos entregadores ficam em “Entregas: quem pagou e quem recebeu”, acima." />
           <Box title="Cancelamentos e reembolsos" items={[
             ['Pedidos recusados/cancelados', String(d.cancelados.pedidos)], ['Valor não realizado', d.cancelados.volume_cents],
             ['Reembolsos', d.reembolsos.registrado ? d.reembolsos.cents : 'sem integração'],

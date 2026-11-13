@@ -162,7 +162,11 @@ begin
                            -- publicidade (0029): regiões e eventos pertencem à campanha, que tem business_id
                            'ad_campaign_regions', 'ad_events',
                            -- catálogo público (0034): o próprio id é o do estabelecimento (cópia só das colunas públicas)
-                           'business_catalog')
+                           'business_catalog',
+                           -- carteira do entregador (0036): o saque é do entregador (soma de várias lojas), não de um estabelecimento
+                           'courier_withdrawals',
+                           -- rastreamento (0037): posição, aviso e rotas pertencem ao pedido, que tem business_id
+                           'delivery_locations', 'delivery_tracking_ticks', 'delivery_routes')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

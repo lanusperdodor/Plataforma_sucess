@@ -188,14 +188,43 @@ export async function completeDelivery(orderId: string, code: string): Promise<b
   return !still.some((d) => d.orderId === orderId)
 }
 
-const earningsSchema = z
-  .object({ today_cents: z.number(), week_cents: z.number(), total_cents: z.number(), deliveries: z.number() })
-  .transform((r) => ({ todayCents: r.today_cents, weekCents: r.week_cents, totalCents: r.total_cents, deliveries: r.deliveries }))
-export type CourierEarnings = z.output<typeof earningsSchema>
+const walletSchema = z
+  .object({
+    today_cents: z.number(), week_cents: z.number(), total_cents: z.number().optional(), deliveries: z.number(),
+    ganho_total_cents: z.number().optional(), guardado_cents: z.number().optional(), disponivel_cents: z.number().optional(),
+    em_saque_cents: z.number().optional(), sacado_cents: z.number().optional(), dias_guardado: z.number().optional(),
+    liberacoes: z.array(z.object({ dia: z.string(), cents: z.number() })).optional(),
+  })
+  .transform((r) => ({
+    todayCents: r.today_cents, weekCents: r.week_cents, totalCents: r.ganho_total_cents ?? r.total_cents ?? 0, deliveries: r.deliveries,
+    /** false enquanto o banco não tiver a 0036 (carteira e saques). */
+    wallet: r.disponivel_cents !== undefined,
+    heldCents: r.guardado_cents ?? 0, availableCents: r.disponivel_cents ?? 0, pendingCents: r.em_saque_cents ?? 0,
+    withdrawnCents: r.sacado_cents ?? 0, holdDays: r.dias_guardado ?? 7, releases: r.liberacoes ?? [],
+  }))
+export type CourierEarnings = z.output<typeof walletSchema>
 
+/** Carteira (0036); cai para os ganhos simples se o banco ainda não tiver a carteira. */
 export async function getEarnings(): Promise<CourierEarnings> {
-  return exec(supabase.rpc('courier_earnings'), earningsSchema)
+  try {
+    return await exec(supabase.rpc('courier_wallet'), walletSchema)
+  } catch (e) {
+    if (e instanceof RepositoryError && e.detail?.field === 'schema') return exec(supabase.rpc('courier_earnings'), walletSchema)
+    throw e
+  }
 }
+
+export type WithdrawalStatus = 'solicitado' | 'pago' | 'recusado' | 'cancelado'
+export const WITHDRAWAL_LABEL: Record<WithdrawalStatus, string> = { solicitado: 'Em análise', pago: 'Pago', recusado: 'Recusado', cancelado: 'Cancelado' }
+const withdrawalSchema = z
+  .object({ id: z.string(), amount_cents: z.number(), pix_key: z.string(), status: z.enum(['solicitado', 'pago', 'recusado', 'cancelado']),
+            requested_at: z.string(), decided_at: z.string().nullable(), note: z.string().nullable() })
+  .transform((r) => ({ id: r.id, amountCents: r.amount_cents, pixKey: r.pix_key, status: r.status, requestedAt: r.requested_at, decidedAt: r.decided_at, note: r.note }))
+export type Withdrawal = z.output<typeof withdrawalSchema>
+export const listWithdrawals = () => exec(supabase.rpc('courier_withdrawals_list'), z.array(withdrawalSchema))
+export const requestWithdrawal = (pixKey: string) =>
+  exec(supabase.rpc('courier_request_withdrawal', { _pix_key: pixKey.trim() }), z.object({ id: z.string(), amount_cents: z.number() })).then((r) => r.amount_cents)
+export const cancelWithdrawal = (id: string) => exec(supabase.rpc('courier_cancel_withdrawal', { _id: id }), z.unknown()).then(() => undefined)
 
 // ---------- entregador próprio (0032): só as entregas atribuídas pelo comércio ----------
 const ownSchema = z

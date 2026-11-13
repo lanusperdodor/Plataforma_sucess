@@ -402,25 +402,42 @@ export async function appealModeration(type: 'post' | 'comment' | 'suspension', 
 }
 
 // ---------- notificações ----------
+/**
+ * Todos os tipos que o banco cria (restrição notifications_kind_check, 0022): Conectuaí, amizades e recados, comunidades,
+ * pedidos, entregas, vagas e avisos operacionais. Um tipo novo e desconhecido não derruba a lista: é exibido pela mensagem.
+ */
+export const NOTIFICATION_KINDS = [
+  'like', 'comment', 'reply', 'follow', 'moderation',
+  'friend_request', 'friend_accept', 'scrap', 'testimonial', 'community_request', 'community_accept', 'topic_reply',
+  'order_new', 'order_update', 'delivery_offer', 'job_application', 'job_update', 'ops_alert',
+] as const
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number] | 'outro'
 const notificationSchema = z.object({
   id: z.string(),
-  kind: z.enum(['like', 'comment', 'reply', 'follow', 'moderation']),
+  kind: z.string().transform((k): NotificationKind => ((NOTIFICATION_KINDS as readonly string[]).includes(k) ? (k as NotificationKind) : 'outro')),
   actor_id: z.string().nullable(),
   post_id: z.string().nullable(),
   comment_id: z.string().nullable(),
+  link: z.string().nullable().optional(),
   message: z.string().nullable(),
   read_at: z.string().nullable(),
   created_at: z.string(),
 })
-export interface ConectaNotification { id: string; kind: z.infer<typeof notificationSchema>['kind']; actor: SocialProfile | null; postId: string | null; message: string | null; read: boolean; createdAt: string }
+export interface ConectaNotification {
+  id: string; kind: NotificationKind; actor: SocialProfile | null; postId: string | null; link: string | null; message: string | null; read: boolean; createdAt: string
+}
 
+/** Só as notificações da própria conta (RLS no banco + filtro explícito). */
 export async function listNotifications(me: string): Promise<ConectaNotification[]> {
   const rows = await exec(
-    supabase.from('notifications').select('id,kind,actor_id,post_id,comment_id,message,read_at,created_at').eq('user_id', me).order('created_at', { ascending: false }).limit(50),
+    supabase.from('notifications').select('id,kind,actor_id,post_id,comment_id,link,message,read_at,created_at').eq('user_id', me).order('created_at', { ascending: false }).limit(50),
     z.array(notificationSchema),
   )
   const profiles = await profilesByIds(rows.map((r) => r.actor_id ?? '').filter(Boolean))
-  return rows.map((r) => ({ id: r.id, kind: r.kind, actor: r.actor_id ? profiles.get(r.actor_id) ?? null : null, postId: r.post_id, message: r.message, read: !!r.read_at, createdAt: r.created_at }))
+  return rows.map((r) => ({
+    id: r.id, kind: r.kind, actor: r.actor_id ? profiles.get(r.actor_id) ?? null : null, postId: r.post_id, link: r.link ?? null,
+    message: r.message, read: !!r.read_at, createdAt: r.created_at,
+  }))
 }
 
 export async function countUnread(me: string): Promise<number> {

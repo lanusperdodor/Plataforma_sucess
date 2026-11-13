@@ -9,6 +9,7 @@ import {
   destinationsFor,
   visibleGroups,
   resolveActiveDestination,
+  toneOf,
 } from './destinations.ts'
 
 export type SideNavProps = {
@@ -48,7 +49,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
   const itemClass = (isActive: boolean, showLabel: boolean) =>
     `pressable flex min-h-11 min-w-11 items-center gap-3 rounded-xl px-3 no-underline ${
       showLabel ? '' : 'justify-center'
-    } ${isActive ? 'bg-muted font-bold text-brand' : 'font-medium text-ink-muted'}`
+    } ${isActive ? 'bg-muted font-bold text-ink ring-1 ring-line' : 'font-medium text-ink-muted hover:bg-muted/60'}`
 
   const primary = (showLabel: boolean) =>
     items.map((item) => {
@@ -65,7 +66,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
             onFocus={() => onPrefetch?.(item.to)}
             className={itemClass(isActive, showLabel)}
           >
-            <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.25 : 1.75} />
+            <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.25 : 1.75} className={toneOf(item.id)} />
             {showLabel ? <span>{item.label}</span> : null}
           </Link>
         </li>
@@ -85,7 +86,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
             onFocus={() => onPrefetch?.(item.to)}
             className={itemClass(isCurrent, true)}
           >
-            <Icon aria-hidden="true" size={20} />
+            <Icon aria-hidden="true" size={20} className={toneOf(item.id)} />
             <span>{item.label}</span>
           </Link>
         </li>
@@ -99,8 +100,14 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         className="sticky shrink-0 overflow-y-auto border-r border-line bg-surface p-3"
         style={{ ...stickyStyle, width: 'var(--sidenav-w)', zIndex: 'var(--z-nav)' }}
       >
+        {groups.filter((g) => g.id === 'trabalho').map((g) => (
+          <section key={g.id} aria-label={g.title} className="mb-4">
+            <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        {groups.map((g) => (
+        {groups.filter((g) => g.id !== 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title}>
             <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
             <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
@@ -160,8 +167,14 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         >
           <X aria-hidden="true" size={20} />
         </button>
+        {groups.filter((g) => g.id === 'trabalho').map((g) => (
+          <section key={g.id} aria-label={g.title} className="mb-4">
+            <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        {groups.map((g) => (
+        {groups.filter((g) => g.id !== 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title}>
             <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
             <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>

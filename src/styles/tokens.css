@@ -5,7 +5,7 @@
   --brand-primary: #17191b; /* carvão fosco Tucaí */
   --brand-accent: #c2410c; /* laranja escuro: texto/hover sobre branco (AA) */
   --surface: #ffffff;
-  --surface-muted: #f6f6f5;
+  --surface-muted: #f1f3fa; /* fundo levemente azulado: menos "tudo branco" */
   --text: #17191b;
   /* Laranja Tucaí: preenchimentos, selos e destaques; texto sobre ele em carvão (5,5:1). */
   --brand-orange: #ff5500;
@@ -55,8 +55,8 @@
   color-scheme: dark;
   --brand-primary: #f2f2f0;
   --brand-accent: #fb923c;
-  --surface: #1c1e21;
-  --surface-muted: #111214;
+  --surface: #1b1f2c; /* cartões com leve tom azul-noite: menos "tudo preto" */
+  --surface-muted: #10131d;
   --text: #f2f2f0;
   --brand-orange: #c2410c;
   --success: #4ade80;
@@ -119,7 +119,7 @@
 
 body {
   margin: 0;
-  background: var(--surface-muted);
+  background-color: var(--surface-muted);
   color: var(--text);
   font-family: var(--font-sans);
 }
@@ -299,3 +299,11 @@ textarea:focus-visible {
 @media (min-width: 1920px) { html { font-size: 112.5%; } }
 @media (min-width: 2560px) { html { font-size: 125%; } }
 @media (min-width: 3200px) { html { font-size: 150%; } }
+
+/* Mapa de entrega (MapLibre): marcadores da Tucaí */
+.tucai-pin { display: grid; place-items: center; }
+.tucai-pin span { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; font: 600 0.75rem/1 var(--font-sans); background: var(--surface); color: var(--text); border: 1px solid var(--border-subtle); box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
+.tucai-pin-loja span { background: var(--brand-primary); color: var(--surface); }
+.tucai-moto { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 999px; background: #ff5500; color: #17191b; border: 3px solid #ffffff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.35); }
+.tucai-moto-parada { background: #9ca3af; }
+.tucai-map .maplibregl-ctrl-attrib { font-size: 0.6875rem; }

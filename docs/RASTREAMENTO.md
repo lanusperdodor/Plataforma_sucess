@@ -1,3 +1,82 @@
+# Rastreamento de entregas no mapa
+
+> **Status: implementado no código e testado localmente (migration 0037).** Ainda NÃO aplicado no Supabase de
+> produção nem publicado. Para ligar: aplicar `supabase/admin/apply_all_migrations.sql`, criar a chave do provedor de
+> rotas como segredo do Worker e publicar. Sem a chave, o mapa funciona com loja, destino e entregador; só a linha da
+> rota (e a previsão) não aparecem.
+
+## Como funciona (resumo)
+
+1. O entregador toca em **Compartilhar localização ao vivo** (o navegador pede a permissão). O app envia a posição REAL
+   do GPS a cada ~20 s (antes, no mínimo 8 s, se andou mais de 60 m) para `courier_track_location`. Só o entregador
+   atribuído, só durante a entrega. Fica gravada só a última posição (sem histórico).
+2. O banco grava e incrementa `delivery_tracking_ticks` (sem coordenadas). O Supabase Realtime avisa quem pode ver o pedido
+   (RLS = `can_view_order`). O app chama `delivery_tracking()`, que devolve a posição já arredondada para quem pergunta:
+   cliente ~100 m até a coleta e ~10 m depois; loja só até a coleta e sem o destino do cliente; Master com auditoria.
+3. O mapa (MapLibre GL JS + estilo OpenFreeMap) mostra loja, destino, rota e a motinha. Ao chegar posição nova, a moto
+   desliza até ela em ~1,2 s; sem posição nova ela PARA. Acima de 60 s: "aguardando nova posição"; acima de 2 min:
+   "Localização desatualizada" e a moto fica cinza. Distância e previsão só aparecem com rota calculada, posição recente
+   e entregador a até 250 m da rota (previsão = distância restante ÷ velocidade média que o provedor calculou para a rota).
+4. Rota: o app do entregador pede `POST /api/rota` ao Worker na primeira posição de cada etapa e quando ele sai da rota
+   (2 leituras seguidas a mais de 250 m, no mínimo 2 min entre pedidos). O banco autoriza (`route_request`): no máximo 6
+   rotas por entrega, 1 a cada 90 s e 500 por dia na plataforma (`private.routing_daily_limit`). A chave do provedor fica
+   só no Worker. Clientes e loja nunca disparam cálculo de rota: só leem a rota gravada.
+5. Navegação: botão **Rota até a loja / Rota até o cliente no Google Maps** abre `google.com/maps/dir/` com o destino
+   (coordenada quando existe, senão o endereço digitado). Gratuito, sem chave: quem calcula e guia é o próprio Google Maps.
+6. Fim: entrega concluída, cancelada, liberada ou troca de entregador apagam posição e rotas (gatilhos); posição parada
+   há 30 min some pela varredura `sweep_tracking()` (pg_cron a cada 5 min, se habilitado). O entregador também pode parar.
+7. Destino: o cliente pode tocar em **Usar minha localização** no pedido (antes de sair para entrega) para marcar o ponto.
+   Sem isso, o mapa mostra loja e entregador e o Google Maps navega pelo endereço digitado.
+
+## Limites honestos
+
+* **Tela bloqueada / segundo plano:** navegadores móveis (Chrome Android, Safari iOS) suspendem ou reduzem o GPS de
+  páginas em segundo plano. Não foi validado funcionamento contínuo com a tela bloqueada e ele NÃO é prometido. O app
+  pede a tela acesa (Screen Wake Lock, quando o aparelho suporta) e avisa o entregador. Rastreio contínuo com tela
+  bloqueada exige app nativo (ou PWA com recursos que hoje não são garantidos no iOS).
+* Precisão depende do aparelho (mostrada ao entregador). Posição antiga (mais de 10 min) ou no futuro é recusada.
+
+## Custos e escolha das tecnologias (pesquisa de 13/11/2026 — confirme nas páginas oficiais antes de contratar)
+
+| Peça | Escolhida | Custo | Alternativa |
+|---|---|---|---|
+| Biblioteca do mapa | **MapLibre GL JS 6.16.0** (BSD-3) | grátis, sem conta | Mapbox GL JS: 50.000 carregamentos/mês grátis, depois cobrado por carregamento; exige conta e token |
+| Mapa (tiles) | **OpenFreeMap** (dados OpenStreetMap) | grátis, sem chave e sem limite publicado; serviço "como está" | Mapbox (dentro dos 50 mil carregamentos), MapTiler, ou tiles próprios (PMTiles no Cloudflare R2) se o OpenFreeMap sair do ar |
+| Rotas | **openrouteservice** (padrão do Worker) | plano gratuito ~2.000 rotas/dia (uso comercial: confirmar os termos do plano) | **Mapbox Directions**: 100.000 requisições/mês grátis, depois cobrado; trocar com `ROUTING_PROVIDER=mapbox` |
+| Endereço → coordenada | **não usado** (cliente marca pelo GPS; Google Maps navega pelo endereço) | grátis | Geocodificação Mapbox: temporária (100 mil/mês grátis) **não pode ser gravada**; a permanente é paga desde a 1ª |
+| Navegação do entregador | **Google Maps URLs** (`/maps/dir/`) | grátis, sem chave | Routes API do Google (paga, com chave) — desnecessária |
+| Tempo real | Supabase Realtime (já contratado) | dentro do plano | — |
+
+Com os limites acima, o custo recorrente esperado para a operação regional é **zero**. Pontos a confirmar pela Tucaí:
+* Termos do Mapbox: resultados de APIs Mapbox podem ter restrições de exibição fora de mapas Mapbox e de armazenamento.
+  Por isso o padrão é openrouteservice; usar Mapbox Directions só depois de conferir os termos (www.mapbox.com/legal).
+* OpenFreeMap e openrouteservice exigem atribuição (OpenStreetMap / openrouteservice), exibida no canto do mapa.
+
+## Configuração (nada disso é feito automaticamente)
+
+1. Criar conta gratuita em openrouteservice.org e gerar a chave.
+2. `npx wrangler secret put ORS_API_KEY` (ou `ROUTING_PROVIDER=mapbox` + `npx wrangler secret put MAPBOX_TOKEN`).
+3. Aplicar as migrations (0037) no Supabase. Opcional: habilitar pg_cron para a varredura.
+4. CSP: `connect-src` já inclui `https://tiles.openfreemap.org`. Trocar o estilo (`VITE_MAP_STYLE_URL`) exige liberar o novo
+   domínio em `src/worker/securityHeaders.ts` e `public/_headers`.
+5. Limite diário: alterar `private.routing_daily_limit()` por migration.
+
+## Testes
+
+* `supabase/tests/rls_rastreamento.sql`: permissões por perfil (cliente, outro cliente, funcionário, outro estabelecimento,
+  entregador parceiro, entregador próprio, Master auditado), arredondamento, horário inválido, bilhete de rota de uso
+  único, limite de rotas, apagamento ao concluir e ao parar.
+* `src/worker/routes.test.ts`: chave só no Worker, token do usuário repassado ao banco, recusa sem chamar o provedor.
+* `src/features/rastreamento/geo.test.ts` e `src/components/map/DeliveryTracking.test.tsx`: distância restante, previsão
+  só com dados confiáveis, posição desatualizada para a moto, envio a cada ~20 s.
+* Não testado ainda: GPS real em celular na rua, tiles reais do OpenFreeMap e chave real do openrouteservice (o ambiente
+  de desenvolvimento não acessa esses serviços). Teste de campo: com as contas de homologação, Entregador 1 aceita um
+  pedido do Cliente 1 e compartilha a localização andando; Cliente 1 acompanha no celular.
+
+---
+
+# Arquitetura original (proposta anterior, mantida para referência)
+
 # Rastreamento de entregadores em tempo real — arquitetura proposta
 
 > **Status: somente documentação.** Nada aqui foi aplicado: nenhuma migration, nenhum serviço de mapas,

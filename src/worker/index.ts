@@ -15,8 +15,9 @@ import { validGa4, validPixel } from '../features/tracking/config'
 import { SECURITY_HEADERS } from './securityHeaders'
 import { handleHealth } from './health'
 import { handlePayments, type PaymentsEnv } from './payments'
+import { handleRoutes, type RoutesEnv } from './routes'
 
-export interface Env extends PaymentsEnv {
+export interface Env extends PaymentsEnv, RoutesEnv {
   ASSETS: { fetch(input: Request | string): Promise<Response> }
   /** Domínio canônico, sem barra final. Ex.: https://www.tucai.com.br */
   SITE_URL?: string
@@ -156,6 +157,8 @@ export default {
     if (health) return health
     const api = await handlePayments(request, env, siteUrl)
     if (api) return api
+    const route = await handleRoutes(request, env)
+    if (route) return route
     if (path === '/robots.txt') {
       return withHeaders(new Response(robotsTxt(siteUrl, indexingAllowed), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }), {
         'Cache-Control': 'public, max-age=3600',

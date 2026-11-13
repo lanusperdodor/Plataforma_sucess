@@ -158,7 +158,8 @@ const orderSchema = z
     payment: r.payment_method, changeForCents: r.change_for_cents, customerName: r.customer_name, customerPhone: r.customer_phone,
     address: r.delivery_address, reference: r.delivery_reference, notes: r.notes, subtotalCents: r.subtotal_cents,
     deliveryFeeCents: r.delivery_fee_cents, discountCents: r.discount_cents, totalCents: r.total_cents, commissionCents: r.commission_cents,
-    merchantDeliveryCents: r.merchant_delivery_contribution_cents + r.platform_delivery_fee_cents, rejectionReason: r.rejection_reason,
+    // custo de entrega do estabelecimento: contribuição na parceira (a tarifa da Tucaí sai do total cliente + loja) ou tarifa na entrega própria
+    merchantDeliveryCents: r.fulfillment === 'delivery_partner' ? r.merchant_delivery_contribution_cents : r.fulfillment === 'delivery_own' ? r.platform_delivery_fee_cents : 0, rejectionReason: r.rejection_reason,
     createdAt: r.created_at, updatedAt: r.updated_at, prepMinutes: r.prep_minutes ?? null, estimatedReadyAt: r.estimated_ready_at ?? null,
     isTest: r.is_test ?? false,
   }))

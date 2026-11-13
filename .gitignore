@@ -10,3 +10,4 @@ supabase/.branches
 .wrangler
 coverage
 e2e-evidence/
+release-audit/

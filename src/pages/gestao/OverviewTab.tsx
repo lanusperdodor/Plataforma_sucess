@@ -35,7 +35,7 @@ function SalesChart({ serie }: { serie: Overview['serie'] }) {
           {serie.map((d, i) => (
             <div key={d.dia} className="flex h-full flex-1 cursor-default items-end" onMouseEnter={() => setHover(i)}>
               <div
-                className={`w-full rounded-t-[4px] ${hover === i ? 'bg-ink' : 'bg-tone-green'}`}
+                className={`w-full rounded-t-[4px] ${hover === i ? 'bg-ink' : 'bg-orange'}`}
                 style={{ height: `${d.cents ? Math.max(3, (d.cents / max) * 100) : 0}%` }}
               />
             </div>
@@ -58,13 +58,13 @@ function SalesChart({ serie }: { serie: Overview['serie'] }) {
 
 type Tone = 'blue' | 'orange' | 'green' | 'violet' | 'teal' | 'amber' | 'rose'
 const TONE: Record<Tone, { chip: string; bar: string }> = {
-  blue: { chip: 'bg-tone-blue/15 text-tone-blue', bar: 'bg-tone-blue' },
-  orange: { chip: 'bg-tone-orange/15 text-tone-orange', bar: 'bg-tone-orange' },
-  green: { chip: 'bg-tone-green/15 text-tone-green', bar: 'bg-tone-green' },
-  violet: { chip: 'bg-tone-violet/15 text-tone-violet', bar: 'bg-tone-violet' },
-  teal: { chip: 'bg-tone-teal/15 text-tone-teal', bar: 'bg-tone-teal' },
-  amber: { chip: 'bg-tone-amber/15 text-tone-amber', bar: 'bg-tone-amber' },
-  rose: { chip: 'bg-tone-rose/15 text-tone-rose', bar: 'bg-tone-rose' },
+  blue: { chip: 'bg-muted text-ink', bar: '' },
+  orange: { chip: 'bg-muted text-ink', bar: '' },
+  green: { chip: 'bg-muted text-ink', bar: '' },
+  violet: { chip: 'bg-muted text-ink', bar: '' },
+  teal: { chip: 'bg-muted text-ink', bar: '' },
+  amber: { chip: 'bg-muted text-ink', bar: '' },
+  rose: { chip: 'bg-muted text-ink', bar: '' },
 }
 
 /** Indicador com ícone colorido. O número fica na cor do texto; a cor só identifica o tipo. */
@@ -72,7 +72,6 @@ function Tile({ label, value, hint, icon: Icon, tone }: { label: string; value: 
   const t = TONE[tone]
   return (
     <div className="relative overflow-hidden rounded-card border border-line bg-surface p-3 sm:p-4">
-      <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-1 ${t.bar}`} />
       <div className="flex items-start justify-between gap-2">
         <dt className="text-xs font-medium text-ink-muted sm:text-sm">{label}</dt>
         <span aria-hidden="true" className={`grid size-8 shrink-0 place-items-center rounded-lg ${t.chip}`}><Icon className="size-4" /></span>
@@ -124,7 +123,7 @@ export function OverviewTab() {
       {steps.length > 0 && (
         <section aria-labelledby="proximos" className="rounded-card border border-line bg-surface p-4">
           <h2 id="proximos" className="mb-3 flex items-center gap-2 text-base font-semibold text-ink">
-            <span aria-hidden="true" className="grid size-7 place-items-center rounded-lg bg-tone-blue/15 text-tone-blue"><ListChecks className="size-4" /></span>
+            <ListChecks aria-hidden="true" className="size-5 text-ink-muted" />
             O que fazer agora
           </h2>
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3">

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { DeliveryTracking } from '../components/map/DeliveryTracking.tsx'
 import { Bike, Check, KeyRound, MessageCircle, ReceiptText, Star } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -189,6 +190,8 @@ export function OrderPage() {
           </button>
         )}
       </section>
+
+      {(o.fulfillment === 'delivery_partner' || o.fulfillment === 'delivery_own') && !isFinal(o.status) && <DeliveryTracking orderId={o.id} />}
 
       {isCustomer && d && (d.status === 'offered' || d.status === 'accepted' || d.status === 'picked_up') && (
         <section aria-labelledby="ent" className={`${box} flex flex-col gap-2`}>

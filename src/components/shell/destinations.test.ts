@@ -69,6 +69,6 @@ describe('navegação por perfil ativo', () => {
     expect(destinationsFor({ kind: 'loja', businessId: 'b1' }).map((d) => d.to)).toEqual(['/', '/painel/b1/pedidos', '/painel/b1', '/conectuai', '/perfil'])
     expect(destinationsFor({ kind: 'entregador' }).map((d) => d.id)).toEqual(['entregas', 'notificacoes', 'perfil'])
     expect(destinationsFor({ kind: 'master' }).map((d) => d.id)).not.toContain('pedidos')
-    expect(visibleGroups(a, { kind: 'entregador' }).map((g) => g.id)).toEqual(['conta', 'trabalho'])
+    expect(visibleGroups(a, { kind: 'entregador' }).map((g) => g.id)).toEqual(['trabalho', 'conta'])
   })
 })

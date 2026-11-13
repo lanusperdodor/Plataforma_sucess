@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0035) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0037) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -10854,5 +10854,620 @@ $tucai_sql$;
     raise notice 'Tucaí 0035: aplicada agora';
   end if;
 end $tucai_0035$;
+
+-- ===================== supabase/migrations/0036_carteira_entregador.sql =====================
+do $tucai_0036$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0036') then
+    raise notice 'Tucaí 0036: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0036_carteira_entregador: ganhos do entregador parceiro ficam GUARDADOS por 7 dias e depois podem ser sacados.
+--  * Não é bloqueio: o entregador vê tudo o que ganhou. Cada entrega fica guardada 7 dias a partir da conclusão e então
+--    passa para "disponível para saque". Assim ele junta um valor maior em vez de sacar de 5 em 5 reais.
+--  * Saque: o entregador pede o saque do saldo disponível (chave Pix); um pedido em aberto por vez. O Master marca como
+--    pago (depois de transferir) ou recusa (o valor volta para o disponível). Tudo auditado; o entregador é avisado.
+--  * Regra de repasse de cada entrega parceira (já gravada no pedido, imutável):
+--      cliente paga a taxa de entrega (R$ 4) + estabelecimento contribui (R$ 2) = entregador recebe (R$ 5) + Tucaí (R$ 1).
+--    A tarifa da Tucaí sai desse total: o estabelecimento NÃO paga R$ 2 + R$ 1. As telas do estabelecimento somavam as duas
+--    partes como custo dele (R$ 3) — corrigido aqui (entrega própria continua pagando a tarifa da plataforma).
+--  * Resumo para o Master: quanto os clientes e os estabelecimentos pagaram, quanto os entregadores ganharam e quanto a Tucaí
+--    recebe por entrega; saques pagos, pedidos e saldo guardado.
+
+create or replace function private.courier_hold_days() returns integer language sql immutable as $$ select 7 $$;
+
+create table if not exists public.courier_withdrawals (
+  id uuid primary key default gen_random_uuid(),
+  courier_id uuid not null references auth.users(id) on delete cascade,
+  amount_cents integer not null check (amount_cents > 0),
+  pix_key text not null check (char_length(btrim(pix_key)) between 3 and 140),
+  status text not null default 'solicitado' check (status in ('solicitado', 'pago', 'recusado', 'cancelado')),
+  is_test boolean not null default false,
+  requested_at timestamptz not null default now(),
+  decided_at timestamptz,
+  decided_by uuid references auth.users(id) on delete set null,
+  note text check (note is null or char_length(note) <= 300)
+);
+create index if not exists courier_withdrawals_courier_idx on public.courier_withdrawals(courier_id, requested_at desc);
+create index if not exists courier_withdrawals_status_idx on public.courier_withdrawals(status, requested_at);
+create index if not exists courier_withdrawals_decided_by_idx on public.courier_withdrawals(decided_by);
+-- um pedido de saque em aberto por entregador
+create unique index if not exists courier_withdrawals_one_open_idx on public.courier_withdrawals(courier_id) where status = 'solicitado';
+
+alter table public.courier_withdrawals enable row level security;
+drop policy if exists courier_withdrawals_own_select on public.courier_withdrawals;
+create policy courier_withdrawals_own_select on public.courier_withdrawals for select to authenticated
+  using (courier_id = (select auth.uid()));
+revoke all on public.courier_withdrawals from public, anon, authenticated;
+grant select on public.courier_withdrawals to authenticated;  -- só as próprias linhas (RLS); gravação só pelas funções
+
+-- saldo de um entregador (usado pelo próprio entregador e pelo Master)
+create or replace function private.courier_wallet_of(_user uuid) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  with d as (
+    select courier_pay_cents as cents, delivered_at from public.deliveries
+     where courier_id = _user and status = 'delivered' and delivered_at is not null),
+  w as (select * from public.courier_withdrawals where courier_id = _user),
+  s as (
+    select coalesce((select sum(cents) from d), 0)::int as ganho,
+           coalesce((select sum(cents) from d where delivered_at <= now() - make_interval(days => private.courier_hold_days())), 0)::int as liberado,
+           coalesce((select sum(amount_cents) from w where status = 'solicitado'), 0)::int as em_saque,
+           coalesce((select sum(amount_cents) from w where status = 'pago'), 0)::int as sacado)
+  select jsonb_build_object(
+    'dias_guardado', private.courier_hold_days(),
+    'ganho_total_cents', s.ganho,
+    'guardado_cents', s.ganho - s.liberado,
+    'disponivel_cents', greatest(s.liberado - s.em_saque - s.sacado, 0),
+    'em_saque_cents', s.em_saque,
+    'sacado_cents', s.sacado,
+    'liberacoes', coalesce((select jsonb_agg(jsonb_build_object('dia', dia, 'cents', cents) order by dia) from (
+        select ((delivered_at + make_interval(days => private.courier_hold_days())) at time zone 'America/Sao_Paulo')::date as dia, sum(cents)::int as cents
+          from d where delivered_at > now() - make_interval(days => private.courier_hold_days()) group by 1) x), '[]'::jsonb))
+    from s
+$$;
+
+-- entregador: carteira (mantém os campos antigos de courier_earnings para compatibilidade)
+create or replace function public.courier_wallet() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  return private.courier_wallet_of(c.user_id) || jsonb_build_object(
+    'today_cents', coalesce((select sum(courier_pay_cents) from public.deliveries where courier_id = c.user_id and status = 'delivered'
+                               and delivered_at >= date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'), 0),
+    'week_cents', coalesce((select sum(courier_pay_cents) from public.deliveries where courier_id = c.user_id and status = 'delivered'
+                              and delivered_at >= now() - interval '7 days'), 0),
+    'deliveries', (select count(*) from public.deliveries where courier_id = c.user_id and status = 'delivered'));
+end $$;
+
+create or replace function public.courier_withdrawals_list()
+returns table (id uuid, amount_cents integer, pix_key text, status text, requested_at timestamptz, decided_at timestamptz, note text)
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  return query select w.id, w.amount_cents, w.pix_key, w.status, w.requested_at, w.decided_at, w.note
+    from public.courier_withdrawals w where w.courier_id = c.user_id order by w.requested_at desc limit 50;
+end $$;
+
+-- entregador: pede o saque de TODO o saldo disponível (o que já passou dos 7 dias)
+create or replace function public.courier_request_withdrawal(_pix_key text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier(); avail int; w public.courier_withdrawals%rowtype;
+begin
+  perform private.rate_limit('courier.withdrawal', 10, 3600);
+  if char_length(btrim(coalesce(_pix_key, ''))) < 3 then raise exception 'Informe a chave Pix para receber.' using errcode = 'P0001'; end if;
+  perform pg_advisory_xact_lock(hashtext('courier_wallet:' || c.user_id::text));
+  if exists (select 1 from public.courier_withdrawals where courier_id = c.user_id and status = 'solicitado') then
+    raise exception 'Você já tem um saque em análise. Aguarde a Tucaí concluir.' using errcode = 'P0001';
+  end if;
+  avail := (private.courier_wallet_of(c.user_id)->>'disponivel_cents')::int;
+  if avail <= 0 then
+    raise exception 'Ainda não há saldo disponível. Cada entrega fica guardada % dias antes de poder ser sacada.', private.courier_hold_days() using errcode = 'P0001';
+  end if;
+  insert into public.courier_withdrawals(courier_id, amount_cents, pix_key, is_test)
+  values (c.user_id, avail, btrim(_pix_key),
+          exists (select 1 from private.test_data_runs r where r.removed_at is null and c.user_id = any(r.user_ids)))
+  returning * into w;
+  perform private.audit('courier.withdrawal_request', 'courier_withdrawals', w.id::text, jsonb_build_object('amount', w.amount_cents));
+  return jsonb_build_object('id', w.id, 'amount_cents', w.amount_cents);
+end $$;
+
+create or replace function public.courier_cancel_withdrawal(_id uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.couriers%rowtype := private.require_active_courier();
+begin
+  update public.courier_withdrawals set status = 'cancelado', decided_at = now()
+   where id = _id and courier_id = c.user_id and status = 'solicitado';
+  if not found then raise exception 'Este saque não pode mais ser cancelado.' using errcode = 'P0001'; end if;
+end $$;
+
+-- Master: pedidos de saque (com o saldo atual de cada entregador)
+create or replace function public.admin_courier_withdrawals(_status text default 'solicitado', _include_test boolean default true)
+returns table (id uuid, courier_id uuid, courier_name text, amount_cents integer, pix_key text, status text, requested_at timestamptz,
+               decided_at timestamptz, note text, is_test boolean, disponivel_cents integer, guardado_cents integer)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.require_permission('finance.view');
+  if coalesce(_status, 'todos') not in ('todos', 'solicitado', 'pago', 'recusado', 'cancelado') then raise exception 'Situação inválida.' using errcode = 'P0001'; end if;
+  return query
+    select w.id, w.courier_id, coalesce(c.full_name, 'Entregador'), w.amount_cents, w.pix_key, w.status, w.requested_at, w.decided_at, w.note, w.is_test,
+           (private.courier_wallet_of(w.courier_id)->>'disponivel_cents')::int, (private.courier_wallet_of(w.courier_id)->>'guardado_cents')::int
+      from public.courier_withdrawals w left join public.couriers c on c.user_id = w.courier_id
+     where (coalesce(_status, 'todos') = 'todos' or w.status = _status) and (_include_test or not w.is_test)
+     order by (w.status = 'solicitado') desc, w.requested_at desc limit 200;
+end $$;
+
+-- Master: marca como pago (depois de transferir) ou recusa (valor volta para o disponível)
+create or replace function public.admin_decide_withdrawal(_id uuid, _decision text, _note text default null) returns void
+language plpgsql security definer set search_path = '' as $$
+declare w public.courier_withdrawals%rowtype;
+begin
+  perform private.require_master();
+  perform private.rate_limit('admin.withdrawal', 120, 600);
+  if _decision not in ('pago', 'recusado') then raise exception 'Decisão inválida.' using errcode = 'P0001'; end if;
+  if _decision = 'recusado' and char_length(btrim(coalesce(_note, ''))) < 3 then raise exception 'Informe o motivo da recusa.' using errcode = 'P0001'; end if;
+  update public.courier_withdrawals set status = _decision, decided_at = now(), decided_by = auth.uid(), note = nullif(left(btrim(coalesce(_note, '')), 300), '')
+   where id = _id and status = 'solicitado' returning * into w;
+  if not found then raise exception 'Este saque não está mais em análise.' using errcode = 'P0001'; end if;
+  perform private.audit('finance.withdrawal_' || _decision, 'courier_withdrawals', w.id::text, jsonb_build_object('amount', w.amount_cents, 'courier', w.courier_id));
+  perform private.notify_link(w.courier_id, 'ops_alert', null, '/entregador/saques',
+    case when _decision = 'pago' then 'Seu saque de R$ ' || to_char(w.amount_cents / 100.0, 'FM999999990.00') || ' foi pago.'
+         else 'Seu saque foi recusado: ' || w.note || '. O valor voltou para o seu saldo disponível.' end);
+end $$;
+
+-- Master: quem pagou e quem recebeu nas entregas parceiras do período
+create or replace function public.admin_delivery_money(_from date, _to date, _include_test boolean default true) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare f timestamptz := (_from::timestamp at time zone 'America/Sao_Paulo');
+        t timestamptz := ((_to + 1)::timestamp at time zone 'America/Sao_Paulo');
+begin
+  perform private.require_permission('finance.view');
+  if _from is null or _to is null or _to < _from or _to - _from > 366 then raise exception 'Período inválido (até 1 ano).' using errcode = 'P0001'; end if;
+  return (
+    with o as (
+      select o.* from public.orders o
+       where o.status = 'delivered' and o.updated_at >= f and o.updated_at < t and (_include_test or not o.is_test)
+         and o.fulfillment in ('delivery_partner', 'delivery_own')),
+    w as (select * from public.courier_withdrawals where (_include_test or not is_test))
+    select jsonb_build_object(
+      'entregas_parceiras', (select count(*) from o where fulfillment = 'delivery_partner'),
+      'clientes_pagaram_cents', coalesce((select sum(delivery_fee_cents) from o where fulfillment = 'delivery_partner'), 0),
+      'lojas_pagaram_cents', coalesce((select sum(merchant_delivery_contribution_cents) from o where fulfillment = 'delivery_partner'), 0),
+      'entregadores_ganharam_cents', coalesce((select sum(courier_pay_cents) from o where fulfillment = 'delivery_partner'), 0),
+      'tucai_parceiras_cents', coalesce((select sum(platform_delivery_fee_cents) from o where fulfillment = 'delivery_partner'), 0),
+      'entregas_proprias', (select count(*) from o where fulfillment = 'delivery_own'),
+      'tucai_proprias_cents', coalesce((select sum(platform_delivery_fee_cents) from o where fulfillment = 'delivery_own'), 0),
+      'teste_incluido', _include_test,
+      'pedidos_teste', (select count(*) from o where is_test),
+      'saques_pagos_cents', coalesce((select sum(amount_cents) from w where status = 'pago' and decided_at >= f and decided_at < t), 0),
+      'saques_em_analise', (select count(*) from w where status = 'solicitado'),
+      'saques_em_analise_cents', coalesce((select sum(amount_cents) from w where status = 'solicitado'), 0),
+      'saldo_entregadores_cents', coalesce((select sum(courier_pay_cents) from public.deliveries d
+                                             where d.status = 'delivered' and (_include_test or not d.is_test)), 0)
+                                  - coalesce((select sum(amount_cents) from w where status in ('pago', 'solicitado')), 0)));
+end $$;
+
+-- estabelecimento: custo de entrega = contribuição (parceira) ou tarifa da plataforma (entrega própria); nunca as duas somadas
+create or replace function private.merchant_delivery_cost(_fulfillment public.order_fulfillment, _contribution integer, _platform_fee integer) returns integer
+language sql immutable set search_path = '' as $$
+  select case when _fulfillment = 'delivery_partner' then _contribution when _fulfillment = 'delivery_own' then _platform_fee else 0 end
+$$;
+
+create or replace function public.merchant_finance(_business uuid, _from date, _to date) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare f timestamptz := (_from::timestamp at time zone 'America/Sao_Paulo');
+        t timestamptz := ((_to + 1)::timestamp at time zone 'America/Sao_Paulo');
+        today timestamptz := date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
+        month timestamptz := date_trunc('month', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
+begin
+  if not public.has_business_permission(_business, 'reports.view') then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.require_premium(_business);
+  if _from is null or _to is null or _to < _from or _to - _from > 366 then raise exception 'Período inválido (até 1 ano).' using errcode = 'P0001'; end if;
+  return (
+    with done as (select * from public.orders where business_id = _business and status in ('delivered', 'picked_up')),
+    per as (select * from done where updated_at >= f and updated_at < t),
+    items as (
+      select i.quantity, i.line_total_cents, case when i.product_id is null then null else private.product_unit_cost(i.product_id) end as unit_cost
+        from public.order_items i join per o on o.id = i.order_id),
+    exp as (
+      select e.*, case
+               when e.recurrence = 'unica' then (case when e.spent_on between _from and _to then 1 else 0 end)
+               when e.spent_on > _to then 0
+               else ((extract(year from _to) * 12 + extract(month from _to))
+                     - (extract(year from greatest(e.spent_on, _from)) * 12 + extract(month from greatest(e.spent_on, _from))) + 1)::int
+             end as times
+        from public.business_expenses e where e.business_id = _business)
+    select jsonb_build_object(
+      'hoje_cents', coalesce((select sum(subtotal_cents) from done where updated_at >= today), 0),
+      'mes_cents', coalesce((select sum(subtotal_cents) from done where updated_at >= month), 0),
+      'pedidos', (select count(*) from per),
+      'ticket_medio_cents', coalesce((select round(avg(subtotal_cents)) from per), 0)::int,
+      'cancelados', (select count(*) from public.orders where business_id = _business and status in ('rejected', 'cancelled') and updated_at >= f and updated_at < t),
+      'faturamento_bruto_cents', coalesce((select sum(subtotal_cents + case when fulfillment = 'delivery_own' then delivery_fee_cents else 0 end) from per), 0),
+      'comissao_cents', coalesce((select sum(commission_cents) from per), 0),
+      'taxas_entrega_cents', coalesce((select sum(private.merchant_delivery_cost(fulfillment, merchant_delivery_contribution_cents, platform_delivery_fee_cents)) from per), 0),
+      'custo_produtos_cents', coalesce((select sum(quantity * unit_cost) from items where unit_cost is not null), 0),
+      'itens_sem_custo', (select count(*) from items where unit_cost is null),
+      'vendas_itens_com_custo_cents', coalesce((select sum(line_total_cents) from items where unit_cost is not null), 0),
+      'despesas_cents', coalesce((select sum(amount_cents * times) from exp), 0),
+      'despesas_por_categoria', coalesce((select jsonb_object_agg(category, total) from (select category, sum(amount_cents * times) as total from exp where times > 0 group by category) x), '{}'::jsonb),
+      'recebido_na_entrega_cents', coalesce((select sum(total_cents) from per where fulfillment <> 'delivery_partner'), 0),
+      'caixa_hoje', coalesce((select jsonb_object_agg(payment_method, total) from (select payment_method, sum(total_cents) as total from done where updated_at >= today group by payment_method) x), '{}'::jsonb)));
+end $$;
+
+create or replace function public.merchant_overview(_business uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare today timestamptz := date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
+        month timestamptz := date_trunc('month', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
+        premium boolean := public.business_has_premium(_business);
+begin
+  if not public.has_business_permission(_business, 'reports.view') then raise exception 'forbidden' using errcode = '42501'; end if;
+  return (
+    with o as (select * from public.orders where business_id = _business and created_at >= month - interval '14 days')
+    select jsonb_build_object(
+      'premium', premium,
+      'recebidos_hoje', (select count(*) from o where created_at >= today),
+      'concluidos_hoje', (select count(*) from o where status in ('delivered', 'picked_up') and updated_at >= today),
+      'cancelados_hoje', (select count(*) from o where status in ('rejected', 'cancelled') and updated_at >= today),
+      'em_andamento', (select count(*) from public.orders x where x.business_id = _business and x.status in ('placed', 'accepted', 'preparing', 'ready', 'out_for_delivery')),
+      'faturamento_hoje_cents', coalesce((select sum(subtotal_cents) from o where status in ('delivered', 'picked_up') and updated_at >= today), 0),
+      'faturamento_mes_cents', coalesce((select sum(subtotal_cents) from o where status in ('delivered', 'picked_up') and updated_at >= month), 0),
+      'ticket_medio_cents', coalesce((select round(avg(subtotal_cents)) from o where status in ('delivered', 'picked_up') and updated_at >= month), 0)::int,
+      'recebido_mes_cents', coalesce((select sum(total_cents) from o where status in ('delivered', 'picked_up') and updated_at >= month and fulfillment <> 'delivery_partner'), 0),
+      'pendente_cents', coalesce((select sum(total_cents) from public.orders x where x.business_id = _business and x.status in ('placed', 'accepted', 'preparing', 'ready', 'out_for_delivery')), 0),
+      'taxas_mes_cents', coalesce((select sum(commission_cents + private.merchant_delivery_cost(fulfillment, merchant_delivery_contribution_cents, platform_delivery_fee_cents)) from o where status in ('delivered', 'picked_up') and updated_at >= month), 0),
+      'despesas_mes_cents', case when premium then coalesce((select sum(amount_cents) from public.business_expenses e where e.business_id = _business
+                                   and (e.recurrence = 'mensal' and e.spent_on < (month + interval '1 month') or e.spent_on >= month::date)), 0) end,
+      'serie', coalesce((select jsonb_agg(jsonb_build_object('dia', d::date, 'cents', coalesce((select sum(subtotal_cents) from o
+                           where status in ('delivered', 'picked_up') and (updated_at at time zone 'America/Sao_Paulo')::date = d::date), 0)) order by d)
+                          from generate_series((now() at time zone 'America/Sao_Paulo')::date - 13, (now() at time zone 'America/Sao_Paulo')::date, interval '1 day') d), '[]'::jsonb)));
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['private.courier_hold_days()', 'private.courier_wallet_of(uuid)', 'private.merchant_delivery_cost(public.order_fulfillment, integer, integer)'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+  end loop;
+  foreach f in array array[
+    'public.courier_wallet()', 'public.courier_withdrawals_list()', 'public.courier_request_withdrawal(text)', 'public.courier_cancel_withdrawal(uuid)',
+    'public.admin_courier_withdrawals(text, boolean)', 'public.admin_decide_withdrawal(uuid, text, text)', 'public.admin_delivery_money(date, date, boolean)',
+    'public.merchant_finance(uuid, date, date)', 'public.merchant_overview(uuid)'
+  ] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0036', '0036_carteira_entregador.sql', 'applied');
+    raise notice 'Tucaí 0036: aplicada agora';
+  end if;
+end $tucai_0036$;
+
+-- ===================== supabase/migrations/0037_rastreamento_mapa.sql =====================
+do $tucai_0037$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0037') then
+    raise notice 'Tucaí 0037: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0037_rastreamento_mapa: acompanhamento da entrega no mapa com a posição REAL do entregador (docs/RASTREAMENTO.md).
+--  * Só a ÚLTIMA posição de cada entrega ativa (uma linha; sem histórico de trajeto). Gravada pelo aparelho do entregador
+--    atribuído, com permissão explícita do navegador, a cada ~20 s. Apagada quando a entrega termina, é cancelada ou liberada,
+--    e pela varredura quando fica 30 min sem atualização.
+--  * Leitura só pela função delivery_tracking(): cliente do pedido, equipe da loja (até a coleta), o próprio entregador e
+--    equipe da plataforma com orders.view (auditado). O cliente recebe coordenadas arredondadas (~100 m antes da coleta,
+--    ~10 m depois). A tabela de posições não é legível diretamente por ninguém.
+--  * Tempo real: delivery_tracking_ticks só diz "mudou" (sem coordenadas), com RLS = quem pode ver o pedido. O app recebe o
+--    aviso e chama delivery_tracking() — as coordenadas nunca trafegam pelo canal.
+--  * Destino: o cliente pode marcar o ponto de entrega pelo GPS do próprio aparelho (orders.delivery_lat/lng). Sem ponto,
+--    o mapa mostra loja e entregador, e o entregador navega pelo endereço digitado (o Google Maps resolve o endereço).
+--  * Rota: calculada no Worker (chave do provedor fica só no Worker), no máximo 6 vezes por entrega e com teto diário global
+--    (private.routing_daily_limit). route_request() autoriza e devolve um bilhete de uso único; route_store() grava
+--    a geometria apenas com esse bilhete. Distância restante e previsão são calculadas no app sobre a rota gravada.
+
+-- ---------- destino informado pelo cliente ----------
+alter table public.orders add column if not exists delivery_lat numeric(8, 5) check (delivery_lat is null or delivery_lat between -34 and 6);
+alter table public.orders add column if not exists delivery_lng numeric(8, 5) check (delivery_lng is null or delivery_lng between -74 and -34);
+
+create or replace function public.customer_set_delivery_point(_order uuid, _lat numeric, _lng numeric) returns void
+language plpgsql security definer set search_path = '' as $$
+declare o public.orders%rowtype;
+begin
+  select * into o from public.orders where id = _order for update;
+  if not found or o.customer_id is distinct from auth.uid() then raise exception 'forbidden' using errcode = '42501'; end if;
+  if o.fulfillment not in ('delivery_partner', 'delivery_own') then raise exception 'Este pedido não é de entrega.' using errcode = 'P0001'; end if;
+  if o.status not in ('placed', 'accepted', 'preparing', 'ready') then
+    raise exception 'O ponto de entrega só pode ser marcado antes de o pedido sair para entrega.' using errcode = 'P0001';
+  end if;
+  if _lat is null or _lng is null or _lat not between -34 and 6 or _lng not between -74 and -34 then
+    raise exception 'Localização fora do Brasil.' using errcode = 'P0001';
+  end if;
+  perform private.rate_limit('order.delivery_point', 20, 600);
+  update public.orders set delivery_lat = round(_lat, 5), delivery_lng = round(_lng, 5) where id = _order;
+end $$;
+
+-- ---------- última posição (sem acesso direto) ----------
+create table if not exists public.delivery_locations (
+  order_id uuid primary key references public.orders(id) on delete cascade,
+  courier_id uuid not null references auth.users(id) on delete cascade,
+  lat numeric(8, 5) not null check (lat between -34 and 6),
+  lng numeric(8, 5) not null check (lng between -74 and -34),
+  accuracy_m integer check (accuracy_m is null or accuracy_m between 0 and 100000),
+  heading smallint check (heading is null or heading between 0 and 359),
+  speed_kmh smallint check (speed_kmh is null or speed_kmh between 0 and 250),
+  recorded_at timestamptz not null,
+  received_at timestamptz not null default now()
+);
+create index if not exists delivery_locations_courier_idx on public.delivery_locations(courier_id);
+alter table public.delivery_locations enable row level security;
+revoke all on public.delivery_locations from public, anon, authenticated;
+
+-- ---------- aviso de mudança para o tempo real (sem coordenadas) ----------
+create table if not exists public.delivery_tracking_ticks (
+  order_id uuid primary key references public.orders(id) on delete cascade,
+  version integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+alter table public.delivery_tracking_ticks enable row level security;
+drop policy if exists delivery_tracking_ticks_select on public.delivery_tracking_ticks;
+create policy delivery_tracking_ticks_select on public.delivery_tracking_ticks for select to authenticated
+  using (public.can_view_order(order_id));
+revoke all on public.delivery_tracking_ticks from public, anon, authenticated;
+grant select on public.delivery_tracking_ticks to authenticated;
+
+create or replace function private.tracking_tick(_order uuid) returns void
+language sql security definer set search_path = '' as $$
+  insert into public.delivery_tracking_ticks(order_id, version, updated_at) values (_order, 1, now())
+  on conflict (order_id) do update set version = public.delivery_tracking_ticks.version + 1, updated_at = now()
+$$;
+
+-- ---------- rotas calculadas (uma por perna: até a loja / até o cliente) ----------
+create table if not exists public.delivery_routes (
+  order_id uuid not null references public.orders(id) on delete cascade,
+  leg text not null check (leg in ('coleta', 'entrega')),
+  geometry jsonb not null check (jsonb_typeof(geometry) = 'array' and jsonb_array_length(geometry) between 2 and 5000),
+  distance_m integer not null check (distance_m >= 0),
+  duration_s integer not null check (duration_s >= 0),
+  provider text not null check (char_length(provider) <= 40),
+  computed_at timestamptz not null default now(),
+  primary key (order_id, leg)
+);
+alter table public.delivery_routes enable row level security;
+revoke all on public.delivery_routes from public, anon, authenticated;
+
+create table if not exists private.route_requests (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  leg text not null,
+  requested_by uuid not null,
+  created_at timestamptz not null default now(),
+  used_at timestamptz
+);
+create index if not exists route_requests_order_idx on private.route_requests(order_id, created_at);
+create index if not exists route_requests_day_idx on private.route_requests(created_at);
+revoke all on private.route_requests from public, anon, authenticated;
+
+-- teto diário de rotas na plataforma (custo do provedor). Para mudar: nova migration redefinindo a função. 0 desliga.
+create or replace function private.routing_daily_limit() returns integer language sql immutable as $$ select 500 $$;
+
+-- quem é o entregador atual do pedido e em que perna está (null = nenhum rastreamento permitido)
+create or replace function private.tracking_leg(_order uuid, _user uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select case
+    when d.courier_id = _user and d.status = 'accepted' then 'coleta'
+    when d.courier_id = _user and d.status = 'picked_up' then 'entrega'
+    when o.fulfillment = 'delivery_own' and o.own_courier_id = _user and private.is_own_courier(o.business_id, _user)
+         and o.status in ('accepted', 'preparing', 'ready') then 'coleta'
+    when o.fulfillment = 'delivery_own' and o.own_courier_id = _user and private.is_own_courier(o.business_id, _user)
+         and o.status = 'out_for_delivery' then 'entrega'
+  end
+    from public.orders o left join public.deliveries d on d.order_id = o.id
+   where o.id = _order
+$$;
+
+-- entregador: envia a posição real do aparelho (chamado a cada ~20 s enquanto ele compartilha)
+create or replace function public.courier_track_location(_order uuid, _lat numeric, _lng numeric, _accuracy_m integer default null,
+                                                         _heading integer default null, _speed_kmh integer default null,
+                                                         _recorded_at timestamptz default null) returns text
+language plpgsql security definer set search_path = '' as $$
+declare v_leg text := private.tracking_leg(_order, auth.uid()); at timestamptz := coalesce(_recorded_at, now());
+begin
+  if auth.uid() is null or v_leg is null then raise exception 'Esta entrega não está atribuída a você ou já terminou.' using errcode = '42501'; end if;
+  perform private.rate_limit('delivery.track', 150, 600);   -- ~1 a cada 4 s no pior caso
+  if _lat is null or _lng is null or _lat not between -34 and 6 or _lng not between -74 and -34 then
+    raise exception 'Localização inválida.' using errcode = 'P0001';
+  end if;
+  if at > now() + interval '1 minute' or at < now() - interval '10 minutes' then
+    raise exception 'Horário da localização inválido.' using errcode = 'P0001';
+  end if;
+  insert into public.delivery_locations as l (order_id, courier_id, lat, lng, accuracy_m, heading, speed_kmh, recorded_at, received_at)
+  values (_order, auth.uid(), round(_lat, 5), round(_lng, 5), _accuracy_m,
+          case when _heading between 0 and 359 then _heading end, case when _speed_kmh between 0 and 250 then _speed_kmh end, at, now())
+  on conflict (order_id) do update set courier_id = excluded.courier_id, lat = excluded.lat, lng = excluded.lng, accuracy_m = excluded.accuracy_m,
+         heading = excluded.heading, speed_kmh = excluded.speed_kmh, recorded_at = excluded.recorded_at, received_at = now()
+   where l.recorded_at <= excluded.recorded_at;   -- posição mais antiga que a gravada é ignorada
+  perform private.tracking_tick(_order);
+  return v_leg;
+end $$;
+
+-- entregador: para de compartilhar (apaga a posição)
+create or replace function public.courier_stop_tracking(_order uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.delivery_locations where order_id = _order and courier_id = auth.uid();
+  if found then perform private.tracking_tick(_order); end if;
+end $$;
+
+-- leitura: tudo o que o mapa precisa, já filtrado e arredondado para quem pergunta (bloco rotulado: tracking.leg é a variável)
+create or replace function public.delivery_tracking(_order uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+<<tracking>>
+declare o public.orders%rowtype; b record; l public.delivery_locations%rowtype; d public.deliveries%rowtype;
+        viewer text; leg text; courier uuid; prec int; r public.delivery_routes%rowtype;
+begin
+  select * into o from public.orders where id = _order;
+  if not found then raise exception 'forbidden' using errcode = '42501'; end if;
+  select * into d from public.deliveries where order_id = _order;
+  tracking.leg := case
+    when o.fulfillment = 'delivery_partner' and d.status = 'accepted' then 'coleta'
+    when o.fulfillment = 'delivery_partner' and d.status = 'picked_up' then 'entrega'
+    when o.fulfillment = 'delivery_own' and o.own_courier_id is not null and o.status in ('accepted', 'preparing', 'ready') then 'coleta'
+    when o.fulfillment = 'delivery_own' and o.own_courier_id is not null and o.status = 'out_for_delivery' then 'entrega' end;
+  courier := case when o.fulfillment = 'delivery_partner' then d.courier_id else o.own_courier_id end;
+  viewer := case
+    when courier is not null and courier = auth.uid() then 'entregador'
+    when o.customer_id = auth.uid() then 'cliente'
+    when public.has_business_permission(o.business_id, 'orders.view') then 'loja'
+    when public.has_platform_permission('orders.view') then 'plataforma' end;
+  if viewer is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  if viewer = 'loja' and tracking.leg is distinct from 'coleta' then tracking.leg := null; end if;
+  if viewer = 'plataforma' and not exists (select 1 from public.audit_logs a where a.actor_id = auth.uid() and a.action = 'tracking.view'
+                                             and a.entity_id = _order::text and a.created_at > now() - interval '30 minutes') then
+    perform private.audit('tracking.view', 'orders', _order::text, '{}'::jsonb);
+  end if;
+  prec := case when viewer = 'cliente' and tracking.leg = 'coleta' then 3 when viewer = 'cliente' then 4 else 5 end;
+  select bc.name, bc.address_line, bc.lat, bc.lng into b from public.businesses bc where bc.id = o.business_id;
+  if tracking.leg is not null then
+    select * into l from public.delivery_locations x where x.order_id = _order and x.courier_id = courier;
+    select * into r from public.delivery_routes x where x.order_id = _order and x.leg = tracking.leg;
+  end if;
+  return jsonb_build_object(
+    'leg', tracking.leg,
+    'viewer', viewer,
+    'status', o.status,
+    'vehicle', (select c.vehicle from public.couriers c where c.user_id = courier),
+    'business', jsonb_build_object('name', b.name, 'address', b.address_line, 'lat', b.lat, 'lng', b.lng),
+    'destination', case when viewer in ('cliente', 'entregador', 'plataforma') and o.delivery_lat is not null
+                        then jsonb_build_object('lat', o.delivery_lat, 'lng', o.delivery_lng) end,
+    'position', case when l.order_id is not null then jsonb_build_object(
+                  'lat', round(l.lat, prec), 'lng', round(l.lng, prec),
+                  'accuracy_m', case when prec < 5 then greatest(coalesce(l.accuracy_m, 0), case prec when 3 then 100 else 10 end) else l.accuracy_m end,
+                  'heading', case when prec = 5 then l.heading end, 'speed_kmh', case when prec = 5 then l.speed_kmh end,
+                  'recorded_at', l.recorded_at, 'received_at', l.received_at) end,
+    'route', case when r.order_id is not null then jsonb_build_object('leg', r.leg, 'geometry', r.geometry, 'distance_m', r.distance_m,
+                  'duration_s', r.duration_s, 'provider', r.provider, 'computed_at', r.computed_at) end,
+    'server_time', now());
+end $$;
+
+-- rota: o Worker pede autorização (com o token do entregador) e recebe origem, destino e um bilhete de uso único
+create or replace function public.route_request(_order uuid, _leg text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_leg text := private.tracking_leg(_order, auth.uid()); o public.orders%rowtype; b record; l public.delivery_locations%rowtype;
+        lim int; dest jsonb; rid uuid;
+begin
+  if auth.uid() is null or v_leg is null or v_leg is distinct from _leg then raise exception 'Esta entrega não está atribuída a você nesta etapa.' using errcode = '42501'; end if;
+  select * into o from public.orders where id = _order;
+  select * into l from public.delivery_locations where order_id = _order and courier_id = auth.uid();
+  if l.order_id is null or l.received_at < now() - interval '2 minutes' then
+    raise exception 'Compartilhe sua localização para calcular a rota.' using errcode = 'P0001';
+  end if;
+  if v_leg = 'coleta' then
+    select bc.lat, bc.lng into b from public.businesses bc where bc.id = o.business_id;
+    if b.lat is null then raise exception 'O estabelecimento não tem coordenadas cadastradas; use o Google Maps pelo endereço.' using errcode = 'P0001'; end if;
+    dest := jsonb_build_object('lat', b.lat, 'lng', b.lng);
+  else
+    if o.delivery_lat is null then raise exception 'O cliente não marcou o ponto de entrega; use o Google Maps pelo endereço.' using errcode = 'P0001'; end if;
+    dest := jsonb_build_object('lat', o.delivery_lat, 'lng', o.delivery_lng);
+  end if;
+  perform pg_advisory_xact_lock(hashtext('route:' || _order::text));
+  if (select count(*) from private.route_requests where order_id = _order) >= 6 then
+    raise exception 'Limite de rotas desta entrega atingido; use o Google Maps.' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from private.route_requests where order_id = _order and route_requests.leg = _leg and created_at > now() - interval '90 seconds') then
+    raise exception 'A rota acabou de ser calculada; aguarde um pouco.' using errcode = 'P0001';
+  end if;
+  lim := private.routing_daily_limit();
+  if (select count(*) from private.route_requests where created_at > now() - interval '1 day') >= lim then
+    raise exception 'Cálculo de rotas indisponível no momento; use o Google Maps.' using errcode = 'P0001';
+  end if;
+  insert into private.route_requests(order_id, leg, requested_by) values (_order, _leg, auth.uid()) returning id into rid;
+  return jsonb_build_object('ticket', rid, 'origin', jsonb_build_object('lat', l.lat, 'lng', l.lng), 'destination', dest);
+end $$;
+
+-- o Worker grava a rota calculada (só com o bilhete emitido para o mesmo entregador, em até 2 minutos)
+create or replace function public.route_store(_ticket uuid, _geometry jsonb, _distance_m integer, _duration_s integer, _provider text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare t private.route_requests%rowtype;
+begin
+  update private.route_requests set used_at = now()
+   where id = _ticket and requested_by = auth.uid() and used_at is null and created_at > now() - interval '2 minutes'
+  returning * into t;
+  if not found then raise exception 'Bilhete de rota inválido ou expirado.' using errcode = '42501'; end if;
+  if private.tracking_leg(t.order_id, auth.uid()) is distinct from t.leg then raise exception 'A etapa da entrega mudou.' using errcode = 'P0001'; end if;
+  if jsonb_typeof(_geometry) <> 'array' or jsonb_array_length(_geometry) not between 2 and 5000 then raise exception 'Rota inválida.' using errcode = 'P0001'; end if;
+  insert into public.delivery_routes(order_id, leg, geometry, distance_m, duration_s, provider)
+  values (t.order_id, t.leg, _geometry, greatest(_distance_m, 0), greatest(_duration_s, 0), left(coalesce(_provider, 'desconhecido'), 40))
+  on conflict (order_id, leg) do update set geometry = excluded.geometry, distance_m = excluded.distance_m, duration_s = excluded.duration_s,
+         provider = excluded.provider, computed_at = now();
+  perform private.tracking_tick(t.order_id);
+end $$;
+
+-- fim do rastreamento: entrega concluída, cancelada, liberada ou pedido encerrado apagam posição e rotas
+create or replace function private.tracking_cleanup() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_table_name = 'deliveries' then
+    if new.status in ('delivered', 'cancelled') or new.courier_id is distinct from old.courier_id then
+      delete from public.delivery_locations where order_id = new.order_id;
+      if new.status in ('delivered', 'cancelled') then delete from public.delivery_routes where order_id = new.order_id; end if;
+      perform private.tracking_tick(new.order_id);
+    end if;
+  elsif new.status in ('delivered', 'picked_up', 'cancelled', 'rejected') or new.own_courier_id is distinct from old.own_courier_id then
+    delete from public.delivery_locations where order_id = new.id;
+    if new.status in ('delivered', 'picked_up', 'cancelled', 'rejected') then delete from public.delivery_routes where order_id = new.id; end if;
+    perform private.tracking_tick(new.id);
+  end if;
+  return null;
+end $$;
+drop trigger if exists deliveries_tracking_cleanup on public.deliveries;
+create trigger deliveries_tracking_cleanup after update of status, courier_id on public.deliveries
+  for each row execute function private.tracking_cleanup();
+drop trigger if exists orders_tracking_cleanup on public.orders;
+create trigger orders_tracking_cleanup after update of status, own_courier_id on public.orders
+  for each row execute function private.tracking_cleanup();
+
+-- posição parada há 30 min some (aparelho desligado, app fechado)
+create or replace function public.sweep_tracking() returns integer
+language plpgsql security definer set search_path = '' as $$
+declare n int;
+begin
+  delete from public.delivery_locations where received_at < now() - interval '30 minutes';
+  get diagnostics n = row_count;
+  delete from private.route_requests where created_at < now() - interval '2 days';
+  return n;
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['private.routing_daily_limit()', 'private.tracking_tick(uuid)', 'private.tracking_leg(uuid, uuid)', 'private.tracking_cleanup()'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+  end loop;
+  revoke all on function public.sweep_tracking() from public, anon, authenticated;
+  foreach f in array array[
+    'public.customer_set_delivery_point(uuid, numeric, numeric)',
+    'public.courier_track_location(uuid, numeric, numeric, integer, integer, integer, timestamptz)',
+    'public.courier_stop_tracking(uuid)', 'public.delivery_tracking(uuid)',
+    'public.route_request(uuid, text)', 'public.route_store(uuid, jsonb, integer, integer, text)'
+  ] loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'delivery_tracking_ticks') then
+    alter publication supabase_realtime add table public.delivery_tracking_ticks;
+  end if;
+  -- varredura a cada 5 min quando o pg_cron existir (no Supabase)
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule('tucai-sweep-tracking', '*/5 * * * *', 'select public.sweep_tracking()');
+  end if;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0037', '0037_rastreamento_mapa.sql', 'applied');
+    raise notice 'Tucaí 0037: aplicada agora';
+  end if;
+end $tucai_0037$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

@@ -23,21 +23,26 @@ A resposta sai em um relatório com problemas classificados por gravidade e um c
 
 ## Ferramentas que já existem (reutilize, não duplique)
 
-| Necessidade                                                    | Use                                                                                |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Regras e boas práticas do Supabase/Auth/RLS                    | skill `supabase` (`.claude/skills/supabase`)                                       |
-| Migrations, índices, RLS, funções SQL                          | skill `supabase-postgres-best-practices`                                           |
-| Revisão de segurança do diff do branch                         | skill `security-review` (se disponível na sessão)                                  |
-| Bugs no diff                                                   | skill `code-review` (se disponível)                                                |
-| Acessibilidade WCAG                                            | skill `design:accessibility-review` (se disponível)                                |
-| Tipos, lint, testes, build                                     | `npm run typecheck`, `npm run lint`, `npx vitest run`, `npm run build`             |
-| Segredos no código e no build                                  | `npm run check-secrets`                                                            |
-| Tamanho do carregamento inicial                                | `npm run check-bundle` (depois do build)                                           |
-| Migrations + testes de RLS em PostgreSQL **local descartável** | `npm run test:sql` (precisa de `PG_BIN`; nunca toca o remoto)                      |
-| Pacote idempotente das migrations                              | `npm run sql:bundle` → `supabase/admin/apply_all_migrations.sql`                   |
-| Vulnerabilidades de dependências                               | `npm run audit:deps`                                                               |
-| Ponta a ponta na interface com as 7 contas de homologação      | `scripts/e2e-homologacao.mjs` (só com variáveis `E2E_*`; nunca contra dados reais) |
-| CI (mesmos passos, no GitHub)                                  | `.github/workflows/ci.yml` (jobs `app` e `database`)                               |
+| Necessidade                                                      | Use                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Regras e boas práticas do Supabase/Auth/RLS                      | skill `supabase` (`.claude/skills/supabase`)                                         |
+| Migrations, índices, RLS, funções SQL                            | skill `supabase-postgres-best-practices`                                             |
+| Revisão de segurança do diff do branch                           | skill `security-review` (se disponível na sessão)                                    |
+| Bugs no diff                                                     | skill `code-review` (se disponível)                                                  |
+| Revisão de segurança do diff (Trail of Bits)                     | skill `differential-review` (instalada no repositório)                               |
+| APIs e configurações perigosas                                   | skill `sharp-edges` (instalada)                                                      |
+| Direção visual, aparência genérica de IA                         | skill `frontend-design` (instalada)                                                  |
+| Regras de interface web (acessibilidade, formulários, navegação) | skill `web-design-guidelines` (instalada; busca as regras atualizadas a cada uso)    |
+| Desempenho React                                                 | skill `vercel-react-best-practices` (instalada; ignore regras exclusivas de Next.js) |
+| Acessibilidade WCAG                                              | skill `design:accessibility-review` (se disponível)                                  |
+| Tipos, lint, testes, build                                       | `npm run typecheck`, `npm run lint`, `npx vitest run`, `npm run build`               |
+| Segredos no código e no build                                    | `npm run check-secrets`                                                              |
+| Tamanho do carregamento inicial                                  | `npm run check-bundle` (depois do build)                                             |
+| Migrations + testes de RLS em PostgreSQL **local descartável**   | `npm run test:sql` (precisa de `PG_BIN`; nunca toca o remoto)                        |
+| Pacote idempotente das migrations                                | `npm run sql:bundle` → `supabase/admin/apply_all_migrations.sql`                     |
+| Vulnerabilidades de dependências                                 | `npm run audit:deps`                                                                 |
+| Ponta a ponta na interface com as 7 contas de homologação        | `scripts/e2e-homologacao.mjs` (só com variáveis `E2E_*`; nunca contra dados reais)   |
+| CI (mesmos passos, no GitHub)                                    | `.github/workflows/ci.yml` (jobs `app` e `database`)                                 |
 
 Esta skill acrescenta só o que faltava:
 
@@ -47,6 +52,23 @@ Esta skill acrescenta só o que faltava:
   console, `<title>`, descrição e `<h1>`; usa um build com backend falso, então não faz chamadas ao Supabase.
 
 Execute os scripts a partir da raiz do repositório.
+
+## As 12 áreas (todas entram no relatório; nenhuma pode ficar sem situação)
+
+| #   | Área                 | O que verificar                                                                                                                                 | Como (skill / ferramenta)                                                                                         | Passo   |
+| --- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | Segurança            | segredos, service_role/Admin API, XSS, injeção, rate limit, cabeçalhos, dependências                                                            | `static-audit.mjs`, `check-secrets`, `audit:deps`, `differential-review`, `sharp-edges`, `security-review`        | 2, 3, 4 |
+| 2   | Testes dos usuários  | as 7 contas (Empresário 1 e 2, Funcionário, Entregador 1 independente, Entregador 2 próprio, Cliente 1 e 2) + Master separado                   | testes SQL por perfil, `e2e-homologacao.mjs` em homologação                                                       | 6       |
+| 3   | Banco de dados       | migrations, RLS, constraints, índices, FKs, views, concorrência, idempotência                                                                   | `test:sql`, pacote aplicado 2×, `supabase-postgres-best-practices`                                                | 2, 4    |
+| 4   | Operações comerciais | pedido → preparo → entrega → conclusão; repasse cliente + loja = entregador + Tucaí; carteira 7 dias e saques; planos Premium; caixa e comandas | `rls_orders`, `rls_gestao`, `rls_carteira`, `rls_finance`, e2e                                                    | 6, 7    |
+| 5   | Revisão de código    | diff contra `origin/main`, código morto, duplicação, erros silenciosos                                                                          | `code-review`, `differential-review`, lint/typecheck                                                              | 1, 2    |
+| 6   | Performance          | tamanho do carregamento inicial, divisão por rota, imagens, renderizações                                                                       | `check-bundle`, `vercel-react-best-practices`, Lighthouse se disponível (Chromium em `/opt/pw-browsers/chromium`) | 8       |
+| 7   | Design e UX          | consistência, contraste, foco de teclado, toque ≥ 44 px, sem rolagem horizontal, claro/escuro, aparência genérica                               | `responsive-audit.cjs`, `web-design-guidelines`, `frontend-design`, `design:accessibility-review`                 | 8       |
+| 8   | SEO                  | títulos, descrições, canonical, robots, sitemap, Open Graph, dados estruturados, noindex fora do domínio                                        | `static-audit.mjs`, `responsive-audit.cjs`, `docs/SEO.md`, `curl -sI` público                                     | 8       |
+| 9   | Deploy               | `wrangler.jsonc`, Worker sem APIs do Node, variáveis e segredos (só nomes), CI verde, migrations pendentes listadas                             | `static-audit.mjs`, testes `src/worker`, CI do PR                                                                 | 9       |
+| 10  | Monitoramento        | `observability` do Worker, `/api/health`, alertas, onde ver erros (`docs/OPERACAO.md`)                                                          | leitura de config + GET público em `/api/health`                                                                  | 9       |
+| 11  | Backup e recuperação | plano do Supabase com backup/PITR **confirmado pela pessoa**, roteiro de restauração, `manutencao_recuperar.sql`                                | `docs/OPERACAO.md`; sem confirmação → BLOQUEANTE                                                                  | 9       |
+| 12  | LGPD                 | consentimento antes de rastreamento, inventário de armazenamento local, política de privacidade, exportação/exclusão de dados, logs sem senha   | `docs/LGPD.md`, `src/features/legal/inventory.ts` e testes, `ConsentManager`                                      | 8       |
 
 ## Procedimento
 
@@ -176,7 +198,25 @@ Ambiente auditado: branch, commit, última migration local, migration aplicada e
 ## Resultado dos testes
 | Passo | Resultado | Evidência |   (passou / falhou / não executado + motivo)
 
-## Problemas
+## Situação das 12 áreas
+| # | Área | Situação (aprovada / com falhas / não verificada) | Resumo |
+
+## Falhas críticas
+## Falhas altas
+## Falhas médias
+| # | Área | Descrição | Arquivo:linha | Como reproduzir | Sugestão |
+
+## Melhorias recomendadas (baixo)
+
+## Testes executados e evidências disponíveis
+| Teste | Comando | Resultado | Evidência (log/captura) |
+
+## Pendências (não testado / depende da pessoa)
+
+## Condições para lançamento
+O que precisa ser verdade para liberar: lista objetiva, cada item ligado a uma falha ou pendência acima.
+
+## Problemas (detalhe)
 | # | Gravidade | Área | Descrição | Arquivo:linha | Como reproduzir | Sugestão |
 
 ## Fluxos essenciais
@@ -195,6 +235,9 @@ Ambiente auditado: branch, commit, última migration local, migration aplicada e
 - [ ] sem rolagem horizontal de 360 px a 2560 px; claro e escuro conferidos
 - [ ] SEO: título, descrição, robots, sitemap, noindex fora do domínio canônico
 - [ ] Worker: configuração válida, sem tela branca ao recarregar, /api/health ok
+- [ ] monitoramento: observabilidade do Worker ativa, /api/health ok e onde ver erros documentado
+- [ ] backup: plano do Supabase com backup (e PITR para dados financeiros) confirmado pela pessoa; roteiro de restauração conhecido
+- [ ] LGPD: consentimento antes de rastreamento, inventário de armazenamento atualizado, exportação e exclusão de dados funcionando
 - [ ] migrations pendentes listadas para a pessoa aplicar manualmente (a skill não aplica)
 - [ ] deploy autorizado explicitamente pela pessoa (a skill não publica)
 

@@ -54,7 +54,7 @@ describe('Tucaí Gestão em tela cheia', () => {
       expect(within(nav).getByRole('link', { name: new RegExp(l) })).toBeInTheDocument()
     }
     expect(within(nav).getByRole('link', { name: /Visão geral/ })).toHaveAttribute('aria-current', 'page')
-    expect(await screen.findByText('Pedidos recebidos hoje')).toBeInTheDocument()
+    expect(await screen.findByText('Pedidos hoje')).toBeInTheDocument()
     // fora do marketplace: sem navegação inferior da Tucaí
     expect(screen.queryByRole('navigation', { name: /Navegação principal/i })).not.toBeInTheDocument()
   })

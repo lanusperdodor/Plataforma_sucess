@@ -43,3 +43,15 @@ describe('diagnóstico do frete (somente leitura)', () => {
     expect(f).toHaveBeenCalledTimes(5)
   })
 })
+
+describe('diagnóstico: motivo da recusa', () => {
+  it('mostra o código do provedor sem a chave', async () => {
+    const f = vi.fn(async (u: RequestInfo | URL) => String(u).includes('delivery_pricing_current') ? res(PRICING) : res({ error: 'Access to this API has been disallowed segredo-123-abcdefghijklmnopqrstuvwxyz' }, 403)) as unknown as typeof fetch
+    const r = await handleDiagnostics(get(), { ORS_API_KEY: 'segredo-123-abcdefghijklmnopqrstuvwxyz' }, f)
+    const text = await r!.text()
+    expect(text).not.toContain('segredo-123-abcdefghijklmnopqrstuvwxyz')
+    const b = JSON.parse(text)
+    expect(b.exemplos[0].resposta_do_provedor.status).toBe(403)
+    expect(b.exemplos[0].motivo_provavel).toMatch(/chave recusada/)
+  })
+})

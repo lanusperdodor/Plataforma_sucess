@@ -35,7 +35,19 @@ export function simplify(points: LngLat[], max = 400): LngLat[] {
 }
 
 /** Consulta o provedor configurado. Devolve null quando não há chave ou o provedor falhou. */
-export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetcher: typeof fetch = fetch): Promise<ProviderRoute | 'sem_chave' | null> {
+export interface RouteFailure { status: number; code?: string | number; message?: string }
+
+/** Motivo da recusa do provedor, sem nada que possa conter a chave (só código e mensagem curta). */
+async function failure(res: Response): Promise<RouteFailure> {
+  const body = (await res.json().catch(() => null)) as { error?: unknown; message?: unknown } | null
+  const e = body?.error
+  const code = e && typeof e === 'object' ? (e as { code?: string | number }).code : undefined
+  const raw = e && typeof e === 'object' ? (e as { message?: unknown }).message : typeof e === 'string' ? e : body?.message
+  const message = typeof raw === 'string' ? raw.replace(/[A-Za-z0-9_=-]{24,}/g, '…').slice(0, 160) : undefined
+  return { status: res.status, code, message }
+}
+
+export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetcher: typeof fetch = fetch, onFail?: (f: RouteFailure) => void): Promise<ProviderRoute | 'sem_chave' | null> {
   const provider = (env.ROUTING_PROVIDER || 'ors').toLowerCase()
   try {
     if (provider === 'osrm') {
@@ -65,12 +77,13 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
       headers: { Authorization: env.ORS_API_KEY, 'Content-Type': 'application/json', Accept: 'application/geo+json' },
       body: JSON.stringify({ coordinates: [from, to], instructions: false }),
     })
-    if (!res.ok) return null
+    if (!res.ok) { onFail?.(await failure(res)); return null }
     const body = (await res.json()) as { features?: { geometry?: { coordinates?: LngLat[] }; properties?: { summary?: { distance?: number; duration?: number } } }[] }
     const f = body.features?.[0]
     if (!f?.geometry?.coordinates || f.geometry.coordinates.length < 2) return null
     return { geometry: simplify(f.geometry.coordinates), distanceM: Math.round(f.properties?.summary?.distance ?? 0), durationS: Math.round(f.properties?.summary?.duration ?? 0), provider: 'openrouteservice' }
-  } catch {
+  } catch (e) {
+    onFail?.({ status: 0, message: e instanceof Error ? e.message.slice(0, 160) : 'sem rede' })
     return null
   }
 }

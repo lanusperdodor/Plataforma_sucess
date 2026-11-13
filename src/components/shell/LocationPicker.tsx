@@ -150,7 +150,11 @@ export function LocationPicker() {
         className="pressable inline-flex min-h-11 max-w-full min-w-0 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-ink"
       >
         <MapPin aria-hidden="true" className="size-4 shrink-0 text-brand" />
-        <span className="min-w-0 truncate">{label}</span>
+        {/* no celular só a cidade (a UF aparece a partir de telas médias); o nome completo fica no rótulo acessível */}
+        <span className="min-w-0 truncate" aria-label={label}>
+          {city?.name ?? BRAND.initialRegion.city}
+          <span className="hidden sm:inline">, {city?.state ?? BRAND.initialRegion.state}</span>
+        </span>
       </button>
       {layout === 'mobile' ? (
         <Sheet open={open} onClose={close} title={title} className="scroll-soft">

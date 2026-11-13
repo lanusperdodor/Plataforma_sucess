@@ -72,22 +72,22 @@ function PurposeCard() {
     <section aria-labelledby="home-purpose" className="relative overflow-hidden rounded-card border border-line bg-surface">
       <div className="grid items-center gap-2 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:gap-4 md:p-6 lg:p-8">
         {/* Um único Tuca: no alto, centro-direita no desktop; no topo do cartão no celular. */}
-        <TucaPresenter className="order-first -mx-2 -mt-2 md:order-none md:col-start-2 md:row-start-1 md:mx-0 md:mt-0" />
+        <TucaPresenter className="order-first mx-auto w-full max-w-[18rem] sm:max-w-sm md:order-none md:col-start-2 md:row-start-1 md:max-w-none" />
         <div className="min-w-0 md:col-start-1 md:row-start-1">
-          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+          <p className="hidden items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-muted md:inline-flex">
             <img src={BRAND.assets.icon} alt="" width={20} height={20} className="size-5 rounded-md" />
             {BRAND.slogan}
           </p>
-          <h1 id="home-purpose" className="mt-2 text-[1.625rem] font-bold leading-tight text-ink md:text-4xl lg:text-5xl">
+          <h1 id="home-purpose" className="text-2xl font-bold md:mt-2 leading-tight text-ink md:text-4xl lg:text-5xl">
             {PURPOSE_TITLE}
           </h1>
           <p className="mt-2 max-w-prose text-sm text-ink-muted md:text-base">{PURPOSE_SUBTITLE}</p>
-          <ul className="mt-5 flex flex-wrap gap-2">
+          <ul className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:mt-5">
             {CTAS.map(({ to, label, icon: Icon }, i) => (
               <li key={to}>
                 <Link
                   to={to}
-                  className={`pressable inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold ${
+                  className={`pressable flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold sm:inline-flex sm:w-auto ${
                     i === 0 ? 'bg-orange text-ink' : 'bg-brand text-surface'
                   }`}
                 >

@@ -137,6 +137,22 @@ begin
   total := private.store_charge_total(lan, now() - interval '1 day', now() + interval '1 day');
   perform tsfr.ok(total = (select sum(commission_cents + delivery_fee_cents + merchant_delivery_contribution_cents)::int from public.orders where idempotency_key in ('fr-0000001', 'fr-0000004')),
                   'cobrança da loja = comissão + frete recebido dos clientes + parte da loja: ' || total);
+  -- 0041: a loja marca o próprio ponto no mapa; outra loja, cliente e anônimo não
+  perform tsfr.login(e1);
+  perform public.merchant_set_location(lan, -20.0801234, -44.5801234);
+  perform tsfr.ok((public.merchant_location(lan)->>'lat')::numeric = -20.080123, 'dono marca a loja no mapa');
+  perform tsfr.denied(format('select public.merchant_set_location(%L, -20.1, -44.6)', sup), 'empresário marca o mapa de outra loja');
+  perform tsfr.denied(format('select public.merchant_set_location(%L, 40.7, -74.0)', lan), 'ponto fora do Brasil');
+  perform tsfr.denied(format('select public.merchant_set_location(%L, -20.1, null)', lan), 'só latitude');
+  perform tsfr.denied(format($q$update public.businesses set lat = 0, lng = 0 where id = %L$q$, sup), 'update direto de outra loja');
+  perform tsfr.login(c1);
+  perform tsfr.denied(format('select public.merchant_set_location(%L, -20.1, -44.6)', lan), 'cliente muda o local da loja');
+  perform tsfr.denied(format('select public.merchant_location(%L)', lan), 'cliente lê pelo painel');
+  perform tsfr.anon();
+  perform tsfr.denied(format('select public.merchant_set_location(%L, -20.1, -44.6)', lan), 'anônimo muda o local da loja');
+  perform tsfr.login(m);
+  perform public.merchant_set_location(lan, -20.08, -44.58);
+  perform tsfr.ok((select lat = -20.08 from public.businesses where id = lan), 'Master corrige o ponto da loja');
   raise notice 'RLS_FRETE_OK';
 end $$;
 rollback;

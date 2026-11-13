@@ -5,6 +5,7 @@ import { useToast } from '../../components/feedback/toast-context.ts'
 import { getFreeDelivery, setFreeDelivery } from '../../features/gestao/repository.ts'
 import { OrdersTab } from '../merchant/OperationsTabs.tsx'
 import { useGestao } from './context.ts'
+import { StoreLocationCard } from './StoreLocationCard.tsx'
 import { SectionTitle } from './ui.tsx'
 
 const MODE: Record<'partner' | 'own' | 'none', { title: string; text: string }> = {
@@ -60,6 +61,7 @@ export function DeliveriesTab() {
           )}
         </div>
       </div>
+      {can('store.customize') && <StoreLocationCard businessId={b.id} />}
       {b.deliveryOffer === 'partner' && can('store.customize') && <FreeDeliveryToggle businessId={b.id} />}
       <OrdersTab businessId={b.id} canUpdate={can('orders.update_status')} onlyDelivery />
     </div>

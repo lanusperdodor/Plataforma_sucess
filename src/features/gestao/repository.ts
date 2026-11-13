@@ -224,6 +224,10 @@ export interface MonthMoney {
   partnerCustomerFeesCents: number
   /** contribuição por entrega parceira + tarifa por entrega própria (nunca as duas somadas) */
   deliveryFeesCents: number
+  /** 0044: taxa da Tucaí (R$ 1) de cada entrega concluída — parceira (já dentro do frete) e própria (na cobrança do mês) */
+  tucaiFeeCents: number
+  tucaiFeePartnerCents: number
+  tucaiFeeOwnCents: number
 }
 export async function getMonthMoney(businessId: string): Promise<MonthMoney> {
   if (!isSupabaseConfigured) throw backendUnavailable()
@@ -234,15 +238,17 @@ export async function getMonthMoney(businessId: string): Promise<MonthMoney> {
     .eq('business_id', businessId).in('status', ['delivered', 'picked_up']).gte('updated_at', start.toISOString()).limit(5000)
   if (error) throw mapPostgrestError(error)
   const rows = z.array(monthOrderSchema).parse(data ?? [])
-  const m: MonthMoney = { orders: rows.length, deliveries: 0, partnerDeliveries: 0, ownDeliveries: 0, receivedCents: 0, commissionCents: 0, commissionOrders: 0, commissionBaseCents: 0, partnerFeesCents: 0, ownFeesCents: 0, partnerCustomerFeesCents: 0, deliveryFeesCents: 0 }
+  const m: MonthMoney = { orders: rows.length, deliveries: 0, partnerDeliveries: 0, ownDeliveries: 0, receivedCents: 0, commissionCents: 0, commissionOrders: 0, commissionBaseCents: 0, partnerFeesCents: 0, ownFeesCents: 0, partnerCustomerFeesCents: 0, deliveryFeesCents: 0, tucaiFeeCents: 0, tucaiFeePartnerCents: 0, tucaiFeeOwnCents: 0 }
   for (const r of rows) {
     m.receivedCents += r.subtotal_cents + (r.fulfillment === 'delivery_own' ? r.delivery_fee_cents : 0)
     m.commissionCents += r.commission_cents
     if (r.commission_cents > 0) { m.commissionOrders++; m.commissionBaseCents += r.subtotal_cents }
-    if (r.fulfillment === 'delivery_partner') { m.deliveries++; m.partnerDeliveries++; m.partnerFeesCents += r.merchant_delivery_contribution_cents; m.partnerCustomerFeesCents += r.delivery_fee_cents }
+    if (r.fulfillment === 'delivery_partner') { m.deliveries++; m.partnerDeliveries++; m.partnerFeesCents += r.merchant_delivery_contribution_cents; m.partnerCustomerFeesCents += r.delivery_fee_cents; m.tucaiFeePartnerCents += r.platform_delivery_fee_cents }
     if (r.fulfillment === 'delivery_own') { m.deliveries++; m.ownDeliveries++; m.ownFeesCents += r.platform_delivery_fee_cents }
   }
   m.deliveryFeesCents = m.partnerFeesCents + m.ownFeesCents
+  m.tucaiFeeOwnCents = m.ownFeesCents
+  m.tucaiFeeCents = m.tucaiFeePartnerCents + m.tucaiFeeOwnCents
   return m
 }
 

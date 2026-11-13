@@ -58,7 +58,7 @@ export function DeliveryPricingPanel({ canEdit }: { canEdit: boolean }) {
             <tr className="border-t border-line"><td className="py-2 text-ink">acima de {km(d.faixas.at(-1)!.ate_m)} km</td><td colSpan={6} className="text-ink-muted">sem entrega parceira</td></tr>
           </tbody>
         </table>
-        <p className="mt-2 text-xs text-ink-muted">A loja paga até {formatBRL(d.loja_max_cents)} e o cliente o restante até {formatBRL(d.cliente_max_cents)}; o que faltar é subsídio da Tucaí. Frete grátis: a loja paga o custo total. {d.exige_cotacao ? 'Pedidos com entregador parceiro exigem o cálculo da distância.' : 'Sem cálculo de distância, vale a primeira faixa.'}</p>
+        <p className="mt-2 text-xs text-ink-muted">A loja paga até {formatBRL(d.loja_max_cents)} e o cliente o restante até {formatBRL(d.cliente_max_cents)}. A Tucaí recebe {formatBRL(d.tucai_cents)} em toda corrida: o entregador fica com o restante (no máximo {formatBRL(d.cliente_max_cents + d.loja_max_cents - d.tucai_cents)}). Frete grátis: a loja paga o custo total. {d.exige_cotacao ? 'Pedidos com entregador parceiro exigem o cálculo da distância.' : 'Sem cálculo de distância, vale a primeira faixa.'}</p>
       </Panel>
       {canEdit && draft && (
         <Panel className="flex flex-col gap-3 text-sm">

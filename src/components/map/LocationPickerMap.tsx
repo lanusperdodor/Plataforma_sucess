@@ -4,9 +4,11 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { useEffect, useRef } from 'react'
 import type { LngLat } from '../../features/rastreamento/geo.ts'
-import { MAP_STYLE_URL } from './DeliveryMap.tsx'
 
 maplibregl.setWorkerUrl(workerUrl)
+
+/** Estilo do mapa: OpenFreeMap (gratuito, sem chave, dados do OpenStreetMap). Trocável por VITE_MAP_STYLE_URL. */
+const MAP_STYLE_URL = (import.meta.env.VITE_MAP_STYLE_URL as string | undefined) || 'https://tiles.openfreemap.org/styles/positron'
 
 /** Mapa para marcar um ponto: toque no mapa ou arraste o alfinete. */
 export default function LocationPickerMap({ value, onChange, label }: { value: LngLat | null; onChange: (p: LngLat) => void; label: string }) {

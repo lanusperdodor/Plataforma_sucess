@@ -4,16 +4,18 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Tracking } from '../../features/rastreamento/repository.ts'
 
-const h = vi.hoisted(() => ({ data: null as unknown, mapProps: null as unknown }))
+const h = vi.hoisted(() => ({ data: null as unknown }))
 vi.mock('../../features/rastreamento/repository.ts', async (orig) => ({
   ...(await orig<typeof import('../../features/rastreamento/repository.ts')>()),
   getTracking: () => Promise.resolve(h.data),
   subscribeTracking: () => () => undefined,
 }))
-vi.mock('./DeliveryMap.tsx', () => ({ default: (p: unknown) => { h.mapProps = p; return <div data-testid="mapa" /> } }))
 vi.mock('../feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 
 import { DeliveryTracking, trackingSummary } from './DeliveryTracking.tsx'
+import { STORE_AT, roadState } from './DeliveryRoad.tsx'
+
+const left = () => parseFloat((screen.getByTestId('motinha') as HTMLElement).style.left)
 
 afterEach(cleanup)
 const base: Tracking = {
@@ -26,15 +28,19 @@ const base: Tracking = {
 }
 const renderIt = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DeliveryTracking orderId="o1" /></QueryClientProvider>)
 
-describe('acompanhamento da entrega no mapa', () => {
+describe('acompanhamento da entrega com a motinha', () => {
   it('ao vivo: mostra hora da atualização, distância e previsão calculadas sobre a rota real', async () => {
     h.data = base
     renderIt()
     expect(await screen.findByText(/Ao vivo · atualizado às/)).toBeInTheDocument()
     expect(screen.getByText('560 m')).toBeInTheDocument()
     expect(screen.getByText('2 min')).toBeInTheDocument()
-    expect(await screen.findByTestId('mapa')).toBeInTheDocument()
-    expect(h.mapProps).toMatchObject({ position: [-44.57, -20.075], stale: false })
+    // metade da rota de entrega percorrida: a moto fica entre a loja e a casa, andando
+    expect(screen.getByTestId('motinha').querySelector('.tucai-moto-bob')).not.toBeNull()
+    expect(left()).toBeGreaterThan((0.05 + STORE_AT * 0.87) * 100)
+    expect(left()).toBeLessThan(92)
+    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('A caminho')
+    expect(screen.getByRole('img', { name: /Entrega: entregador a caminho do destino/ })).toBeInTheDocument()
   })
 
   it('GPS parado: avisa que está desatualizado, moto parada e sem previsão inventada', async () => {
@@ -42,8 +48,8 @@ describe('acompanhamento da entrega no mapa', () => {
     renderIt()
     expect(await screen.findByText(/Localização desatualizada/)).toBeInTheDocument()
     expect(screen.queryByText(/min$/)).not.toBeInTheDocument()
-    await screen.findByTestId('mapa')
-    expect(h.mapProps).toMatchObject({ stale: true, position: [-44.57, -20.075] })
+    // GPS parado: a moto fica no último ponto conhecido, sem animação de andar
+    expect(screen.getByTestId('motinha').querySelector('.tucai-moto-bob')).toBeNull()
   })
 
   it('sem posição ainda e sem ponto marcado: oferece marcar a localização', async () => {
@@ -65,6 +71,24 @@ describe('acompanhamento da entrega no mapa', () => {
   })
 
   it('resumo sem entregador atribuído', () => {
-    expect(trackingSummary({ ...base, leg: null }, Date.now()).text).toMatch(/começa quando um entregador assume/)
+    expect(trackingSummary({ ...base, leg: null }, Date.now()).text).toMatch(/começa a andar quando um entregador assume/)
+  })
+
+  it('sem entregador: motinha parada na loja, etapa "Preparando"', async () => {
+    h.data = { ...base, status: 'preparing', leg: null, position: null, route: null }
+    renderIt()
+    expect(await screen.findByRole('listitem', { current: 'step' })).toHaveTextContent('Preparando')
+    expect(left()).toBeCloseTo((0.05 + STORE_AT * 0.87) * 100, 1)
+  })
+
+  it('posição na pista', () => {
+    const b: [number, number] = [-44.57, -20.08], d: [number, number] = [-44.57, -20.07]
+    expect(roadState({ leg: null, position: null, business: b, destination: d, remainingM: null, routeDistanceM: null, live: false })).toMatchObject({ stage: 'preparando', progress: STORE_AT, moving: false })
+    const quase = roadState({ leg: 'entrega', position: [-44.57, -20.071], business: b, destination: d, remainingM: null, routeDistanceM: null, live: true })
+    expect(quase.progress).toBeGreaterThan(0.9)
+    const saindo = roadState({ leg: 'entrega', position: null, business: b, destination: d, remainingM: null, routeDistanceM: null, live: false })
+    expect(saindo).toMatchObject({ stage: 'entrega', moving: true })
+    const coleta = roadState({ leg: 'coleta', position: null, business: b, destination: d, remainingM: 200, routeDistanceM: 1000, live: true })
+    expect(coleta.progress).toBeCloseTo(STORE_AT * 0.8, 5)
   })
 })

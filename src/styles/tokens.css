@@ -300,10 +300,17 @@ textarea:focus-visible {
 @media (min-width: 2560px) { html { font-size: 125%; } }
 @media (min-width: 3200px) { html { font-size: 150%; } }
 
-/* Mapa de entrega (MapLibre): marcadores da Tucaí */
-.tucai-pin { display: grid; place-items: center; }
-.tucai-pin span { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; font: 600 0.75rem/1 var(--font-sans); background: var(--surface); color: var(--text); border: 1px solid var(--border-subtle); box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
-.tucai-pin-loja span { background: var(--brand-primary); color: var(--surface); }
-.tucai-moto { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 999px; background: #ff5500; color: #17191b; border: 3px solid #ffffff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.35); }
-.tucai-moto-parada { background: #9ca3af; }
+/* Acompanhamento da entrega: pista estilizada com a motinha (sem mapa) */
+.tucai-road { background-image: repeating-linear-gradient(90deg, #f3f4f6 0 1.25rem, transparent 1.25rem 2.5rem); background-size: 2.5rem 100%; }
+.tucai-road-moving { animation: tucai-road 0.6s linear infinite; }
+.tucai-moto-bob { animation: tucai-bob 0.5s ease-in-out infinite alternate; }
+.tucai-wheel-spin { animation: tucai-spin 0.5s linear infinite; transform-box: fill-box; transform-origin: center; }
+.tucai-puff { animation: tucai-puff 1.2s ease-out infinite; }
+@keyframes tucai-road { from { background-position: 0 0; } to { background-position: -2.5rem 0; } }
+@keyframes tucai-bob { from { transform: translateY(0); } to { transform: translateY(-2px); } }
+@keyframes tucai-spin { to { transform: rotate(360deg); } }
+@keyframes tucai-puff { 0% { opacity: 0.6; transform: translateX(0) scale(0.6); } 100% { opacity: 0; transform: translateX(-14px) scale(1.4); } }
+@media (prefers-reduced-motion: reduce) {
+  .tucai-road-moving, .tucai-moto-bob, .tucai-wheel-spin, .tucai-puff { animation: none; }
+}
 .tucai-map .maplibregl-ctrl-attrib { font-size: 0.6875rem; }

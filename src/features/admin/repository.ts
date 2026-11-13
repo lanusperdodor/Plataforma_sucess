@@ -310,7 +310,7 @@ export function setSetting(key: string, value: unknown): Promise<void> {
 }
 
 // ---------- dados de teste (0015) ----------
-const testLoginSchema = z.object({ role: z.string(), label: z.string(), email: z.string(), key: z.string().optional() })
+const testLoginSchema = z.object({ role: z.string(), label: z.string(), email: z.string(), key: z.string().optional(), username: z.string().nullable().optional() })
 export type TestLogin = z.infer<typeof testLoginSchema>
 
 const createdSchema = z

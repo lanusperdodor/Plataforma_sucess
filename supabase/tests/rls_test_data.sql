@@ -63,6 +63,13 @@ begin
   perform tstd.ok((select array_agg(l->>'label' order by l->>'label') from jsonb_array_elements(res->'logins') l)
                   = array['Cliente 1', 'Cliente 2', 'Empresário 1 — Lanchonete', 'Empresário 2 — Supermercado', 'Entregador 1 — Independente',
                           'Entregador 2 — Próprio do supermercado', 'Funcionário — Lanchonete'], 'nomes visíveis das sete contas');
+  -- entrar com usuário curto e a mesma senha (sem digitar o e-mail)
+  perform tstd.ok((select array_agg(l->>'username' order by l->>'username') from jsonb_array_elements(res->'logins') l)
+                  = array['cliente1', 'cliente2', 'empresario1', 'empresario2', 'entregador1', 'entregador2', 'funcionario'], 'usuários das sete contas');
+  perform tstd.ok((select bool_and(public.resolve_login(l->>'username', res->>'password') = l->>'email') from jsonb_array_elements(res->'logins') l),
+                  'cada conta entra com usuário + senha');
+  perform tstd.ok(public.resolve_login('cliente1', 'senha-errada') is null, 'senha errada não entra');
+  perform tstd.ok(not exists (select 1 from private.test_data_runs where logins::text like '%' || (res->>'password') || '%'), 'senha não é guardada no lote');
   perform tstd.ok(not exists (select 1 from public.user_roles where user_id = any(uids) and role in ('platform_master', 'platform_operator')), 'nenhuma conta de teste com papel administrativo');
   perform tstd.login(m);
   res := public.admin_create_test_data(city);
@@ -96,6 +103,7 @@ begin
   perform tstd.ok(not exists (select 1 from public.orders where id = oid), 'pedidos removidos');
   perform tstd.ok(not exists (select 1 from public.couriers where user_id = any(uids)), 'entregador removido');
   perform tstd.ok(not exists (select 1 from auth.users where id = any(uids) and banned_until is null), 'contas de teste removidas ou bloqueadas');
+  perform tstd.ok(not exists (select 1 from public.profiles where username in ('empresario1', 'cliente1', 'funcionario')), 'remoção libera os nomes de usuário');
   perform tstd.login(m);
   perform tstd.ok(tstd.count('select * from public.admin_list_test_data()') = 0, 'lote removido da lista');
   perform tstd.denied(format('select public.admin_remove_test_data(%L)', run), 'remove duas vezes', array['P0001']);

@@ -1,6 +1,6 @@
 import {
   BarChart3, Briefcase, Calculator, ChefHat, Clock, ClipboardList, LayoutDashboard, LayoutGrid, PackageCheck, PiggyBank, Receipt, ReceiptText,
-  Settings, Star, Store, Users, UtensilsCrossed, Wallet, CalendarClock, FileBarChart, Megaphone,
+  Star, Store, Truck, Users, UtensilsCrossed, Wallet, CalendarClock, FileBarChart, Megaphone,
 } from 'lucide-react'
 import type { BusinessPermission } from '../../features/permissions/permissions.ts'
 
@@ -17,15 +17,16 @@ export function nicheOf(businessType: 'restaurante' | 'loja' | 'servico', catego
 
 export const NICHE_LABEL: Record<Niche, string> = { restaurante: 'Restaurante', mercadinho: 'Mercadinho', loja: 'Loja', servico: 'Serviços' }
 
-/** Grupos do menu lateral. Visual neutro: o único destaque de cor é o laranja do item ativo. */
-export type NavGroupId = 'inicio' | 'operacao' | 'financas' | 'loja' | 'crescer' | 'gestao'
+/** Seis menus, com nomes simples. Visual neutro: o único destaque de cor é o laranja do item ativo. */
+export type NavGroupId = 'inicio' | 'pedidos' | 'produtos' | 'entregas' | 'financeiro' | 'configuracoes'
+const G = { text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' }
 export const NAV_GROUPS: Record<NavGroupId, { label: string; text: string; chip: string; active: string; bar: string }> = {
-  inicio: { label: 'Início', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
-  operacao: { label: 'Operação', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
-  financas: { label: 'Finanças', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
-  loja: { label: 'Minha loja', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
-  crescer: { label: 'Crescer', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
-  gestao: { label: 'Gestão', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  inicio: { label: 'Início', ...G },
+  pedidos: { label: 'Pedidos', ...G },
+  produtos: { label: 'Produtos', ...G },
+  entregas: { label: 'Entregas', ...G },
+  financeiro: { label: 'Financeiro', ...G },
+  configuracoes: { label: 'Configurações', ...G },
 }
 
 export interface GestaoNavItem {
@@ -46,31 +47,32 @@ const menuLabel: Record<Niche, string> = { restaurante: 'Cardápio', mercadinho:
 /** Menu do Tucaí Gestão, filtrado por nicho, cargo e plano, na ordem dos grupos. */
 export function gestaoNav(niche: Niche): GestaoNavItem[] {
   const items: GestaoNavItem[] = [
-    { to: '', label: 'Visão geral', hint: 'Resumo do dia e próximos passos', icon: LayoutDashboard, permission: 'orders.view', group: 'inicio' },
+    { to: '', label: 'Início', hint: 'Vendas, pedidos e o que você paga', icon: LayoutDashboard, permission: 'orders.view', group: 'inicio' },
 
-    { to: 'pedidos', label: 'Pedidos recebidos', hint: 'Aceitar e acompanhar pedidos', icon: ReceiptText, permission: 'orders.view', group: 'operacao' },
-    { to: 'cozinha', label: 'Cozinha', hint: 'Fila de preparo', icon: ChefHat, permission: 'orders.view', group: 'operacao', niches: ['restaurante'] },
-    { to: 'cozinha', label: 'Separação', hint: 'Fila de separação', icon: PackageCheck, permission: 'orders.view', group: 'operacao', niches: ['mercadinho'] },
-    { to: 'mesas', label: 'Comandas e mesas', hint: 'Atendimento no salão', icon: UtensilsCrossed, permission: 'tabs.manage', group: 'operacao', premium: true, niches: ['restaurante'] },
-    { to: 'mesas', label: 'Comandas de balcão', hint: 'Atendimento no balcão', icon: ClipboardList, permission: 'tabs.manage', group: 'operacao', premium: true, niches: ['mercadinho'] },
-    { to: 'caixa', label: 'Caixa', hint: 'Abrir, movimentar e fechar o caixa', icon: Wallet, permission: 'cash.manage', group: 'operacao', premium: true, niches: ['restaurante', 'mercadinho', 'loja'] },
+    { to: 'pedidos', label: 'Pedidos recebidos', hint: 'Aceitar e acompanhar pedidos', icon: ReceiptText, permission: 'orders.view', group: 'pedidos' },
+    { to: 'cozinha', label: 'Cozinha', hint: 'Fila de preparo', icon: ChefHat, permission: 'orders.view', group: 'pedidos', niches: ['restaurante'] },
+    { to: 'cozinha', label: 'Separação', hint: 'Fila de separação', icon: PackageCheck, permission: 'orders.view', group: 'pedidos', niches: ['mercadinho'] },
+    { to: 'mesas', label: 'Comandas e mesas', hint: 'Atendimento no salão', icon: UtensilsCrossed, permission: 'tabs.manage', group: 'pedidos', premium: true, niches: ['restaurante'] },
+    { to: 'mesas', label: 'Comandas de balcão', hint: 'Atendimento no balcão', icon: ClipboardList, permission: 'tabs.manage', group: 'pedidos', premium: true, niches: ['mercadinho'] },
+    { to: 'caixa', label: 'Caixa', hint: 'Abrir, movimentar e fechar o caixa', icon: Wallet, permission: 'cash.manage', group: 'pedidos', premium: true, niches: ['restaurante', 'mercadinho', 'loja'] },
 
-    { to: 'vendas', label: 'Vendas', hint: 'O que foi vendido', icon: BarChart3, permission: 'reports.view', group: 'financas' },
-    { to: 'gastos', label: 'Controle de gastos', hint: 'Lançar despesas', icon: Receipt, permission: 'reports.view', group: 'financas', premium: true },
-    { to: 'lucro', label: 'Meu lucro', hint: 'Quanto sobra no fim do mês', icon: PiggyBank, permission: 'reports.view', group: 'financas', premium: true },
-    { to: 'calculadora', label: 'Calculadora de custos', hint: 'Seu preço está bom?', icon: Calculator, permission: 'reports.view', group: 'financas', premium: true },
-    { to: 'relatorios', label: 'Relatórios', hint: 'Recebimentos e gastos por período', icon: FileBarChart, permission: 'reports.view', group: 'financas' },
+    { to: 'cardapio', label: menuLabel[niche], hint: 'Produtos e preços', icon: LayoutGrid, permission: 'menu.manage', group: 'produtos' },
+    { to: 'calculadora', label: 'Calculadora de custos', hint: 'Seu preço está bom?', icon: Calculator, permission: 'reports.view', group: 'produtos', premium: true },
+    { to: 'avaliacoes', label: 'Avaliações', hint: 'O que os clientes dizem', icon: Star, permission: 'store.customize', group: 'produtos' },
+    { to: 'anuncios', label: 'Anúncios', hint: 'Divulgar suas publicações', icon: Megaphone, permission: 'store.customize', group: 'produtos' },
 
-    { to: 'loja', label: 'Minha loja', hint: 'Dados, fotos e entrega', icon: Store, permission: 'store.customize', group: 'loja' },
-    { to: 'horarios', label: niche === 'servico' ? 'Agenda e horários' : 'Horários', hint: 'Quando você atende', icon: niche === 'servico' ? CalendarClock : Clock, permission: 'store.customize', group: 'loja' },
-    { to: 'cardapio', label: menuLabel[niche], hint: 'Produtos e preços', icon: LayoutGrid, permission: 'menu.manage', group: 'loja' },
-    { to: 'avaliacoes', label: 'Avaliações', hint: 'O que os clientes dizem', icon: Star, permission: 'store.customize', group: 'loja' },
+    { to: 'entregas', label: 'Entregas', hint: 'Entregas em andamento e feitas', icon: Truck, permission: 'orders.view', group: 'entregas', niches: ['restaurante', 'mercadinho', 'loja'] },
 
-    { to: 'anuncios', label: 'Anúncios', hint: 'Turbinar publicações', icon: Megaphone, permission: 'store.customize', group: 'crescer' },
-    { to: 'vagas', label: 'Vagas', hint: 'Contratar pessoas', icon: Briefcase, permission: 'jobs.manage', group: 'crescer' },
+    { to: 'vendas', label: 'Vendas', hint: 'O que foi vendido', icon: BarChart3, permission: 'reports.view', group: 'financeiro' },
+    { to: 'configuracoes', label: 'Mensalidade e cobranças', hint: 'Seu plano e o que você paga à Tucaí', icon: Receipt, permission: 'reports.view', group: 'financeiro' },
+    { to: 'gastos', label: 'Controle de gastos', hint: 'Lançar despesas', icon: Receipt, permission: 'reports.view', group: 'financeiro', premium: true },
+    { to: 'lucro', label: 'Meu lucro', hint: 'Quanto sobra no fim do mês', icon: PiggyBank, permission: 'reports.view', group: 'financeiro', premium: true },
+    { to: 'relatorios', label: 'Relatórios', hint: 'Recebimentos e gastos por período', icon: FileBarChart, permission: 'reports.view', group: 'financeiro' },
 
-    { to: 'equipe', label: 'Equipe', hint: 'Funcionários e permissões', icon: Users, permission: 'staff.manage', group: 'gestao' },
-    { to: 'configuracoes', label: 'Configurações', hint: 'Plano e cobranças', icon: Settings, permission: 'reports.view', group: 'gestao' },
+    { to: 'loja', label: 'Minha loja', hint: 'Dados, fotos e entrega', icon: Store, permission: 'store.customize', group: 'configuracoes' },
+    { to: 'horarios', label: niche === 'servico' ? 'Agenda e horários' : 'Horários', hint: 'Quando você atende', icon: niche === 'servico' ? CalendarClock : Clock, permission: 'store.customize', group: 'configuracoes' },
+    { to: 'equipe', label: 'Equipe', hint: 'Funcionários e permissões', icon: Users, permission: 'staff.manage', group: 'configuracoes' },
+    { to: 'vagas', label: 'Vagas', hint: 'Contratar pessoas', icon: Briefcase, permission: 'jobs.manage', group: 'configuracoes' },
   ]
   return items.filter((i) => !i.niches || i.niches.includes(niche))
 }

@@ -89,7 +89,7 @@ function OwnCourierPicker({ businessId, orderId }: { businessId: string; orderId
   )
 }
 
-export function OrdersTab({ businessId, canUpdate, kitchen = false }: { businessId: string; canUpdate: boolean; kitchen?: boolean }) {
+export function OrdersTab({ businessId, canUpdate, kitchen = false, onlyDelivery = false }: { businessId: string; canUpdate: boolean; kitchen?: boolean; onlyDelivery?: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [scope, setScope] = useState<'open' | 'done'>('open')
@@ -97,7 +97,9 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false }: { business
   // expira e redistribui ofertas vencidas ao acompanhar os pedidos (o banco decide; falha aqui não bloqueia nada)
   useQuery({ queryKey: ['merchant', 'dispatch-tick', businessId], queryFn: () => dispatchTick().catch(() => 0), refetchInterval: 60_000, enabled: scope === 'open' })
   const orders = useQuery({ queryKey: ['merchant', 'orders', businessId, scope], queryFn: () => listBusinessOrders(businessId, scope), refetchInterval: scope === 'open' ? 15_000 : false })
-  const ids = (orders.data ?? []).map((o) => o.id)
+  // aba Entregas: só pedidos de entrega (própria ou entregador parceiro)
+  const list = (orders.data ?? []).filter((o) => !onlyDelivery || o.fulfillment !== 'pickup')
+  const ids = list.map((o) => o.id)
   const items = useQuery({ queryKey: ['merchant', 'order-items', ids.join(',')], queryFn: () => listOrderItems(ids), enabled: ids.length > 0 })
   const deliveries = useQuery({ queryKey: ['merchant', 'deliveries', ids.join(',')], queryFn: () => listBusinessDeliveries(ids), enabled: ids.length > 0, refetchInterval: scope === 'open' ? 15_000 : false })
   const change = useMutation({
@@ -128,11 +130,11 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false }: { business
       </div>
       {orders.isError ? (
         <ErrorState error={orders.error} onRetry={() => void orders.refetch()} />
-      ) : (orders.data ?? []).length === 0 ? (
-        <EmptyState icon={ReceiptText} title={orders.isLoading ? 'Carregando…' : scope === 'open' ? 'Nenhum pedido em andamento' : 'Nenhum pedido concluído'} description={scope === 'open' ? 'Novos pedidos aparecem aqui sozinhos e você recebe uma notificação.' : undefined} />
+      ) : list.length === 0 ? (
+        <EmptyState icon={ReceiptText} title={orders.isLoading ? 'Carregando…' : scope === 'open' ? (onlyDelivery ? 'Nenhuma entrega em andamento' : 'Nenhum pedido em andamento') : (onlyDelivery ? 'Nenhuma entrega concluída' : 'Nenhum pedido concluído')} description={scope === 'open' ? 'Novos pedidos aparecem aqui sozinhos e você recebe uma notificação.' : undefined} />
       ) : (
         <ul className="flex flex-col gap-3">
-          {(orders.data ?? []).map((o) => {
+          {list.map((o) => {
             const lines = (items.data ?? []).filter((i) => i.orderId === o.id)
             const d = (deliveries.data ?? []).find((x) => x.orderId === o.id)
             const tel = phoneDigits(o.customerPhone)

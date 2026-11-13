@@ -18,6 +18,7 @@ import { handlePayments, type PaymentsEnv } from './payments'
 import { handleRoutes, type RoutesEnv } from './routes'
 import { handleFreight } from './freight'
 import { handleCep } from './cep'
+import { handleDiagnostics } from './diagnostics'
 
 export interface Env extends PaymentsEnv, RoutesEnv {
   ASSETS: { fetch(input: Request | string): Promise<Response> }
@@ -163,6 +164,8 @@ export default {
     if (route) return route
     const freight = await handleFreight(request, env)
     if (freight) return freight
+    const diag = await handleDiagnostics(request, env)
+    if (diag) return withHeaders(diag, {})
     const cep = await handleCep(request)
     if (cep) return withHeaders(cep, {})
     if (path === '/robots.txt') {

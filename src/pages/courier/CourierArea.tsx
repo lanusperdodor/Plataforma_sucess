@@ -32,6 +32,8 @@ import { PAYMENT_LABEL, STATUS_LABEL } from '../../features/orders/repository.ts
 import { ownDeliveries, ownDeliveryStatus, type OwnDelivery } from '../../features/courier/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
+import { LiveLocation } from './LiveLocation.tsx'
+import { googleMapsRoute } from '../../features/rastreamento/geo.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -51,7 +53,6 @@ function OfferDeadline({ expiresAt, round }: { expiresAt: string | null; round: 
 
 const secondary = 'pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-ink disabled:opacity-50'
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente novamente.')
-const mapsHref = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
 
 const PREP_LABEL: Record<string, string> = {
   placed: 'Aguardando a loja aceitar', accepted: 'Pedido aceito pela loja', preparing: 'Em preparo', ready: 'Pronto para coleta',
@@ -93,17 +94,18 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className={`rounded-xl border p-3 ${d.status === 'accepted' ? 'border-brand' : 'border-line'}`}>
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><Package aria-hidden="true" className="size-4" />1. Coletar em {d.businessName}</p>
-          {d.businessAddress && <a href={mapsHref(d.businessAddress)} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.businessAddress}</a>}
+          {d.businessAddress && <a href={googleMapsRoute(null, d.businessAddress) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.businessAddress}</a>}
           {bizTel && <a href={`tel:${bizTel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para a loja</a>}
         </div>
         <div className={`rounded-xl border p-3 ${d.status === 'picked_up' ? 'border-brand' : 'border-line'}`}>
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><MapPin aria-hidden="true" className="size-4" />2. Entregar para {d.customerName ?? 'o cliente'}</p>
           {!d.customerName && <p className="text-sm text-ink-muted">Endereço e contato aparecem quando o estabelecimento aceitar o pedido.</p>}
-          {d.address && <a href={mapsHref(d.address)} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.address}</a>}
+          {d.address && <a href={googleMapsRoute(null, d.address) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.address}</a>}
           {d.reference && <p className="text-sm text-ink-muted">Referência: {d.reference}</p>}
           {tel && <a href={`tel:${tel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para o cliente</a>}
         </div>
       </div>
+      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} />
       {(
         <p className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm text-ink">
           <Banknote aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
@@ -168,9 +170,10 @@ function OwnCard({ d }: { d: OwnDelivery }) {
         <p className="font-semibold text-ink">#{d.code} · {d.businessName}</p>
         <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-ink">{STATUS_LABEL[d.status as keyof typeof STATUS_LABEL] ?? d.status}</span>
       </div>
-      {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: <a href={mapsHref(d.businessAddress)} target="_blank" rel="noopener noreferrer" className="underline">{d.businessAddress}</a></p>}
-      <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? <>: <a href={mapsHref(d.address)} target="_blank" rel="noopener noreferrer" className="underline">{d.address}</a></> : null}{d.reference ? ` (${d.reference})` : ''}</p>
+      {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: <a href={googleMapsRoute(null, d.businessAddress) ?? undefined} target="_blank" rel="noopener noreferrer" className="underline">{d.businessAddress}</a></p>}
+      <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? <>: <a href={googleMapsRoute(null, d.address) ?? undefined} target="_blank" rel="noopener noreferrer" className="underline">{d.address}</a></> : null}{d.reference ? ` (${d.reference})` : ''}</p>
       <p className="text-sm text-ink-muted">{PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · troco para ${formatBRL(d.changeForCents)}` : ''}</p>
+      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} />
       <div className="flex flex-wrap gap-2">
         {d.status === 'ready' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('out_for_delivery')} className={primary}>Saí para entrega</button>}
         {d.status === 'out_for_delivery' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('delivered')} className={primary}>Confirmar entrega</button>}
@@ -348,9 +351,9 @@ const dayBR = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 /** Abas do entregador: entregas, ganhos e saques (cada uma com sua cor). */
 function CourierTabs({ available }: { available: number }) {
   const tabs = [
-    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-tone-orange/15 text-tone-orange', on: 'bg-tone-orange/10 ring-tone-orange/40', end: true },
-    { to: '/entregador/ganhos', label: 'Ganhos', icon: PiggyBank, tone: 'bg-tone-green/15 text-tone-green', on: 'bg-tone-green/10 ring-tone-green/40', end: false },
-    { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-tone-blue/15 text-tone-blue', on: 'bg-tone-blue/10 ring-tone-blue/40', end: false },
+    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
+    { to: '/entregador/ganhos', label: 'Ganhos', icon: PiggyBank, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
+    { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ]
   return (
     <nav aria-label="Seções do entregador" className="grid grid-cols-3 gap-2">
@@ -363,7 +366,7 @@ function CourierTabs({ available }: { available: number }) {
         >
           <span aria-hidden="true" className={`grid size-8 place-items-center rounded-lg ${t.tone}`}><t.icon className="size-4" /></span>
           <span>{t.label}</span>
-          {t.label === 'Saques' && available > 0 && <span className="rounded-full bg-tone-green px-2 text-xs font-bold text-surface">{formatBRL(available)}</span>}
+          {t.label === 'Saques' && available > 0 && <span className="rounded-full bg-muted px-2 text-xs font-bold text-ink">{formatBRL(available)}</span>}
         </NavLink>
       ))}
     </nav>
@@ -390,10 +393,10 @@ function EarningsPanel({ e, error, onRetry, history }: { e?: CourierEarnings; er
     <section aria-labelledby="ganhos" className="flex flex-col gap-3">
       <h2 id="ganhos" className="text-lg font-semibold text-ink">Ganhos</h2>
       <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <Money label="Hoje" value={v(e?.todayCents)} icon={Clock} tone="bg-tone-orange/15 text-tone-orange" />
-        <Money label="Últimos 7 dias" value={v(e?.weekCents)} icon={CalendarClock} tone="bg-tone-violet/15 text-tone-violet" />
-        <Money label="Total ganho" value={v(e?.totalCents)} icon={PiggyBank} tone="bg-tone-green/15 text-tone-green" />
-        <Money label="Entregas feitas" value={e ? String(e.deliveries) : '…'} icon={Package} tone="bg-tone-blue/15 text-tone-blue" />
+        <Money label="Hoje" value={v(e?.todayCents)} icon={Clock} tone="bg-muted text-ink" />
+        <Money label="Últimos 7 dias" value={v(e?.weekCents)} icon={CalendarClock} tone="bg-muted text-ink" />
+        <Money label="Total ganho" value={v(e?.totalCents)} icon={PiggyBank} tone="bg-muted text-ink" />
+        <Money label="Entregas feitas" value={e ? String(e.deliveries) : '…'} icon={Package} tone="bg-muted text-ink" />
       </dl>
       {e?.wallet && (
         <div className={`${box} flex flex-col gap-2`}>
@@ -401,7 +404,7 @@ function EarningsPanel({ e, error, onRetry, history }: { e?: CourierEarnings; er
           <p className="text-sm text-ink-muted">
             Cada entrega fica <strong className="text-ink">guardada {e.holdDays} dias</strong> e depois vai para o saldo disponível. Não é bloqueio: é para você juntar um valor maior e sacar de uma vez, sem sacar de 5 em 5 reais.
           </p>
-          <Link to="/entregador/saques" className="pressable inline-flex min-h-11 w-fit items-center gap-2 rounded-full bg-tone-green px-4 text-sm font-semibold text-surface">
+          <Link to="/entregador/saques" className="pressable inline-flex min-h-11 w-fit items-center gap-2 rounded-full bg-brand px-4 text-sm font-semibold text-surface">
             <Wallet aria-hidden="true" className="size-4" />Ver saldo e sacar
           </Link>
         </div>
@@ -411,7 +414,7 @@ function EarningsPanel({ e, error, onRetry, history }: { e?: CourierEarnings; er
           <h3 className="mb-2 text-sm font-semibold text-ink">Últimas entregas</h3>
           <ul className="divide-y divide-line text-sm">
             {history.map((h) => (
-              <li key={h.orderId} className="flex justify-between gap-2 py-2"><span className="min-w-0 truncate text-ink">#{h.code} · {h.businessName}</span><span className="font-semibold tabular-nums text-tone-green">{formatBRL(h.payCents)}</span></li>
+              <li key={h.orderId} className="flex justify-between gap-2 py-2"><span className="min-w-0 truncate text-ink">#{h.code} · {h.businessName}</span><span className="font-semibold tabular-nums text-success">{formatBRL(h.payCents)}</span></li>
             ))}
           </ul>
         </div>
@@ -440,17 +443,17 @@ function WithdrawalsPanel({ e }: { e?: CourierEarnings }) {
     <section aria-labelledby="saques" className="flex flex-col gap-3">
       <h2 id="saques" className="text-lg font-semibold text-ink">Saques</h2>
       <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <Money label="Disponível para saque" value={formatBRL(e.availableCents)} icon={CheckCircle2} tone="bg-tone-green/15 text-tone-green" />
-        <Money label={`Guardado (${e.holdDays} dias)`} value={formatBRL(e.heldCents)} icon={Hourglass} tone="bg-tone-amber/15 text-tone-amber" />
-        <Money label="Em análise" value={formatBRL(e.pendingCents)} icon={Clock} tone="bg-tone-blue/15 text-tone-blue" />
-        <Money label="Já sacado" value={formatBRL(e.withdrawnCents)} icon={Banknote} tone="bg-tone-violet/15 text-tone-violet" />
+        <Money label="Disponível para saque" value={formatBRL(e.availableCents)} icon={CheckCircle2} tone="bg-muted text-ink" />
+        <Money label={`Guardado (${e.holdDays} dias)`} value={formatBRL(e.heldCents)} icon={Hourglass} tone="bg-muted text-ink" />
+        <Money label="Em análise" value={formatBRL(e.pendingCents)} icon={Clock} tone="bg-muted text-ink" />
+        <Money label="Já sacado" value={formatBRL(e.withdrawnCents)} icon={Banknote} tone="bg-muted text-ink" />
       </dl>
       {e.releases.length > 0 && (
         <div className={box}>
           <h3 className="mb-2 text-sm font-semibold text-ink">Próximas liberações</h3>
           <ul className="flex flex-wrap gap-2">
             {e.releases.map((r) => (
-              <li key={r.dia} className="rounded-full bg-tone-amber/15 px-3 py-1 text-sm text-ink"><strong>{formatBRL(r.cents)}</strong> em {dayBR(r.dia)}</li>
+              <li key={r.dia} className="rounded-full bg-muted px-3 py-1 text-sm text-ink"><strong>{formatBRL(r.cents)}</strong> em {dayBR(r.dia)}</li>
             ))}
           </ul>
         </div>
@@ -465,7 +468,7 @@ function WithdrawalsPanel({ e }: { e?: CourierEarnings }) {
           <input value={pix} onChange={(ev) => setPix(ev.target.value)} required minLength={3} maxLength={140} autoComplete="off" disabled={open || e.availableCents <= 0}
             className="mt-1 min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink disabled:opacity-50" />
         </label>
-        <button type="submit" disabled={ask.isPending || open || e.availableCents <= 0} className="pressable inline-flex min-h-12 w-fit items-center gap-2 rounded-full bg-tone-green px-5 text-base font-semibold text-surface disabled:opacity-50">
+        <button type="submit" disabled={ask.isPending || open || e.availableCents <= 0} className="pressable inline-flex min-h-12 w-fit items-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface disabled:opacity-50">
           <Wallet aria-hidden="true" className="size-5" />{ask.isPending ? 'Enviando…' : 'Pedir saque'}
         </button>
         <p className="text-xs text-ink-muted">A Tucaí confere e faz a transferência. Você recebe um aviso quando o saque for pago.</p>
@@ -480,7 +483,7 @@ function WithdrawalsPanel({ e }: { e?: CourierEarnings }) {
               <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span className="text-ink">{new Date(w.requestedAt).toLocaleDateString('pt-BR')} · <strong>{formatBRL(w.amountCents)}</strong>{w.note ? <span className="text-ink-muted"> · {w.note}</span> : null}</span>
                 <span className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${w.status === 'pago' ? 'bg-tone-green/15 text-tone-green' : w.status === 'solicitado' ? 'bg-tone-blue/15 text-tone-blue' : w.status === 'recusado' ? 'bg-tone-rose/15 text-tone-rose' : 'bg-muted text-ink-muted'}`}>{WITHDRAWAL_LABEL[w.status]}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${w.status === 'pago' ? 'bg-muted text-success' : w.status === 'recusado' ? 'bg-muted text-danger' : 'bg-muted text-ink'}`}>{WITHDRAWAL_LABEL[w.status]}</span>
                   {w.status === 'solicitado' && <button type="button" disabled={cancel.isPending} onClick={() => cancel.mutate(w.id)} className="pressable min-h-9 rounded-full px-3 text-sm font-semibold text-ink-muted hover:bg-muted">Cancelar</button>}
                 </span>
               </li>

@@ -30,7 +30,7 @@ describe('cabeçalhos de segurança (public/_headers)', () => {
     expect(c.get('object-src')).toEqual(["'none'"])
     expect(c.get('base-uri')).toEqual(["'self'"])
     expect(c.get('form-action')).toEqual(["'self'"])
-    expect(c.get('connect-src')).toEqual(["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'])
+    expect(c.get('connect-src')).toEqual(["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://tiles.openfreemap.org'])
     expect(c.has('upgrade-insecure-requests')).toBe(true)
   })
   it('HSTS, nosniff, anti-clickjacking, referrer e permissões', () => {

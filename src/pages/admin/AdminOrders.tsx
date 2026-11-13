@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Bike, ChevronDown, ReceiptText, RotateCcw, Search, XCircle } from 'lucide-react'
+import { AlertTriangle, Bike, ChevronDown, MapPinned, ReceiptText, RotateCcw, Search, XCircle } from 'lucide-react'
 import { useState } from 'react'
+import { DeliveryTracking } from '../../components/map/DeliveryTracking.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { FilterChips } from '../../components/nav/FilterChips.tsx'
@@ -111,6 +112,7 @@ function Detail({ id, canManage }: { id: string; canManage: boolean }) {
           </div>
         )}
       </div>
+      {open && <AdminTrackingToggle orderId={id} />}
     </div>
   )
 }
@@ -134,6 +136,18 @@ function Row({ o, canManage }: { o: AdminOrder; canManage: boolean }) {
       {o.attention && <p className="mt-1 flex items-center gap-1 font-semibold text-ink"><AlertTriangle aria-hidden="true" className="size-4 text-accent" />{o.attention}</p>}
       {open && <Detail id={o.id} canManage={canManage} />}
     </Panel>
+  )
+}
+
+/** Mapa da entrega para o Master: abre só quando pedido (cada consulta é auditada). */
+function AdminTrackingToggle({ orderId }: { orderId: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="md:col-span-2">
+      {show ? <DeliveryTracking orderId={orderId} /> : (
+        <button type="button" onClick={() => setShow(true)} className={secondaryButton}><MapPinned aria-hidden="true" className="size-4" />Acompanhar entrega no mapa</button>
+      )}
+    </div>
   )
 }
 

@@ -182,7 +182,7 @@ export function AdminApp() {
           <Route path="moderacao" element={<Guard access={data} item={item('/admin/moderacao')}><AdminModeration /></Guard>} />
           <Route path="regioes" element={<Guard access={data} item={item('/admin/regioes')}><AdminRegions /></Guard>} />
           <Route path="anuncios" element={<Guard access={data} item={item('/admin/anuncios')}><AdminAds /></Guard>} />
-          <Route path="financeiro" element={<Guard access={data} item={item('/admin/financeiro')}><AdminFinance /></Guard>} />
+          <Route path="financeiro/*" element={<Guard access={data} item={item('/admin/financeiro')}><AdminFinance /></Guard>} />
           <Route path="pedidos" element={<Guard access={data} item={item('/admin/pedidos')}><AdminOrders /></Guard>} />
           <Route path="logins" element={<Guard access={data} item={item('/admin/logins')}><AdminLogins /></Guard>} />
           <Route path="pagamentos" element={<Guard access={data} item={item('/admin/pagamentos')}><AdminPayments /></Guard>} />

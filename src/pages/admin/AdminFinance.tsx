@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageCircle, Receipt, Wallet } from 'lucide-react'
 import { useState } from 'react'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { FilterChips } from '../../components/nav/FilterChips.tsx'
@@ -24,6 +25,7 @@ import { formatBRL } from '../../lib/money.ts'
 import { createPaymentLink } from '../../features/payments/repository.ts'
 import { CourierPayouts } from './CourierPayouts.tsx'
 import { FinanceReportSection } from './FinanceReport.tsx'
+import { FinanceOverview } from './FinanceOverview.tsx'
 import { useAdminAccess } from './access-context.ts'
 import { BarList, ColumnChart } from './charts.tsx'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
@@ -316,18 +318,32 @@ function Charges({ canEdit }: { canEdit: boolean }) {
   )
 }
 
-/** Financeiro do Master: planos, vencimentos, recebidos, a receber e contato com as empresas. */
-export function AdminFinance() {
-  const access = useAdminAccess()
-  const canEdit = access.isMaster && access.mfaOk
+const SUBTABS = [
+  { to: '/admin/financeiro', label: 'Resumo', end: true },
+  { to: '/admin/financeiro/entregas', label: 'Entregas e saques', end: false },
+  { to: '/admin/financeiro/mensalidades', label: 'Mensalidades e cobranças', end: false },
+  { to: '/admin/financeiro/relatorio', label: 'Relatório detalhado', end: false },
+] as const
+
+/** Sub-abas do Financeiro: em grade no celular (sem rolagem lateral), em linha no computador. */
+function FinanceTabs() {
+  return (
+    <nav aria-label="Seções do financeiro" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      {SUBTABS.map((t) => (
+        <NavLink key={t.to} to={t.to} end={t.end}
+          className={({ isActive }) => `pressable flex min-h-11 items-center justify-center rounded-full px-4 text-center text-sm font-semibold ${isActive ? 'bg-brand text-surface' : 'border border-line bg-surface text-ink hover:bg-muted'}`}>
+          {t.label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+function PlansAndCharges({ canEdit }: { canEdit: boolean }) {
   const list = useQuery({ queryKey: ['admin', 'finance', 'businesses'], queryFn: listFinanceBusinesses })
   return (
-    <div className="flex flex-col gap-6">
-      <AdminHeader title="Financeiro" subtitle="Planos, vencimentos, recebimentos e contato com os estabelecimentos." />
+    <>
       <Summary />
-      <Charts />
-      <CourierPayouts canDecide={canEdit} />
-      <FinanceReportSection />
       <p className="text-xs text-ink-muted">
         Gere a mensalidade e a comissão aqui. Com o Mercado Pago configurado (aba Pagamentos), envie o link de pagamento: a confirmação do provedor marca a cobrança como paga. Sem ele, receba por Pix ou outro meio e dê baixa manual.
         Pagar a mensalidade renova o plano por 1 mês. Planos: Padrão (delivery) R$ 79/mês e Premium (presencial + delivery, com Meu Lucro e calculadora de custos) R$ 99/mês.
@@ -343,6 +359,25 @@ export function AdminFinance() {
         )}
       </section>
       <Charges canEdit={canEdit} />
+    </>
+  )
+}
+
+/** Financeiro do Master, em sub-abas: resumo dos ganhos, entregas e saques, mensalidades e cobranças, relatório detalhado. */
+export function AdminFinance() {
+  const access = useAdminAccess()
+  const canEdit = access.isMaster && access.mfaOk
+  return (
+    <div className="flex flex-col gap-6">
+      <AdminHeader title="Financeiro" subtitle="Quanto a Tucaí ganhou, entregas e saques, mensalidades e relatórios." />
+      <FinanceTabs />
+      <Routes>
+        <Route index element={<FinanceOverview />} />
+        <Route path="entregas" element={<CourierPayouts canDecide={canEdit} />} />
+        <Route path="mensalidades" element={<PlansAndCharges canEdit={canEdit} />} />
+        <Route path="relatorio" element={<><Charts /><FinanceReportSection /></>} />
+        <Route path="*" element={<Navigate to="/admin/financeiro" replace />} />
+      </Routes>
     </div>
   )
 }

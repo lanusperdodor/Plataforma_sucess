@@ -114,10 +114,10 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
-      {/* mapa da rota DENTRO da Tucaí (loja, entregador, destino e rota pelas ruas) */}
+      {/* acompanhamento DENTRO da Tucaí: pista com a motinha (loja → cliente) */}
       <button type="button" onClick={() => setShowMap((v) => !v)} aria-expanded={showMap}
         className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface">
-        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar mapa' : leg === 'entrega' ? 'Ver rota de entrega' : 'Ver rota até a loja'}
+        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar acompanhamento' : leg === 'entrega' ? 'Ver rota de entrega' : 'Ver rota até a loja'}
       </button>
       {showMap && <DeliveryTracking orderId={orderId} />}
       {on ? (

@@ -16,7 +16,6 @@ vi.mock('../../features/rastreamento/repository.ts', async (orig) => ({
   getTracking: () => Promise.resolve(tracking),
   subscribeTracking: () => () => undefined,
 }))
-vi.mock('../../components/map/DeliveryMap.tsx', () => ({ default: () => <div data-testid="mapa-interno" /> }))
 vi.mock('../../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 
 import { LiveLocation } from './LiveLocation.tsx'
@@ -24,13 +23,13 @@ import { LiveLocation } from './LiveLocation.tsx'
 afterEach(cleanup)
 
 describe('entregador: rota dentro da Tucaí', () => {
-  it('"Ver rota de entrega" abre o mapa interno; o Google Maps é só um link secundário opcional', async () => {
+  it('"Ver rota de entrega" abre o acompanhamento com a motinha; o Google Maps é só um link secundário opcional', async () => {
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><LiveLocation orderId="o1" pickupAddress="Av. Principal, 50" dropoffAddress="Rua A, 1" /></QueryClientProvider>)
     const btn = await screen.findByRole('button', { name: 'Ver rota de entrega' })
     expect(btn.tagName).toBe('BUTTON') // não é link externo
     fireEvent.click(btn)
-    expect(await screen.findByTestId('mapa-interno')).toBeInTheDocument()
-    expect(screen.getByText('Acompanhe no mapa')).toBeInTheDocument()
+    expect(await screen.findByTestId('motinha')).toBeInTheDocument()
+    expect(screen.getByText('Acompanhe a entrega')).toBeInTheDocument()
     expect(screen.getByText(/até o cliente/)).toBeInTheDocument()
     const external = screen.getByRole('link', { name: /Abrir no app Google Maps \(opcional/ })
     expect(external).toHaveAttribute('href', expect.stringContaining('google.com/maps/dir/'))

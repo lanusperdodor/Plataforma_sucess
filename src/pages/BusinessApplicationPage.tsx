@@ -3,6 +3,8 @@ import { Briefcase, CheckCircle2, Clock, PauseCircle, XCircle } from 'lucide-rea
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
+import { AddressFields } from '../components/forms/AddressFields.tsx'
+import { emptyAddress, formatAddressShort, onlyDigits, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
 import { useToast } from '../components/feedback/toast-context.ts'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
@@ -84,12 +86,15 @@ function ApplicationForm() {
   const categories = useCategories(values.businessType)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string>()
+  const [addr, setAddr] = useState<AddressParts>(emptyAddress())
+  const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
   const set = <K extends keyof ApplicationInput>(k: K, v: ApplicationInput[K]) => setValues((p) => ({ ...p, [k]: v }))
   const m = useMutation({
     mutationFn: submitApplication,
     onSuccess: () => {
       toast.success('Solicitação enviada! Você será avisado do resultado nesta página.')
       setValues((p) => ({ ...p, name: '', phone: '', addressLine: '', description: '', categoryId: '' }))
+      setAddr(emptyAddress())
       void qc.invalidateQueries({ queryKey: ['business', 'mine'] })
       void qc.invalidateQueries({ queryKey: ['merchant'] })
       void refreshAuthz()
@@ -99,13 +104,19 @@ function ApplicationForm() {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     setServerError(undefined)
-    const parsed = applicationSchema.safeParse(values)
+    // endereço é opcional no pedido de cadastro, mas se começar a preencher precisa estar completo
+    const filled = onlyDigits(addr.cep) !== '' || addr.street.trim() !== ''
+    const ae = filled ? validateAddress(addr) : {}
+    setAddrErrors(ae)
+    const input = { ...values, addressLine: filled ? formatAddressShort(addr) : '' }
+    const parsed = applicationSchema.safeParse(input)
     if (!parsed.success) {
       setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])))
       return
     }
     setErrors({})
-    m.mutate(values)
+    if (Object.keys(ae).length > 0) return
+    m.mutate(input)
   }
   const err = (k: string) => (errors[k] ? <p id={`err-${k}`} role="alert" className="mt-1 text-xs text-danger">{errors[k]}</p> : null)
   const cityList = cities.data ?? []
@@ -154,9 +165,9 @@ function ApplicationForm() {
             <input id="ap-phone" type="tel" autoComplete="tel" value={values.phone} onChange={(e) => set('phone', e.target.value)} aria-invalid={!!errors.phone} className={field} />
             {err('phone')}
           </div>
-          <div>
-            <label htmlFor="ap-addr" className="mb-1 block text-sm font-medium text-ink">Endereço</label>
-            <input id="ap-addr" autoComplete="street-address" value={values.addressLine} onChange={(e) => set('addressLine', e.target.value)} maxLength={200} className={field} />
+          <div className="md:col-span-2">
+            <p className="mb-2 text-sm font-medium text-ink">Endereço do negócio</p>
+            <AddressFields idPrefix="ap-end" value={addr} onChange={setAddr} errors={addrErrors} />
             {err('addressLine')}
           </div>
           <div className="md:col-span-2">

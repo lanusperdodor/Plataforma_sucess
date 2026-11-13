@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { AddressFields } from '../../components/forms/AddressFields.tsx'
+import { emptyAddress, validateAddress, type AddressErrors, type AddressParts } from '../../features/address/address.ts'
+import { getBusinessAddress, saveBusinessAddress } from '../../features/address/repository.ts'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
@@ -66,9 +69,19 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
     estimatedMax: b.estimatedMaxMinutes?.toString() ?? '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // endereço em partes (0042); começa vazio se a loja ainda não preencheu
+  const addrQ = useQuery({ queryKey: ['merchant', 'address', b.id], queryFn: () => getBusinessAddress(b.id) })
+  const [addr, setAddr] = useState<AddressParts>(emptyAddress())
+  const [addrTouched, setAddrTouched] = useState(false)
+  const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
+  useEffect(() => { if (addrQ.data && !addrTouched) setAddr(addrQ.data) }, [addrQ.data, addrTouched])
+  const changeAddr = (a: AddressParts) => { setAddrTouched(true); setAddr(a) }
   const set = <K extends keyof StoreForm>(k: K, val: StoreForm[K]) => setV((p) => ({ ...p, [k]: val }))
   const save = useMutation({
-    mutationFn: () => updateStore(b.id, v),
+    mutationFn: async () => {
+      await updateStore(b.id, v)
+      if (addrTouched) await saveBusinessAddress(b.id, addr)
+    },
     onSuccess: () => {
       toast.success('Loja atualizada.')
       void qc.invalidateQueries({ queryKey: ['merchant'] })
@@ -79,8 +92,11 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const parsed = storeFormSchema.safeParse(v)
+    const ae = addrTouched ? validateAddress(addr) : {}
+    setAddrErrors(ae)
     if (!parsed.success) return setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])))
     setErrors({})
+    if (Object.keys(ae).length > 0) return toast.error('Confira o endereço da loja.')
     save.mutate()
   }
   const text = (k: keyof StoreForm, label: string, props: Record<string, unknown> = {}) => (
@@ -104,7 +120,11 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
           {(categories.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </div>
-      {text('addressLine', 'Endereço', { maxLength: 200, autoComplete: 'street-address' })}
+      <div className="flex flex-col gap-2 md:col-span-2">
+        <p className="text-sm font-medium text-ink">Endereço da loja</p>
+        {!addrQ.data && b.addressLine && <p className="text-xs text-ink-muted">Endereço atual: {b.addressLine}. Preencha os campos abaixo para atualizar.</p>}
+        <AddressFields idPrefix="st-end" value={addr} onChange={changeAddr} errors={addrErrors} />
+      </div>
       {text('phone', 'Telefone', { type: 'tel' })}
       {text('whatsapp', 'WhatsApp', { type: 'tel' })}
       {text('logoUrl', 'Logotipo (endereço https da imagem)', { inputMode: 'url' })}
@@ -121,7 +141,7 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
             ))}
           </div>
           {v.deliveryOffer === 'partner' && (
-            <p className="text-xs text-ink-muted">O cliente paga R$ 4,00 de entrega e você contribui com R$ 2,00; o entregador parceiro recebe R$ 5,00 e a Tucaí R$ 1,00. Ao marcar o pedido como pronto, ele é oferecido aos entregadores disponíveis da sua cidade.</p>
+            <p className="text-xs text-ink-muted">O frete depende da distância por ruas: o cliente paga de R$ 4,00 a R$ 5,00 e sua loja contribui com até R$ 2,00; o entregador parceiro recebe de R$ 5,00 a R$ 7,00 e a Tucaí R$ 1,00. O pedido é oferecido aos entregadores disponíveis da sua cidade.</p>
           )}
           <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
             <input type="checkbox" className="size-5" checked={v.acceptsPickup} onChange={(e) => set('acceptsPickup', e.target.checked)} />

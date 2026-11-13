@@ -3,6 +3,10 @@ import { LocateFixed, ReceiptText } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
+import { AddressFields } from '../components/forms/AddressFields.tsx'
+import { emptyAddress, formatAddress, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
+import { getMyAddress, saveMyAddress } from '../features/address/repository.ts'
+import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { useToast } from '../components/feedback/toast-context.ts'
 import { currentPosition } from '../components/map/DeliveryTracking.tsx'
@@ -49,6 +53,15 @@ export function CheckoutPage() {
   const key = useRef(newIdempotencyKey())
   const [v, setV] = useState<CheckoutForm>({ fulfillment: 'pickup', payment: 'pix_on_delivery', customerName: '', customerPhone: '', address: '', reference: '', notes: '', changeFor: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // endereço em campos separados; vem preenchido com o último endereço salvo no perfil
+  const { session } = useAuth()
+  const userId = session?.user.id ?? ''
+  const saved = useQuery({ queryKey: ['perfil', 'endereco', userId], queryFn: () => getMyAddress(userId), enabled: !!userId })
+  const [addr, setAddr] = useState<AddressParts>(emptyAddress())
+  const [addrTouched, setAddrTouched] = useState(false)
+  const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
+  const [remember, setRemember] = useState(true)
+  useEffect(() => { if (saved.data && !addrTouched) setAddr(saved.data) }, [saved.data, addrTouched])
   const [quote, setQuote] = useState<FreightQuote | null>(null)
   const [quoteMsg, setQuoteMsg] = useState<string | null>(null)
   const calc = useMutation({
@@ -72,7 +85,9 @@ export function CheckoutPage() {
 
   const place = useMutation({
     mutationFn: (input: CheckoutForm) => placeOrder(cart!, input, key.current),
-    onSuccess: (id) => {
+    onSuccess: (id, input) => {
+      // guarda o endereço para o próximo pedido (se falhar, o pedido já foi feito: não atrapalha)
+      if (input.fulfillment !== 'pickup' && remember && userId) void saveMyAddress(userId, addr).catch(() => undefined)
       clearCart()
       toast.success('Pedido enviado ao estabelecimento.')
       navigate(`/pedidos/${id}`, { replace: true })
@@ -103,7 +118,11 @@ export function CheckoutPage() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    const input = { ...v, fulfillment: mode }
+    const delivery = mode !== 'pickup'
+    const ae = delivery ? validateAddress(addr) : {}
+    setAddrErrors(ae)
+    const input = { ...v, fulfillment: mode, address: delivery ? formatAddress(addr) : '' }
+    if (Object.keys(ae).length > 0) return toast.error('Confira o endereço de entrega.')
     const parsed = checkoutSchema.safeParse(input)
     if (!parsed.success) return setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])))
     if (outOfArea) return toast.error('Seu local está fora da área de entrega parceira desta loja.')
@@ -153,7 +172,16 @@ export function CheckoutPage() {
             <div><Label htmlFor="co-phone">Telefone / WhatsApp</Label><input id="co-phone" type="tel" autoComplete="tel" value={v.customerPhone} onChange={(e) => set('customerPhone', e.target.value)} aria-invalid={!!errors.customerPhone} className={field} />{err('customerPhone')}</div>
             {mode !== 'pickup' && (
               <>
-                <div className="sm:col-span-2"><Label htmlFor="co-addr">Endereço (rua, número, bairro)</Label><input id="co-addr" autoComplete="street-address" maxLength={300} value={v.address} onChange={(e) => set('address', e.target.value)} aria-invalid={!!errors.address} className={field} />{err('address')}</div>
+                <div className="sm:col-span-2">
+                  <p className="mb-2 text-sm font-medium text-ink">Endereço de entrega</p>
+                  <AddressFields idPrefix="co-end" value={addr} onChange={(a) => { setAddrTouched(true); setAddr(a) }} errors={addrErrors} />
+                  {err('address')}
+                  {userId && (
+                    <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                      <input type="checkbox" className="size-4" checked={remember} onChange={(e) => setRemember(e.target.checked)} />Salvar este endereço para os próximos pedidos
+                    </label>
+                  )}
+                </div>
                 <div className="sm:col-span-2"><Label htmlFor="co-ref">Ponto de referência (opcional)</Label><input id="co-ref" maxLength={200} value={v.reference} onChange={(e) => set('reference', e.target.value)} className={field} /></div>
               </>
             )}

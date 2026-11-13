@@ -78,11 +78,11 @@ export function AccountMenu({ compact = false, context = 'site' }: { compact?: b
         <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-orange text-sm font-bold uppercase text-ink">
           {name.slice(0, 1)}
         </span>
-        <span className={`min-w-0 flex-col leading-tight ${compact ? 'hidden min-[380px]:flex' : 'flex'}`}>
+        <span className={`min-w-0 flex-col leading-tight ${compact ? 'hidden sm:flex' : 'flex'}`}>
           <span className="truncate text-sm font-semibold text-ink">{name}</span>
           {role && !compact && <span className="truncate text-xs text-ink-muted">{role}</span>}
         </span>
-        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+        <ChevronDown aria-hidden="true" className={`size-4 shrink-0 text-ink-muted ${compact ? 'hidden sm:block' : ''}`} />
       </button>
       {open && (
         <div id={menuId} role="menu" className="absolute right-0 top-full z-[var(--z-sheet)] mt-2 w-72 rounded-2xl border border-line bg-surface p-2 shadow-lg">

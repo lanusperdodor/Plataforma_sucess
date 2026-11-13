@@ -63,14 +63,24 @@ export async function requestRoute(orderId: string, leg: 'coleta' | 'entrega'): 
   return { distanceM: body.distance_m ?? 0, durationS: body.duration_s ?? 0 }
 }
 
-/** Avisa quando a posição/rota do pedido muda (sem coordenadas no canal). Devolve a função para cancelar. */
+/**
+ * Avisa quando a posição/rota do pedido muda. Principal: Realtime Broadcast em canal PRIVADO do pedido (0039; o Supabase
+ * só entrega a quem pode ver o pedido). Reserva: postgres_changes do aviso da 0037. Nenhum dos dois leva coordenadas.
+ * Avisos repetidos dentro de 1 s viram um só. Devolve a função para cancelar.
+ */
 export function subscribeTracking(orderId: string, onChange: () => void): () => void {
   if (!isSupabaseConfigured) return () => undefined
-  const channel = supabase
-    .channel(`rastreio:${orderId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_tracking_ticks', filter: `order_id=eq.${orderId}` }, () => onChange())
-    .subscribe((status) => { if (status === 'SUBSCRIBED') onChange() })
-  return () => { void supabase.removeChannel(channel) }
+  let last = 0
+  const fire = () => { const now = Date.now(); if (now - last > 1000) { last = now; onChange() } }
+  const privateChannel = supabase
+    .channel(`rastreio:${orderId}`, { config: { private: true } })
+    .on('broadcast', { event: 'atualizado' }, () => fire())
+    .subscribe((status) => { if (status === 'SUBSCRIBED') fire() })
+  const dbChannel = supabase
+    .channel(`rastreio-db:${orderId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_tracking_ticks', filter: `order_id=eq.${orderId}` }, () => fire())
+    .subscribe()
+  return () => { void supabase.removeChannel(privateChannel); void supabase.removeChannel(dbChannel) }
 }
 
 export const toLngLat = (p: { lat: number; lng: number }): LngLat => [p.lng, p.lat]

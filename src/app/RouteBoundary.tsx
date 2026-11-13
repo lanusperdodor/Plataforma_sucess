@@ -36,7 +36,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.error('Erro na rota', error, info.componentStack)
+    // detalhes técnicos só no desenvolvimento; em produção o usuário vê a tela de erro amigável
+    if (import.meta.env.DEV) console.error('Erro na rota', error, info.componentStack)
   }
 
   render() {

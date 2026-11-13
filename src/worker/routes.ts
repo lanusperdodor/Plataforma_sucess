@@ -8,8 +8,10 @@
 import { SUPABASE_PUBLIC } from '../config/supabase-public'
 
 export interface RoutesEnv {
-  /** 'ors' (openrouteservice, padrão) ou 'mapbox'. */
+  /** 'ors' (openrouteservice, padrão), 'osrm' (servidor OSRM próprio da Tucaí) ou 'mapbox'. */
   ROUTING_PROVIDER?: string
+  /** URL do OSRM próprio (ex.: https://rotas.tucai.com.br). Nunca o servidor público de demonstração. */
+  OSRM_URL?: string
   ORS_API_KEY?: string
   MAPBOX_TOKEN?: string
   SUPABASE_URL?: string
@@ -36,6 +38,17 @@ export function simplify(points: LngLat[], max = 400): LngLat[] {
 export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetcher: typeof fetch = fetch): Promise<ProviderRoute | 'sem_chave' | null> {
   const provider = (env.ROUTING_PROVIDER || 'ors').toLowerCase()
   try {
+    if (provider === 'osrm') {
+      // OSRM próprio: o servidor de demonstração do projeto não pode ser usado em produção (política de uso)
+      if (!env.OSRM_URL || /router\.project-osrm\.org/i.test(env.OSRM_URL) || !/^https:\/\//i.test(env.OSRM_URL)) return 'sem_chave'
+      const base = env.OSRM_URL.replace(/\/$/, '')
+      const res = await fetcher(`${base}/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=simplified&geometries=geojson`)
+      if (!res.ok) return null
+      const body = (await res.json()) as { code?: string; routes?: { geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number }[] }
+      const r = body.routes?.[0]
+      if (body.code !== 'Ok' || !r?.geometry?.coordinates || r.geometry.coordinates.length < 2) return null
+      return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'osrm' }
+    }
     if (provider === 'mapbox') {
       if (!env.MAPBOX_TOKEN) return 'sem_chave'
       const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`

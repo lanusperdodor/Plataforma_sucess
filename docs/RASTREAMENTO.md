@@ -28,6 +28,23 @@
 7. Destino: o cliente pode tocar em **Usar minha localização** no pedido (antes de sair para entrega) para marcar o ponto.
    Sem isso, o mapa mostra loja e entregador e o Google Maps navega pelo endereço digitado.
 
+## Atualização (0039): canal privado, OSRM e mapa em todos os painéis
+
+* **Tempo real:** o banco publica `atualizado` (sem coordenadas) em **Realtime Broadcast, canal privado `rastreio:<pedido>`**.
+  A política em `realtime.messages` só entrega a quem pode ver o pedido (`can_view_order`); não há política de envio, então
+  nenhum navegador publica. O aviso por `postgres_changes` (0037) continua como reserva. Teste: `supabase/tests/rls_broadcast.sql`
+  (esquema realtime simulado): Cliente 1, Empresário 1 e Entregador 1 recebem; Cliente 2, Empresário 2 e Entregador 2 não.
+  No Supabase, a opção "Allow public access" de Realtime pode continuar ligada: o canal é aberto com `private: true`.
+* **Rotas:** `ROUTING_PROVIDER=osrm` + `OSRM_URL` usa um servidor OSRM **próprio** (VPS com o recorte do OpenStreetMap da
+  região; o OSRM não roda dentro do Cloudflare Worker). O servidor público `router.project-osrm.org` é recusado: é só para
+  demonstração. Enquanto não houver servidor próprio, o padrão segue openrouteservice (chave gratuita).
+* **Mapa dentro da Tucaí:** cliente (página do pedido, botão "Ver rota de entrega"), entregador ("Ver rota de entrega"
+  abre o mapa no próprio painel; o Google Maps fica só como link opcional para navegação por voz), empresário (Entregas →
+  "Ver no mapa", até a coleta) e Master (detalhe do pedido, auditado). Botão "Centralizar no entregador".
+* **Segundo plano:** navegador não garante GPS com a tela bloqueada. Para rastreio contínuo com o celular no bolso é
+  preciso **aplicativo nativo** (Android/iOS com permissão de localização em segundo plano) ou PWA instalado no Android
+  com a tela ligada. O app web mantém a tela acesa (Wake Lock) e avisa quando o envio pode parar.
+
 ## Limites honestos
 
 * **Tela bloqueada / segundo plano:** navegadores móveis (Chrome Android, Safari iOS) suspendem ou reduzem o GPS de

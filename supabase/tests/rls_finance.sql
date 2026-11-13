@@ -84,7 +84,8 @@ begin
 
   -- comissão do mês fechado a partir dos pedidos
   ccid := public.admin_charge_commission(a, last_month);
-  perform tstf.ok((select amount_cents = 340 from public.admin_list_charges(null, a) x where x.id = ccid), 'comissão 140 + taxas 200');
+  -- 0040: cobrança da loja = comissão 140 + frete recebido dos clientes (2 × R$ 4) + parte da loja (2 × R$ 2) = 1340
+  perform tstf.ok((select amount_cents = 1340 from public.admin_list_charges(null, a) x where x.id = ccid), 'comissão 140 + frete repassado 800 + parte da loja 400');
   perform tstf.denied(format('select public.admin_charge_commission(%L, %L)', a, last_month), 'comissão do mês duplicada', array['P0001']);
   perform tstf.denied(format('select public.admin_charge_commission(%L, current_date)', a), 'mês corrente', array['P0001']);
   perform tstf.denied(format('select public.admin_charge_commission(%L, %L)', b, last_month), 'sem pedidos', array['P0001']);

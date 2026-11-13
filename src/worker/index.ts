@@ -16,6 +16,7 @@ import { SECURITY_HEADERS } from './securityHeaders'
 import { handleHealth } from './health'
 import { handlePayments, type PaymentsEnv } from './payments'
 import { handleRoutes, type RoutesEnv } from './routes'
+import { handleFreight } from './freight'
 
 export interface Env extends PaymentsEnv, RoutesEnv {
   ASSETS: { fetch(input: Request | string): Promise<Response> }
@@ -159,6 +160,8 @@ export default {
     if (api) return api
     const route = await handleRoutes(request, env)
     if (route) return route
+    const freight = await handleFreight(request, env)
+    if (freight) return freight
     if (path === '/robots.txt') {
       return withHeaders(new Response(robotsTxt(siteUrl, indexingAllowed), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }), {
         'Cache-Control': 'public, max-age=3600',

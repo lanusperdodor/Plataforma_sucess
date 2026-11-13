@@ -85,4 +85,14 @@ describe('rota de entrega no Worker', () => {
     expect(s[0]).toEqual([-44, -20])
     expect(s.at(-1)).toEqual([-44.1999, -20.1999])
   })
+
+  it('OSRM próprio: rota pelas ruas; recusa o servidor público de demonstração', async () => {
+    const f = fakeFetch({ 'rotas.tucai.example': () => ok({ code: 'Ok', routes: [{ geometry: { coordinates: [[-44.57, -20.07], [-44.575, -20.072], [-44.58, -20.08]] }, distance: 1834.6, duration: 280.2 }] }) })
+    const r = await fetchRoute({ ROUTING_PROVIDER: 'osrm', OSRM_URL: 'https://rotas.tucai.example/' }, [-44.57, -20.07], [-44.58, -20.08], f)
+    expect(r).toMatchObject({ provider: 'osrm', distanceM: 1835, durationS: 280 })
+    const calls = (f as unknown as { mock: { calls: [string][] } }).mock.calls
+    expect(calls[0]![0]).toBe('https://rotas.tucai.example/route/v1/driving/-44.57,-20.07;-44.58,-20.08?overview=simplified&geometries=geojson')
+    expect(await fetchRoute({ ROUTING_PROVIDER: 'osrm', OSRM_URL: 'https://router.project-osrm.org' }, [0, 0], [1, 1], f)).toBe('sem_chave')
+    expect(await fetchRoute({ ROUTING_PROVIDER: 'osrm' }, [0, 0], [1, 1], f)).toBe('sem_chave')
+  })
 })

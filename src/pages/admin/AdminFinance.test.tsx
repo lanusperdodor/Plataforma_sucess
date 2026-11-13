@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../features/admin/repository.ts', () => ({
@@ -19,6 +20,7 @@ vi.mock('../../features/admin/repository.ts', () => ({
     repassado: { entregadores_cents: 0, registrado: false }, reembolsos: { cents: 0, registrado: false },
     por_estabelecimento: [], por_cidade: [{ cidade: 'Passos - MG', pedidos: 2, volume_cents: 12400 }],
   }),
+  getDeliveryMoney: () => Promise.reject(new Error('sem 0036')),
   financeTransactions: () => Promise.resolve([{ kind: 'pedido', ref: 'ABC123', at: '2026-11-11T12:00:00Z', business: 'Lanchonete F', city: 'Passos - MG', description: 'Pedido (entregador parceiro)',
     status: 'delivered', amountCents: 6200, platformCents: 216, courierCents: 500, method: 'cash', total: 1 }]),
 }))
@@ -39,20 +41,38 @@ describe('financeiro', () => {
     expect(waLink('(35) 97777-0000', 'Olá')).toBe('https://wa.me/5535977770000?text=Ol%C3%A1')
     expect(waLink('123', 'x')).toBeNull()
   })
-  it('mostra resumo, plano, vencimento e botão de WhatsApp', async () => {
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AdminFinance /></QueryClientProvider>)
+  const at = (path: string) => render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[path]}><Routes><Route path="/admin/financeiro/*" element={<AdminFinance />} /></Routes></MemoryRouter>
+    </QueryClientProvider>,
+  )
+  it('sub-abas e Resumo: quanto ganhei só com entregas e no total', async () => {
+    at('/admin/financeiro')
+    const tabs = screen.getByRole('navigation', { name: 'Seções do financeiro' })
+    for (const l of ['Resumo', 'Entregas e saques', 'Mensalidades e cobranças', 'Relatório detalhado']) expect(tabs).toHaveTextContent(l)
+    expect(await screen.findByText('Ganhei só com entregas')).toBeInTheDocument()
+    // entregas R$ 2,00 + comissões R$ 2,32 + mensalidades R$ 99,00 = R$ 103,32
+    expect((await screen.findAllByText('R$ 2,00')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('R$ 103,32').length).toBeGreaterThan(0)
+    expect(screen.getByText('Taxa da Tucaí por entrega concluída.')).toBeInTheDocument() // sem a 0036: sem contagem, sem erro
+  })
+  it('Mensalidades e cobranças: resumo dos planos, vencimento e WhatsApp', async () => {
+    at('/admin/financeiro/mensalidades')
     expect(await screen.findByText('R$ 178,00')).toBeInTheDocument()
-    expect(screen.getAllByText('Lanchonete F').length).toBeGreaterThan(0)
-    expect(await screen.findByText('Receita da plataforma')).toBeInTheDocument()
-    expect(screen.getByText('R$ 4,32')).toBeInTheDocument()
-    expect(await screen.findByText(/#ABC123/)).toBeInTheDocument()
+    expect((await screen.findAllByText('Lanchonete F')).length).toBeGreaterThan(0)
     expect(screen.getByText(/Presencial \+ Delivery · R\$ 99,00\/mês/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /WhatsApp/ })).toHaveAttribute('href', expect.stringContaining('https://wa.me/5535977770000'))
     expect(screen.getByRole('button', { name: 'Gerar mensalidade' })).toBeInTheDocument()
+  })
+  it('Relatório detalhado: gráficos, receita e histórico exportável', async () => {
+    at('/admin/financeiro/relatorio')
+    expect(await screen.findByText('Receita da plataforma')).toBeInTheDocument()
+    expect(screen.getByText('R$ 4,32')).toBeInTheDocument()
+    expect(await screen.findByText(/#ABC123/)).toBeInTheDocument()
     expect((await screen.findAllByText('Recebido por mês (últimos 12 meses)')).length).toBeGreaterThan(0)
     expect(screen.getByRole('img', { name: /Recebido por mês/ })).toBeInTheDocument()
     expect(screen.getByText('2 empresas')).toBeInTheDocument()
-    expect(screen.getAllByText('novembro de 2026').length).toBeGreaterThan(0) // tabela equivalente
+    expect(screen.getAllByText('novembro de 2026').length).toBeGreaterThan(0)
   })
   it('escala do eixo e valores compactos', () => {
     expect(niceMax(0)).toBe(1)

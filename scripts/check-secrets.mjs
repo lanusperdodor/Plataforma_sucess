@@ -41,6 +41,14 @@ for (const f of files()) {
     }
   }
 }
+// build de produção não pode publicar source maps (código-fonte original) nem apontar para eles
+if (existsSync('dist')) {
+  const walkDist = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walkDist(join(d, f)) : [join(d, f)]))
+  for (const f of walkDist('dist')) {
+    if (f.endsWith('.map')) { found++; console.error(`SOURCE MAP PUBLICADO: ${f}`) }
+    else if (/\.(m?js|css)$/.test(f) && /sourceMappingURL=/.test(readFileSync(f, 'utf8'))) { found++; console.error(`REFERÊNCIA A SOURCE MAP: ${f}`) }
+  }
+}
 if (found) {
   console.error(`\n${found} ocorrência(s). Remova o segredo, revogue-o no provedor e reescreva o histórico se já foi publicado.`)
   process.exit(1)

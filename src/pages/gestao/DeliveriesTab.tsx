@@ -1,5 +1,8 @@
 import { Bike, Settings, Store, Users } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { useToast } from '../../components/feedback/toast-context.ts'
+import { getFreeDelivery, setFreeDelivery } from '../../features/gestao/repository.ts'
 import { OrdersTab } from '../merchant/OperationsTabs.tsx'
 import { useGestao } from './context.ts'
 import { SectionTitle } from './ui.tsx'
@@ -8,6 +11,28 @@ const MODE: Record<'partner' | 'own' | 'none', { title: string; text: string }> 
   partner: { title: 'Entregador parceiro Tucaí', text: 'Um entregador da Tucaí busca o pedido na sua loja quando ele estiver pronto.' },
   own: { title: 'Entregador da sua loja', text: 'Você escolhe um entregador da sua equipe para cada pedido.' },
   none: { title: 'Sem entrega (só retirada)', text: 'Os clientes buscam o pedido na loja.' },
+}
+
+/** Promoção de frete grátis: o cliente paga R$ 0 e a loja paga a entrega inteira (o entregador recebe o mesmo valor). */
+function FreeDeliveryToggle({ businessId }: { businessId: string }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const q = useQuery({ queryKey: ['gestao', 'free-delivery', businessId], queryFn: () => getFreeDelivery(businessId) })
+  const change = useMutation({
+    mutationFn: (on: boolean) => setFreeDelivery(businessId, on),
+    onSuccess: (_v, on) => { toast.success(on ? 'Frete grátis ligado.' : 'Frete grátis desligado.'); void qc.invalidateQueries({ queryKey: ['gestao', 'free-delivery', businessId] }) },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Não foi possível alterar.'),
+  })
+  if (q.data === null || q.data === undefined) return null
+  return (
+    <label className="flex items-start gap-3 rounded-card border border-line bg-surface p-4">
+      <input type="checkbox" className="mt-1 size-5" checked={q.data} disabled={change.isPending} onChange={(e) => change.mutate(e.target.checked)} />
+      <span>
+        <span className="block font-semibold text-ink">Frete grátis para os clientes</span>
+        <span className="block text-sm text-ink-muted">O cliente não paga entrega e sua loja assume o valor inteiro da corrida (ganho do entregador + R$ 1 da Tucaí), cobrado no fechamento do mês.</span>
+      </span>
+    </label>
+  )
 }
 
 /** Entregas da loja: como a loja entrega e os pedidos de entrega (em andamento e concluídos). */
@@ -35,6 +60,7 @@ export function DeliveriesTab() {
           )}
         </div>
       </div>
+      {b.deliveryOffer === 'partner' && can('store.customize') && <FreeDeliveryToggle businessId={b.id} />}
       <OrdersTab businessId={b.id} canUpdate={can('orders.update_status')} onlyDelivery />
     </div>
   )

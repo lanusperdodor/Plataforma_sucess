@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bike, Briefcase, Phone, Plus, ReceiptText } from 'lucide-react'
+import { Bike, Briefcase, MapPinned, Phone, Plus, ReceiptText } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { DeliveryTracking } from '../../components/map/DeliveryTracking.tsx'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
@@ -86,6 +87,19 @@ function OwnCourierPicker({ businessId, orderId }: { businessId: string; orderId
         {couriers.data.map((c) => <option key={c.userId} value={c.userId}>{c.name}</option>)}
       </select>
     </label>
+  )
+}
+
+/** Mapa da entrega dentro do painel (a loja acompanha a aproximação até a coleta; o banco decide o que ela vê). */
+function TrackOnMap({ orderId }: { orderId: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={() => setShow((v) => !v)} aria-expanded={show} className={`${secondary} w-fit`}>
+        <MapPinned aria-hidden="true" className="size-4" />{show ? 'Fechar mapa' : 'Ver no mapa'}
+      </button>
+      {show && <DeliveryTracking orderId={orderId} />}
+    </div>
   )
 }
 
@@ -189,6 +203,7 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false, onlyDelivery
                   ))}
                   {tel && <a href={`tel:${tel}`} className={secondary}><Phone aria-hidden="true" className="size-4" />Ligar</a>}
                 </div>
+                {onlyDelivery && scope === 'open' && o.fulfillment !== 'pickup' && <TrackOnMap orderId={o.id} />}
               </li>
             )
           })}

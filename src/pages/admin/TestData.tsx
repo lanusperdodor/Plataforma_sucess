@@ -14,7 +14,7 @@ function copy(text: string, ok: () => void) {
 
 function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void }) {
   const toast = useToast()
-  const all = [`Dados de teste — ${data.city}`, `Senha das contas novas: ${data.password ?? ''}`, ...data.logins.map((l) => `${l.label}: ${l.email}`)].join('\n')
+  const all = [`Dados de teste — ${data.city}`, `Senha (igual para todas): ${data.password ?? ''}`, ...data.logins.map((l) => `${l.label}: usuário ${l.username ?? l.email}`)].join('\n')
   if (data.logins.length === 0) {
     return (
       <Panel className="flex flex-col gap-3">
@@ -28,7 +28,7 @@ function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void
     <Panel className="flex flex-col gap-3 border-success">
       <h2 className="text-lg font-bold text-ink">{data.reused ? 'Perfis que faltavam criados' : 'Contas de homologação criadas'} em {data.city}</h2>
       <p role="alert" className="rounded-xl bg-muted p-3 text-sm text-ink">
-        Copie agora: a senha aparece <strong>só desta vez</strong>. Os logins abaixo usam a mesma senha{data.reused ? '; as contas que já existiam mantêm a senha anterior' : ''}.
+        Copie agora: a senha aparece <strong>só desta vez</strong>. Entre com o <strong>usuário</strong> (não precisa do e-mail) e a mesma senha para todas{data.reused ? '; as contas que já existiam mantêm a senha anterior' : ''}.
       </p>
       <p className="flex flex-wrap items-center gap-2 text-sm">
         Senha: <code className="rounded-lg bg-muted px-2 py-1 text-base font-bold tracking-wide text-ink">{data.password}</code>
@@ -37,7 +37,10 @@ function Created({ data, onClose }: { data: CreatedTestData; onClose: () => void
         {data.logins.map((l) => (
           <li key={l.email} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-ink-muted">{l.label}</span>
-            <code className="break-all text-ink">{l.email}</code>
+            <span className="flex flex-col sm:items-end">
+              <code className="text-base font-bold text-ink">{l.username ?? l.email}</code>
+              {l.username && <span className="break-all text-xs text-ink-muted">{l.email}</span>}
+            </span>
           </li>
         ))}
       </ul>
@@ -213,7 +216,7 @@ export function TestDataSection() {
                   </button>
                 </div>
                 <ul className="text-ink-muted">
-                  {r.logins.map((l) => <li key={l.email}>{l.label}: <code className="break-all text-ink">{l.email}</code></li>)}
+                  {r.logins.map((l) => <li key={l.email}>{l.label}: usuário <code className="font-semibold text-ink">{l.username ?? '—'}</code>{l.username ? '' : <> · <code className="break-all text-ink">{l.email}</code></>}</li>)}
                 </ul>
                 <p className="text-xs text-ink-muted">A senha não é guardada. Se perdeu, remova o lote e crie outro.</p>
               </Panel>

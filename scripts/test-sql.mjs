@@ -111,6 +111,8 @@ async function main() {
       ...one('supabase/tests/rls_sete_contas.sql'),
       ...one('supabase/tests/rls_catalogo.sql'),
       ...one('supabase/tests/rls_carteira.sql'),
+      ...one('supabase/tests/rls_rastreamento.sql'),
+      ...one('supabase/tests/rls_notificacoes.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

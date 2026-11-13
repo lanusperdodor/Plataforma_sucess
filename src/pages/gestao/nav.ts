@@ -17,15 +17,15 @@ export function nicheOf(businessType: 'restaurante' | 'loja' | 'servico', catego
 
 export const NICHE_LABEL: Record<Niche, string> = { restaurante: 'Restaurante', mercadinho: 'Mercadinho', loja: 'Loja', servico: 'Serviços' }
 
-/** Grupos do menu lateral, cada um com uma cor (classes completas para o Tailwind encontrar). */
+/** Grupos do menu lateral. Visual neutro: o único destaque de cor é o laranja do item ativo. */
 export type NavGroupId = 'inicio' | 'operacao' | 'financas' | 'loja' | 'crescer' | 'gestao'
 export const NAV_GROUPS: Record<NavGroupId, { label: string; text: string; chip: string; active: string; bar: string }> = {
-  inicio: { label: 'Início', text: 'text-tone-blue', chip: 'bg-tone-blue/15 text-tone-blue', active: 'bg-tone-blue/10', bar: 'bg-tone-blue' },
-  operacao: { label: 'Operação', text: 'text-tone-orange', chip: 'bg-tone-orange/15 text-tone-orange', active: 'bg-tone-orange/10', bar: 'bg-tone-orange' },
-  financas: { label: 'Finanças', text: 'text-tone-green', chip: 'bg-tone-green/15 text-tone-green', active: 'bg-tone-green/10', bar: 'bg-tone-green' },
-  loja: { label: 'Minha loja', text: 'text-tone-violet', chip: 'bg-tone-violet/15 text-tone-violet', active: 'bg-tone-violet/10', bar: 'bg-tone-violet' },
-  crescer: { label: 'Crescer', text: 'text-tone-teal', chip: 'bg-tone-teal/15 text-tone-teal', active: 'bg-tone-teal/10', bar: 'bg-tone-teal' },
-  gestao: { label: 'Gestão', text: 'text-tone-amber', chip: 'bg-tone-amber/15 text-tone-amber', active: 'bg-tone-amber/10', bar: 'bg-tone-amber' },
+  inicio: { label: 'Início', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  operacao: { label: 'Operação', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  financas: { label: 'Finanças', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  loja: { label: 'Minha loja', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  crescer: { label: 'Crescer', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
+  gestao: { label: 'Gestão', text: 'text-ink-muted', chip: 'bg-muted text-ink', active: 'bg-muted', bar: 'bg-orange' },
 }
 
 export interface GestaoNavItem {

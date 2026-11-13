@@ -93,15 +93,7 @@ export const SECONDARY_DESTINATIONS: readonly SecondaryDestination[] = [
 
 /** Grupos do menu lateral; cada item aparece só para quem pode usá-lo. */
 export const NAV_GROUPS: readonly NavGroup[] = [
-  { id: 'descobrir', title: 'Descobrir', items: SECONDARY_DESTINATIONS },
-  {
-    id: 'conta',
-    title: 'Minha conta',
-    items: [
-      { id: 'notificacoes', label: 'Notificações', to: '/notificacoes', icon: Bell, show: (a) => a.signedIn },
-      { id: 'privacidade', label: 'Privacidade e dados', to: '/perfil/privacidade', icon: Lock, show: (a) => a.signedIn },
-    ],
-  },
+  // "Minha área" (meu comércio, área do entregador, Painel Master) é sempre o primeiro grupo
   {
     id: 'trabalho',
     title: 'Minha área',
@@ -109,6 +101,15 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'painel', label: 'Meu estabelecimento', to: '/painel', icon: LayoutDashboard, show: (a) => a.merchant },
       { id: 'entregador', label: 'Área do entregador', to: '/entregador', icon: Truck, show: (a) => a.courier },
       { id: 'admin', label: 'Painel Master', to: '/admin', icon: ShieldCheck, show: (a) => a.admin },
+    ],
+  },
+  { id: 'descobrir', title: 'Descobrir', items: SECONDARY_DESTINATIONS },
+  {
+    id: 'conta',
+    title: 'Minha conta',
+    items: [
+      { id: 'notificacoes', label: 'Notificações', to: '/notificacoes', icon: Bell, show: (a) => a.signedIn },
+      { id: 'privacidade', label: 'Privacidade e dados', to: '/perfil/privacidade', icon: Lock, show: (a) => a.signedIn },
     ],
   },
   {
@@ -122,7 +123,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 ]
 
 /** Compatibilidade: itens de parceiros visíveis a qualquer visitante. */
-export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = NAV_GROUPS[3]!.items
+export const PARTNER_DESTINATIONS: readonly SecondaryDestination[] = NAV_GROUPS.find((g) => g.id === 'parceiros')!.items
 
 export function visibleGroups(a: Audience, ctx: ActiveContext = { kind: 'cliente' }): NavGroup[] {
   // entregador vê só o que é da atividade de entrega; loja e Master não veem "seja parceiro"
@@ -175,11 +176,8 @@ export function resolveActiveDestination(pathname: string, list: readonly NavDes
   return null
 }
 
-/** Cor de cada destino no menu (classes completas para o Tailwind). Ícone colorido; o texto continua na cor do texto. */
-const TONE_BY_ID: Record<string, string> = {
-  inicio: 'text-tone-blue', explorar: 'text-tone-violet', conectuai: 'text-tone-rose', pedidos: 'text-tone-orange', perfil: 'text-tone-teal',
-  'loja-pedidos': 'text-tone-orange', 'loja-painel': 'text-tone-violet', entregas: 'text-tone-orange', notificacoes: 'text-tone-amber', master: 'text-tone-blue',
-  restaurantes: 'text-tone-orange', lojas: 'text-tone-violet', servicos: 'text-tone-teal', vagas: 'text-tone-blue', privacidade: 'text-tone-teal',
-  painel: 'text-tone-violet', entregador: 'text-tone-orange', admin: 'text-tone-blue', entregadores: 'text-tone-green', negocio: 'text-tone-rose',
+/** Visual neutro: ícones na cor do texto (o item ativo ganha o destaque). Mantido para os menus que o chamam. */
+export function toneOf(id: string): string {
+  void id
+  return ''
 }
-export const toneOf = (id: string): string => TONE_BY_ID[id] ?? 'text-tone-blue'

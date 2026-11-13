@@ -93,7 +93,8 @@ export function AccountMenu({ compact = false, context = 'site' }: { compact?: b
           {availableContexts(authz).length > 1 && (
             <div role="group" aria-label="Perfil ativo" className="mb-1 border-b border-line pb-2">
               <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Usar como</p>
-              {availableContexts(authz).map((c) => {
+              {/* minha área (loja, entregador, Master) sempre antes de "Cliente" */}
+              {[...availableContexts(authz)].sort((a, b) => Number(a.kind === 'cliente') - Number(b.kind === 'cliente')).map((c) => {
                 const label = c.kind === 'cliente' ? 'Cliente (minhas compras)' : c.kind === 'loja' ? `${businesses[c.businessId] ?? 'Minha loja'} (pedidos recebidos)` : c.kind === 'entregador' ? 'Entregador' : 'Painel Master'
                 const Icon = c.kind === 'cliente' ? ShoppingBag : c.kind === 'loja' ? Store : c.kind === 'entregador' ? Bike : ShieldCheck
                 const on = context === 'admin' ? c.kind === 'master' : sameContext(c, active)

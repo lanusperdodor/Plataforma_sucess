@@ -100,8 +100,14 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         className="sticky shrink-0 overflow-y-auto border-r border-line bg-surface p-3"
         style={{ ...stickyStyle, width: 'var(--sidenav-w)', zIndex: 'var(--z-nav)' }}
       >
+        {groups.filter((g) => g.id === 'trabalho').map((g) => (
+          <section key={g.id} aria-label={g.title} className="mb-4">
+            <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        {groups.map((g) => (
+        {groups.filter((g) => g.id !== 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title}>
             <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
             <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
@@ -161,8 +167,14 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         >
           <X aria-hidden="true" size={20} />
         </button>
+        {groups.filter((g) => g.id === 'trabalho').map((g) => (
+          <section key={g.id} aria-label={g.title} className="mb-4">
+            <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>
+          </section>
+        ))}
         <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(true)}</ul>
-        {groups.map((g) => (
+        {groups.filter((g) => g.id !== 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title}>
             <h2 className="mx-3 mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
             <ul className="m-0 flex list-none flex-col gap-1 p-0">{secondary(g.items)}</ul>

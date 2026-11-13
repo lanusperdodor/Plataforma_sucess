@@ -4,7 +4,6 @@ export function AdminHeader({ title, subtitle, actions }: { title: string; subti
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <span aria-hidden="true" className="mb-2 block h-1 w-12 rounded-full bg-linear-to-r from-tone-blue via-tone-violet to-tone-orange" />
         <h1 className="text-2xl font-bold text-ink">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p>}
       </div>

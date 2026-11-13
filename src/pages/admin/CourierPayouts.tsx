@@ -42,7 +42,7 @@ export function CourierPayouts({ canDecide }: { canDecide: boolean }) {
   return (
     <section aria-labelledby="entregas-dinheiro" className="flex flex-col gap-3">
       <h2 id="entregas-dinheiro" className="flex items-center gap-2 text-lg font-bold text-ink">
-        <span aria-hidden="true" className="grid size-8 place-items-center rounded-lg bg-tone-green/15 text-tone-green"><Bike className="size-4" /></span>
+        <span aria-hidden="true" className="grid size-8 place-items-center rounded-lg bg-muted text-ink"><Bike className="size-4" /></span>
         Entregas: quem pagou e quem recebeu
       </h2>
       <div className="flex flex-wrap items-end gap-2 rounded-card border border-line bg-surface p-3">
@@ -57,16 +57,16 @@ export function CourierPayouts({ canDecide }: { canDecide: boolean }) {
             {m.pedidos_teste > 0 ? ` (${m.pedidos_teste} de teste)` : ''}. Em cada uma: cliente paga a taxa + estabelecimento contribui = entregador recebe + Tucaí recebe.
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <Flow label="Clientes pagaram (taxa de entrega)" value={m.clientes_pagaram_cents} icon={User} tone="bg-tone-blue/15 text-tone-blue" />
-            <Flow label="Estabelecimentos contribuíram" value={m.lojas_pagaram_cents} icon={Store} tone="bg-tone-violet/15 text-tone-violet" sign="+ " />
-            <Flow label="Entregadores ganharam" value={m.entregadores_ganharam_cents} icon={Bike} tone="bg-tone-orange/15 text-tone-orange" sign="= " />
-            <Flow label="Tucaí recebe (entregas parceiras)" value={m.tucai_parceiras_cents} icon={Wallet} tone="bg-tone-green/15 text-tone-green" sign="+ " />
+            <Flow label="Clientes pagaram (taxa de entrega)" value={m.clientes_pagaram_cents} icon={User} tone="bg-muted text-ink" />
+            <Flow label="Estabelecimentos contribuíram" value={m.lojas_pagaram_cents} icon={Store} tone="bg-muted text-ink" sign="+ " />
+            <Flow label="Entregadores ganharam" value={m.entregadores_ganharam_cents} icon={Bike} tone="bg-muted text-ink" sign="= " />
+            <Flow label="Tucaí recebe (entregas parceiras)" value={m.tucai_parceiras_cents} icon={Wallet} tone="bg-muted text-ink" sign="+ " />
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <Flow label={`Tucaí recebe (${m.entregas_proprias} entregas próprias das lojas)`} value={m.tucai_proprias_cents} icon={Store} tone="bg-tone-teal/15 text-tone-teal" />
-            <Flow label="Saques pagos no período" value={m.saques_pagos_cents} icon={Banknote} tone="bg-tone-violet/15 text-tone-violet" />
-            <Flow label={`Saques em análise (${m.saques_em_analise})`} value={m.saques_em_analise_cents} icon={Wallet} tone="bg-tone-amber/15 text-tone-amber" />
-            <Flow label="Saldo dos entregadores (a pagar)" value={m.saldo_entregadores_cents} icon={Bike} tone="bg-tone-rose/15 text-tone-rose" />
+            <Flow label={`Tucaí recebe (${m.entregas_proprias} entregas próprias das lojas)`} value={m.tucai_proprias_cents} icon={Store} tone="bg-muted text-ink" />
+            <Flow label="Saques pagos no período" value={m.saques_pagos_cents} icon={Banknote} tone="bg-muted text-ink" />
+            <Flow label={`Saques em análise (${m.saques_em_analise})`} value={m.saques_em_analise_cents} icon={Wallet} tone="bg-muted text-ink" />
+            <Flow label="Saldo dos entregadores (a pagar)" value={m.saldo_entregadores_cents} icon={Bike} tone="bg-muted text-ink" />
           </div>
         </>
       )}

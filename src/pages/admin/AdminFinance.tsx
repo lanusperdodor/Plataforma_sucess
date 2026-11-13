@@ -22,6 +22,7 @@ import {
 } from '../../features/admin/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { createPaymentLink } from '../../features/payments/repository.ts'
+import { CourierPayouts } from './CourierPayouts.tsx'
 import { FinanceReportSection } from './FinanceReport.tsx'
 import { useAdminAccess } from './access-context.ts'
 import { BarList, ColumnChart } from './charts.tsx'
@@ -325,6 +326,7 @@ export function AdminFinance() {
       <AdminHeader title="Financeiro" subtitle="Planos, vencimentos, recebimentos e contato com os estabelecimentos." />
       <Summary />
       <Charts />
+      <CourierPayouts canDecide={canEdit} />
       <FinanceReportSection />
       <p className="text-xs text-ink-muted">
         Gere a mensalidade e a comissão aqui. Com o Mercado Pago configurado (aba Pagamentos), envie o link de pagamento: a confirmação do provedor marca a cobrança como paga. Sem ele, receba por Pix ou outro meio e dê baixa manual.

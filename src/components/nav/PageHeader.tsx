@@ -8,13 +8,13 @@ export interface PageHeaderProps {
   actions?: ReactNode
 }
 
-/** Cabeçalho padrão das abas: título forte, subtítulo curto; ícone só em telas largas. */
+/** Cabeçalho padrão das abas: título forte, subtítulo curto e ícone colorido. */
 export function PageHeader({ title, subtitle, icon: Icon, actions }: PageHeaderProps) {
   return (
     <header className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         {Icon && (
-          <span aria-hidden="true" className="hidden size-11 shrink-0 place-items-center rounded-2xl bg-brand text-orange md:grid">
+          <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-tone-orange to-tone-rose text-surface">
             <Icon className="size-5" />
           </span>
         )}

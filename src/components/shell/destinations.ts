@@ -174,3 +174,12 @@ export function resolveActiveDestination(pathname: string, list: readonly NavDes
   }
   return null
 }
+
+/** Cor de cada destino no menu (classes completas para o Tailwind). Ícone colorido; o texto continua na cor do texto. */
+const TONE_BY_ID: Record<string, string> = {
+  inicio: 'text-tone-blue', explorar: 'text-tone-violet', conectuai: 'text-tone-rose', pedidos: 'text-tone-orange', perfil: 'text-tone-teal',
+  'loja-pedidos': 'text-tone-orange', 'loja-painel': 'text-tone-violet', entregas: 'text-tone-orange', notificacoes: 'text-tone-amber', master: 'text-tone-blue',
+  restaurantes: 'text-tone-orange', lojas: 'text-tone-violet', servicos: 'text-tone-teal', vagas: 'text-tone-blue', privacidade: 'text-tone-teal',
+  painel: 'text-tone-violet', entregador: 'text-tone-orange', admin: 'text-tone-blue', entregadores: 'text-tone-green', negocio: 'text-tone-rose',
+}
+export const toneOf = (id: string): string => TONE_BY_ID[id] ?? 'text-tone-blue'

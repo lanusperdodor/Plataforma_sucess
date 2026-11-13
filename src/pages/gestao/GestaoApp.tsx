@@ -355,7 +355,7 @@ function GestaoRoutes() {
 }
 
 function GestaoFrame({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-dvh flex-col bg-muted">{children}</div>
+  return <div className="flex min-h-dvh flex-col">{children}</div>
 }
 
 function GestaoBusiness() {

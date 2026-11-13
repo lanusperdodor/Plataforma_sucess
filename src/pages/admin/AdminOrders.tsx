@@ -68,8 +68,8 @@ function Detail({ id, canManage }: { id: string; canManage: boolean }) {
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
           {([
             ['Produtos', v.subtotal_cents], ['Taxa de entrega (cliente)', v.delivery_fee_cents], ['Total do cliente', v.total_cents],
-            ['Comissão Tucaí', v.commission_cents], ['Logística (estabelecimento)', v.merchant_delivery_cents],
-            ['Entregador recebe', v.courier_pay_cents], ['Tarifa da plataforma', v.platform_fee_cents],
+            ['Estabelecimento paga (entrega)', v.merchant_delivery_cents], ['Entregador recebe', v.courier_pay_cents],
+            ['Tucaí recebe (por entrega)', v.platform_fee_cents], ['Comissão Tucaí (pedidos acima do mínimo)', v.commission_cents],
           ] as const).map(([l, c]) => (
             <div key={l} className="contents"><dt className="text-ink-muted">{l}</dt><dd className="text-right font-semibold text-ink">{formatBRL(c)}</dd></div>
           ))}

@@ -5,7 +5,7 @@
   --brand-primary: #17191b; /* carvão fosco Tucaí */
   --brand-accent: #c2410c; /* laranja escuro: texto/hover sobre branco (AA) */
   --surface: #ffffff;
-  --surface-muted: #f6f6f5;
+  --surface-muted: #f1f3fa; /* fundo levemente azulado: menos "tudo branco" */
   --text: #17191b;
   /* Laranja Tucaí: preenchimentos, selos e destaques; texto sobre ele em carvão (5,5:1). */
   --brand-orange: #ff5500;
@@ -55,8 +55,8 @@
   color-scheme: dark;
   --brand-primary: #f2f2f0;
   --brand-accent: #fb923c;
-  --surface: #1c1e21;
-  --surface-muted: #111214;
+  --surface: #1b1f2c; /* cartões com leve tom azul-noite: menos "tudo preto" */
+  --surface-muted: #10131d;
   --text: #f2f2f0;
   --brand-orange: #c2410c;
   --success: #4ade80;
@@ -119,7 +119,13 @@
 
 body {
   margin: 0;
-  background: var(--surface-muted);
+  background-color: var(--surface-muted);
+  /* brilho de cor bem suave nos cantos (violeta, laranja, verde) em todas as telas, nos dois temas */
+  background-image:
+    radial-gradient(60rem 30rem at 0% 0%, color-mix(in srgb, var(--tone-violet) 9%, transparent), transparent 70%),
+    radial-gradient(50rem 28rem at 100% 0%, color-mix(in srgb, var(--tone-orange) 8%, transparent), transparent 70%),
+    radial-gradient(60rem 30rem at 50% 100%, color-mix(in srgb, var(--tone-teal) 7%, transparent), transparent 70%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
 }

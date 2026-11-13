@@ -725,3 +725,28 @@ export type PaymentRow = z.output<typeof paymentSchema>
 export function paymentsPage(status: string, search: string, origin: 'todos' | 'online' | 'manual', page: number): Promise<PaymentRow[]> {
   return rpc('admin_payments_page', { _status: status || null, _search: search.trim() || null, _origin: origin, _page: page }, z.array(paymentSchema))
 }
+
+// ---------- entregas: quem pagou e quem recebeu; saques dos entregadores (0036) ----------
+const deliveryMoneySchema = z.object({
+  entregas_parceiras: num, clientes_pagaram_cents: num, lojas_pagaram_cents: num, entregadores_ganharam_cents: num, tucai_parceiras_cents: num,
+  entregas_proprias: num, tucai_proprias_cents: num, teste_incluido: z.boolean(), pedidos_teste: num,
+  saques_pagos_cents: num, saques_em_analise: num, saques_em_analise_cents: num, saldo_entregadores_cents: num,
+})
+export type DeliveryMoney = z.infer<typeof deliveryMoneySchema>
+export const getDeliveryMoney = (from: string, to: string, includeTest: boolean) =>
+  rpc('admin_delivery_money', { _from: from, _to: to, _include_test: includeTest }, deliveryMoneySchema)
+
+const adminWithdrawalSchema = z
+  .object({
+    id: z.string(), courier_id: z.string(), courier_name: z.string(), amount_cents: num, pix_key: z.string(), status: z.enum(['solicitado', 'pago', 'recusado', 'cancelado']),
+    requested_at: z.string(), decided_at: z.string().nullable(), note: z.string().nullable(), is_test: z.boolean(), disponivel_cents: num, guardado_cents: num,
+  })
+  .transform((r) => ({
+    id: r.id, courierId: r.courier_id, courierName: r.courier_name, amountCents: r.amount_cents, pixKey: r.pix_key, status: r.status,
+    requestedAt: r.requested_at, decidedAt: r.decided_at, note: r.note, isTest: r.is_test, availableCents: r.disponivel_cents, heldCents: r.guardado_cents,
+  }))
+export type AdminWithdrawal = z.output<typeof adminWithdrawalSchema>
+export const listCourierWithdrawals = (status: 'solicitado' | 'pago' | 'recusado' | 'todos') =>
+  rpc('admin_courier_withdrawals', { _status: status, _include_test: true }, z.array(adminWithdrawalSchema))
+export const decideWithdrawal = (id: string, decision: 'pago' | 'recusado', note?: string) =>
+  rpc('admin_decide_withdrawal', { _id: id, _decision: decision, _note: note ?? null }, z.any()).then(() => undefined)

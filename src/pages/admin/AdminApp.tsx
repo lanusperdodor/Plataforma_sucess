@@ -33,27 +33,35 @@ interface NavItem {
   to: string
   label: string
   icon: LucideIcon
+  tone: Tone
   /** Permissão exigida; `master` = reservado ao Master; ausente = qualquer integrante. */
   permission?: PlatformPermissionCode | 'master'
 }
 
+type Tone = 'blue' | 'orange' | 'green' | 'violet' | 'teal' | 'amber' | 'rose'
+/** Classes completas (o Tailwind precisa encontrá-las no código). */
+const CHIP: Record<Tone, string> = {
+  blue: 'bg-tone-blue/15 text-tone-blue', orange: 'bg-tone-orange/15 text-tone-orange', green: 'bg-tone-green/15 text-tone-green',
+  violet: 'bg-tone-violet/15 text-tone-violet', teal: 'bg-tone-teal/15 text-tone-teal', amber: 'bg-tone-amber/15 text-tone-amber', rose: 'bg-tone-rose/15 text-tone-rose',
+}
+
 const NAV: NavItem[] = [
-  { to: '/admin', label: 'Painel', icon: LayoutDashboard, permission: 'admin.dashboard' },
-  { to: '/admin/pedidos', label: 'Pedidos', icon: ReceiptText, permission: 'orders.view' },
-  { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, permission: 'businesses.review' },
-  { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, permission: 'couriers.review' },
-  { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, permission: 'cities.manage' },
-  { to: '/admin/regioes', label: 'Regiões', icon: MapIcon, permission: 'master' },
-  { to: '/admin/anuncios', label: 'Anúncios', icon: Megaphone, permission: 'master' },
-  { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, permission: 'finance.view' },
-  { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard, permission: 'finance.view' },
-  { to: '/admin/logins', label: 'Logins', icon: KeyRound, permission: 'users.view' },
-  { to: '/admin/equipe', label: 'Equipe', icon: Users, permission: 'master' },
-  { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, permission: 'audit.view' },
-  { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, permission: 'privacy.manage' },
-  { to: '/admin/moderacao', label: 'Moderação', icon: Gavel, permission: 'moderation.manage' },
-  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings, permission: 'master' },
-  { to: '/admin/seguranca', label: 'Segurança', icon: ShieldCheck },
+  { to: '/admin', label: 'Painel', icon: LayoutDashboard, tone: 'blue', permission: 'admin.dashboard' },
+  { to: '/admin/pedidos', label: 'Pedidos', icon: ReceiptText, tone: 'orange', permission: 'orders.view' },
+  { to: '/admin/estabelecimentos', label: 'Estabelecimentos', icon: Building2, tone: 'violet', permission: 'businesses.review' },
+  { to: '/admin/entregadores', label: 'Entregadores', icon: Bike, tone: 'orange', permission: 'couriers.review' },
+  { to: '/admin/cidades', label: 'Cidades', icon: MapPinned, tone: 'teal', permission: 'cities.manage' },
+  { to: '/admin/regioes', label: 'Regiões', icon: MapIcon, tone: 'teal', permission: 'master' },
+  { to: '/admin/anuncios', label: 'Anúncios', icon: Megaphone, tone: 'rose', permission: 'master' },
+  { to: '/admin/financeiro', label: 'Financeiro', icon: Wallet, tone: 'green', permission: 'finance.view' },
+  { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard, tone: 'green', permission: 'finance.view' },
+  { to: '/admin/logins', label: 'Logins', icon: KeyRound, tone: 'blue', permission: 'users.view' },
+  { to: '/admin/equipe', label: 'Equipe', icon: Users, tone: 'amber', permission: 'master' },
+  { to: '/admin/auditoria', label: 'Auditoria', icon: ClipboardList, tone: 'violet', permission: 'audit.view' },
+  { to: '/admin/privacidade', label: 'Privacidade', icon: Lock, tone: 'blue', permission: 'privacy.manage' },
+  { to: '/admin/moderacao', label: 'Moderação', icon: Gavel, tone: 'rose', permission: 'moderation.manage' },
+  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings, tone: 'amber', permission: 'master' },
+  { to: '/admin/seguranca', label: 'Segurança', icon: ShieldCheck, tone: 'teal' },
 ]
 
 function allowed(access: AdminAccess, item: NavItem): boolean {
@@ -79,7 +87,7 @@ function Guard({ access, item, children }: { access: AdminAccess; item: NavItem;
 function Layout({ access, children }: { access: AdminAccess; children: ReactNode }) {
   const items = NAV.filter((i) => allowed(access, i) || !i.permission)
   return (
-    <div className="flex min-h-dvh flex-col bg-muted">
+    <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-[var(--z-nav)] border-b border-line bg-surface">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Link to="/admin" className="inline-flex min-h-11 items-center gap-2" aria-label="Painel Master — início">
@@ -101,10 +109,10 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
               to={i.to}
               end={i.to === '/admin'}
               className={({ isActive }) =>
-                `pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm ${isActive ? 'bg-brand font-semibold text-surface' : 'text-ink-muted'}`
+                `pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm ${isActive ? 'bg-surface font-semibold text-ink ring-2 ring-tone-blue/40' : 'text-ink-muted'}`
               }
             >
-              <i.icon aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className={`grid size-6 place-items-center rounded-md ${CHIP[i.tone]}`}><i.icon className="size-3.5" /></span>
               {i.label}
             </NavLink>
           ))}
@@ -119,10 +127,10 @@ function Layout({ access, children }: { access: AdminAccess; children: ReactNode
                   to={i.to}
                   end={i.to === '/admin'}
                   className={({ isActive }) =>
-                    `pressable flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm ${isActive ? 'bg-surface font-bold text-brand shadow-[var(--shadow-card)]' : 'font-medium text-ink-muted'}`
+                    `pressable flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm ${isActive ? 'bg-surface font-bold text-ink shadow-[var(--shadow-card)] ring-1 ring-line' : 'font-medium text-ink-muted hover:bg-surface/60'}`
                   }
                 >
-                  <i.icon aria-hidden="true" className="size-5" />
+                  <span aria-hidden="true" className={`grid size-8 shrink-0 place-items-center rounded-lg ${CHIP[i.tone]}`}><i.icon className="size-4" /></span>
                   {i.label}
                 </NavLink>
               </li>

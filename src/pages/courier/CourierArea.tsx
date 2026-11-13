@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Banknote, MapPin, Navigation, Package, Phone, Power, Truck } from 'lucide-react'
+import { Banknote, CalendarClock, CheckCircle2, Clock, Hourglass, MapPin, Navigation, Package, Phone, PiggyBank, Power, Truck, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
@@ -22,6 +22,11 @@ import {
   releaseDelivery,
   setOnline,
   type CourierDelivery,
+  type CourierEarnings,
+  WITHDRAWAL_LABEL,
+  cancelWithdrawal,
+  listWithdrawals,
+  requestWithdrawal,
 } from '../../features/courier/repository.ts'
 import { PAYMENT_LABEL, STATUS_LABEL } from '../../features/orders/repository.ts'
 import { ownDeliveries, ownDeliveryStatus, type OwnDelivery } from '../../features/courier/repository.ts'
@@ -265,10 +270,8 @@ export function CourierArea() {
   }
   const current = active.data ?? []
   const e = earnings.data
-  return (
-    <Page>
-      <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${VEHICLE_LABEL[c.vehicle]}${c.plate ? ` · ${c.plate}` : ''}`} />
-      {ownCourier && <OwnDeliveriesPanel />}
+  const deliveriesView = (
+    <>
       <section aria-labelledby="disp" className={`${box} flex flex-col items-start gap-3`}>
         <h2 id="disp" className="text-lg font-semibold text-ink">Disponibilidade</h2>
         <p className={`inline-flex items-center gap-2 text-sm font-semibold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>
@@ -322,30 +325,169 @@ export function CourierArea() {
         </section>
       )}
 
-      <section aria-labelledby="ganhos" className={box}>
-        <h2 id="ganhos" className="mb-3 text-lg font-semibold text-ink">Ganhos</h2>
-        {earnings.isError ? (
-          <ErrorState error={earnings.error} onRetry={() => void earnings.refetch()} />
-        ) : (
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[['Hoje', e?.todayCents], ['7 dias', e?.weekCents], ['Total', e?.totalCents]].map(([label, v]) => (
-              <div key={label as string} className="rounded-xl bg-muted p-3"><dt className="text-xs text-ink-muted">{label}</dt><dd className="text-lg font-bold text-ink">{v === undefined ? '…' : formatBRL(v as number)}</dd></div>
-            ))}
-            <div className="rounded-xl bg-muted p-3"><dt className="text-xs text-ink-muted">Entregas</dt><dd className="text-lg font-bold text-ink">{e?.deliveries ?? '…'}</dd></div>
-          </dl>
-        )}
-        {(history.data ?? []).length > 0 && (
-          <details className="mt-3">
-            <summary className="cursor-pointer text-sm font-semibold text-ink">Últimas entregas</summary>
-            <ul className="mt-2 divide-y divide-line text-sm">
-              {(history.data ?? []).map((h) => (
-                <li key={h.orderId} className="flex justify-between py-2"><span>#{h.code} · {h.businessName}</span><span>{formatBRL(h.payCents)}</span></li>
-              ))}
-            </ul>
-          </details>
-        )}
-        <p className="mt-2 text-xs text-ink-muted">Valores por entrega concluída, conforme a regra de repasse vigente. O pagamento dos ganhos é combinado com a Tucaí enquanto o repasse automático não é contratado.</p>
-      </section>
+    </>
+  )
+  return (
+    <Page>
+      <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${VEHICLE_LABEL[c.vehicle]}${c.plate ? ` · ${c.plate}` : ''}`} />
+      {ownCourier && <OwnDeliveriesPanel />}
+      <CourierTabs available={e?.availableCents ?? 0} />
+      <Routes>
+        <Route index element={deliveriesView} />
+        <Route path="entregas" element={deliveriesView} />
+        <Route path="ganhos" element={<EarningsPanel e={e} error={earnings.isError ? earnings.error : null} onRetry={() => void earnings.refetch()} history={history.data ?? []} />} />
+        <Route path="saques" element={<WithdrawalsPanel e={e} />} />
+        <Route path="*" element={<Navigate to="/entregador" replace />} />
+      </Routes>
     </Page>
+  )
+}
+
+const dayBR = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
+
+/** Abas do entregador: entregas, ganhos e saques (cada uma com sua cor). */
+function CourierTabs({ available }: { available: number }) {
+  const tabs = [
+    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-tone-orange/15 text-tone-orange', on: 'bg-tone-orange/10 ring-tone-orange/40', end: true },
+    { to: '/entregador/ganhos', label: 'Ganhos', icon: PiggyBank, tone: 'bg-tone-green/15 text-tone-green', on: 'bg-tone-green/10 ring-tone-green/40', end: false },
+    { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-tone-blue/15 text-tone-blue', on: 'bg-tone-blue/10 ring-tone-blue/40', end: false },
+  ]
+  return (
+    <nav aria-label="Seções do entregador" className="grid grid-cols-3 gap-2">
+      {tabs.map((t) => (
+        <NavLink
+          key={t.to}
+          to={t.to}
+          end={t.end}
+          className={({ isActive }) => `pressable flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-line p-2 text-sm font-semibold text-ink sm:flex-row sm:gap-2 ${isActive ? `${t.on} ring-2` : 'bg-surface hover:bg-muted'}`}
+        >
+          <span aria-hidden="true" className={`grid size-8 place-items-center rounded-lg ${t.tone}`}><t.icon className="size-4" /></span>
+          <span>{t.label}</span>
+          {t.label === 'Saques' && available > 0 && <span className="rounded-full bg-tone-green px-2 text-xs font-bold text-surface">{formatBRL(available)}</span>}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+function Money({ label, value, hint, icon: Icon, tone }: { label: string; value: string; hint?: string; icon: typeof Truck; tone: string }) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-2">
+        <dt className="text-xs font-medium text-ink-muted sm:text-sm">{label}</dt>
+        <span aria-hidden="true" className={`grid size-8 shrink-0 place-items-center rounded-lg ${tone}`}><Icon className="size-4" /></span>
+      </div>
+      <dd className="mt-1 text-xl font-bold tabular-nums text-ink sm:text-2xl">{value}</dd>
+      {hint && <p className="text-xs text-ink-muted">{hint}</p>}
+    </div>
+  )
+}
+
+function EarningsPanel({ e, error, onRetry, history }: { e?: CourierEarnings; error: unknown; onRetry: () => void; history: CourierDelivery[] }) {
+  if (error) return <ErrorState error={error} onRetry={onRetry} />
+  const v = (n?: number) => (n === undefined ? '…' : formatBRL(n))
+  return (
+    <section aria-labelledby="ganhos" className="flex flex-col gap-3">
+      <h2 id="ganhos" className="text-lg font-semibold text-ink">Ganhos</h2>
+      <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <Money label="Hoje" value={v(e?.todayCents)} icon={Clock} tone="bg-tone-orange/15 text-tone-orange" />
+        <Money label="Últimos 7 dias" value={v(e?.weekCents)} icon={CalendarClock} tone="bg-tone-violet/15 text-tone-violet" />
+        <Money label="Total ganho" value={v(e?.totalCents)} icon={PiggyBank} tone="bg-tone-green/15 text-tone-green" />
+        <Money label="Entregas feitas" value={e ? String(e.deliveries) : '…'} icon={Package} tone="bg-tone-blue/15 text-tone-blue" />
+      </dl>
+      {e?.wallet && (
+        <div className={`${box} flex flex-col gap-2`}>
+          <p className="text-sm font-semibold text-ink">Como funciona</p>
+          <p className="text-sm text-ink-muted">
+            Cada entrega fica <strong className="text-ink">guardada {e.holdDays} dias</strong> e depois vai para o saldo disponível. Não é bloqueio: é para você juntar um valor maior e sacar de uma vez, sem sacar de 5 em 5 reais.
+          </p>
+          <Link to="/entregador/saques" className="pressable inline-flex min-h-11 w-fit items-center gap-2 rounded-full bg-tone-green px-4 text-sm font-semibold text-surface">
+            <Wallet aria-hidden="true" className="size-4" />Ver saldo e sacar
+          </Link>
+        </div>
+      )}
+      {history.length > 0 && (
+        <div className={box}>
+          <h3 className="mb-2 text-sm font-semibold text-ink">Últimas entregas</h3>
+          <ul className="divide-y divide-line text-sm">
+            {history.map((h) => (
+              <li key={h.orderId} className="flex justify-between gap-2 py-2"><span className="min-w-0 truncate text-ink">#{h.code} · {h.businessName}</span><span className="font-semibold tabular-nums text-tone-green">{formatBRL(h.payCents)}</span></li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-xs text-ink-muted">Valor por entrega concluída, conforme a regra de repasse vigente (gravada em cada pedido).</p>
+    </section>
+  )
+}
+
+function WithdrawalsPanel({ e }: { e?: CourierEarnings }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [pix, setPix] = useState('')
+  const list = useQuery({ queryKey: ['courier', 'withdrawals'], queryFn: listWithdrawals, enabled: !!e?.wallet })
+  const refresh = () => void qc.invalidateQueries({ queryKey: ['courier'] })
+  const ask = useMutation({
+    mutationFn: () => requestWithdrawal(pix),
+    onSuccess: (cents) => { toast.success(`Saque de ${formatBRL(cents)} enviado para a Tucaí.`); setPix(''); refresh() },
+    onError: (err) => toast.error(msg(err)),
+  })
+  const cancel = useMutation({ mutationFn: cancelWithdrawal, onSuccess: () => { toast.success('Saque cancelado.'); refresh() }, onError: (err) => toast.error(msg(err)) })
+  if (!e) return <p role="status" className="text-sm text-ink-muted">Carregando…</p>
+  if (!e.wallet) return <EmptyState icon={Wallet} title="Saques em preparação" description="A carteira com saques aparece aqui assim que a Tucaí atualizar o sistema." />
+  const open = (list.data ?? []).some((w) => w.status === 'solicitado')
+  return (
+    <section aria-labelledby="saques" className="flex flex-col gap-3">
+      <h2 id="saques" className="text-lg font-semibold text-ink">Saques</h2>
+      <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <Money label="Disponível para saque" value={formatBRL(e.availableCents)} icon={CheckCircle2} tone="bg-tone-green/15 text-tone-green" />
+        <Money label={`Guardado (${e.holdDays} dias)`} value={formatBRL(e.heldCents)} icon={Hourglass} tone="bg-tone-amber/15 text-tone-amber" />
+        <Money label="Em análise" value={formatBRL(e.pendingCents)} icon={Clock} tone="bg-tone-blue/15 text-tone-blue" />
+        <Money label="Já sacado" value={formatBRL(e.withdrawnCents)} icon={Banknote} tone="bg-tone-violet/15 text-tone-violet" />
+      </dl>
+      {e.releases.length > 0 && (
+        <div className={box}>
+          <h3 className="mb-2 text-sm font-semibold text-ink">Próximas liberações</h3>
+          <ul className="flex flex-wrap gap-2">
+            {e.releases.map((r) => (
+              <li key={r.dia} className="rounded-full bg-tone-amber/15 px-3 py-1 text-sm text-ink"><strong>{formatBRL(r.cents)}</strong> em {dayBR(r.dia)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <form onSubmit={(ev) => { ev.preventDefault(); ask.mutate() }} className={`${box} flex flex-col gap-3`}>
+        <p className="text-sm text-ink">
+          {open ? 'Você já tem um saque em análise. Assim que a Tucaí pagar, você pode pedir outro.' : e.availableCents > 0
+            ? <>Sacar <strong>{formatBRL(e.availableCents)}</strong> (todo o saldo disponível).</>
+            : `Ainda não há saldo disponível. Cada entrega fica guardada ${e.holdDays} dias antes de poder ser sacada.`}
+        </p>
+        <label className="text-sm font-medium text-ink">Chave Pix para receber
+          <input value={pix} onChange={(ev) => setPix(ev.target.value)} required minLength={3} maxLength={140} autoComplete="off" disabled={open || e.availableCents <= 0}
+            className="mt-1 min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink disabled:opacity-50" />
+        </label>
+        <button type="submit" disabled={ask.isPending || open || e.availableCents <= 0} className="pressable inline-flex min-h-12 w-fit items-center gap-2 rounded-full bg-tone-green px-5 text-base font-semibold text-surface disabled:opacity-50">
+          <Wallet aria-hidden="true" className="size-5" />{ask.isPending ? 'Enviando…' : 'Pedir saque'}
+        </button>
+        <p className="text-xs text-ink-muted">A Tucaí confere e faz a transferência. Você recebe um aviso quando o saque for pago.</p>
+      </form>
+      <div className={box}>
+        <h3 className="mb-2 text-sm font-semibold text-ink">Histórico de saques</h3>
+        {list.isError ? <ErrorState error={list.error} onRetry={() => void list.refetch()} /> : (list.data ?? []).length === 0 ? (
+          <p className="text-sm text-ink-muted">{list.isLoading ? 'Carregando…' : 'Nenhum saque ainda.'}</p>
+        ) : (
+          <ul className="divide-y divide-line text-sm">
+            {(list.data ?? []).map((w) => (
+              <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span className="text-ink">{new Date(w.requestedAt).toLocaleDateString('pt-BR')} · <strong>{formatBRL(w.amountCents)}</strong>{w.note ? <span className="text-ink-muted"> · {w.note}</span> : null}</span>
+                <span className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${w.status === 'pago' ? 'bg-tone-green/15 text-tone-green' : w.status === 'solicitado' ? 'bg-tone-blue/15 text-tone-blue' : w.status === 'recusado' ? 'bg-tone-rose/15 text-tone-rose' : 'bg-muted text-ink-muted'}`}>{WITHDRAWAL_LABEL[w.status]}</span>
+                  {w.status === 'solicitado' && <button type="button" disabled={cancel.isPending} onClick={() => cancel.mutate(w.id)} className="pressable min-h-9 rounded-full px-3 text-sm font-semibold text-ink-muted hover:bg-muted">Cancelar</button>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   )
 }

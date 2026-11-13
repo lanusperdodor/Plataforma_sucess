@@ -12,7 +12,7 @@ const etaFmt = (iso: string) => {
 /** Página pública de manutenção: sem detalhes técnicos; só a previsão, quando configurada. */
 export function MaintenancePage({ eta, onRetry, checking = false }: { eta: string | null; onRetry?: () => void; checking?: boolean }) {
   return (
-    <main className="grid min-h-dvh place-items-center bg-muted px-4 py-10">
+    <main className="grid min-h-dvh place-items-center px-4 py-10">
       <section aria-labelledby="manutencao-titulo" className="flex w-full max-w-md flex-col items-center gap-4 rounded-card border border-line bg-surface p-8 text-center shadow-[var(--shadow-card)]">
         <img src={BRAND.assets.presenter} srcSet={`${BRAND.assets.presenter} 1x, ${BRAND.assets.presenter2x} 2x`} alt={`${BRAND.mascot}, o mascote da ${BRAND.name}`}
              width={200} height={200} className="h-auto w-44 select-none object-contain" />

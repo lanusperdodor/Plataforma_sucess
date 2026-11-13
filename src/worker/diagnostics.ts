@@ -6,7 +6,7 @@
  * Para não gastar a cota do provedor, o resultado fica guardado por 10 minutos em cada instância do Worker.
  */
 import { SUPABASE_PUBLIC } from '../config/supabase-public'
-import { fetchRoute, type RoutesEnv } from './routes'
+import { fetchRoute, type RouteFailure, type RoutesEnv } from './routes'
 
 export interface DiagnosticsEnv extends RoutesEnv { PAYMENTS_INTEGRATION_KEY?: string }
 type LngLat = [number, number]
@@ -34,6 +34,17 @@ export function splitFor(distanceM: number, p: Pricing) {
   return { faixa: i + 1, entregador, tucai: p.tucai_cents, cliente, loja, subsidio: custo - loja - cliente, fora_da_area: false }
 }
 
+/** Tradução simples do erro do openrouteservice. */
+export function motivo(f: RouteFailure | null): string {
+  if (!f) return 'sem detalhe'
+  if (f.status === 401 || f.status === 403) return 'chave recusada pelo openrouteservice (chave errada, copiada com espaço/aspas, ou ainda não ativada)'
+  if (f.status === 429) return 'limite diário/por minuto do plano gratuito atingido'
+  if (f.status === 404 || f.code === 2010) return 'ponto fora das ruas mapeadas'
+  if (f.status === 0) return 'sem conexão com o openrouteservice'
+  if (f.status >= 500) return 'openrouteservice fora do ar no momento'
+  return 'pedido recusado pelo openrouteservice'
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body, null, 2), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } })
 
@@ -54,9 +65,10 @@ export async function handleDiagnostics(req: Request, env: DiagnosticsEnv, fetch
   const rotas = []
   let estado: 'ok' | 'sem_chave' | 'falhou' = 'ok'
   for (const d of DESTINOS) {
-    const r = await fetchRoute(env, ORIGEM, d.ponto, fetcher)
+    let falha: RouteFailure | null = null
+    const r = await fetchRoute(env, ORIGEM, d.ponto, fetcher, (f) => { falha = f })
     if (r === 'sem_chave') { estado = 'sem_chave'; break }
-    if (!r) { estado = 'falhou'; rotas.push({ trajeto: d.nome, erro: 'o provedor de rotas não respondeu' }); continue }
+    if (!r) { estado = 'falhou'; rotas.push({ trajeto: d.nome, erro: 'o provedor de rotas recusou ou não respondeu', resposta_do_provedor: falha, motivo_provavel: motivo(falha) }); continue }
     rotas.push({ trajeto: d.nome, distancia_ruas_m: r.distanceM, tempo_s: r.durationS, provedor: r.provider, ...(pricing ? splitFor(r.distanceM, pricing) : {}) })
   }
   const body = {

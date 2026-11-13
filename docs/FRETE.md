@@ -1,17 +1,19 @@
-# Frete por distância (migration 0040)
+# Frete por distância (migrations 0040 e 0043)
 
 Tabela aprovada pelo responsável (editável no Painel Master → Financeiro → Frete por distância; cada mudança vira uma
 nova versão e os pedidos antigos guardam a deles):
 
-| Distância por ruas | Entregador | Tucaí | Custo total | Cliente | Loja | Subsídio da Tucaí |
-|---|---|---|---|---|---|---|
-| até 1,5 km | R$ 5 | R$ 1 | R$ 6 | R$ 4 | R$ 2 | — |
-| 1,5 a 3 km | R$ 6 | R$ 1 | R$ 7 | R$ 5 | R$ 2 | — |
-| 3 a 5 km | R$ 7 | R$ 1 | R$ 8 | R$ 5 | R$ 2 | R$ 1 |
-| acima de 5 km | sem entrega parceira até o Master criar uma faixa | | | | | |
+| Distância por ruas | Cliente | Loja | Frete total | Tucaí | Entregador |
+|---|---|---|---|---|---|
+| até 1,5 km | R$ 4 | R$ 2 | R$ 6 | R$ 1 | R$ 5 |
+| 1,5 a 3 km | R$ 5 | R$ 2 | R$ 7 | R$ 1 | R$ 6 |
+| 3 a 5 km | R$ 5 | R$ 2 | R$ 7 | R$ 1 | R$ 6 |
+| acima de 5 km | sem entrega parceira até o Master criar uma faixa | | | | |
 
-* Custo total = ganho do entregador + taxa da Tucaí. A loja paga até R$ 2; o cliente o restante até R$ 5; o que faltar
-  é subsídio explícito da Tucaí (gravado em cada pedido e mostrado no Financeiro). O entregador nunca recebe menos.
+* **A Tucaí recebe R$ 1 em toda corrida (0043).** Entregador = cliente + loja − Tucaí. Não existe subsídio.
+  O banco recusa tabela em que entregador + Tucaí passe de (cliente máximo + loja máxima).
+* A versão 1 (5/6/7, com R$ 1 de subsídio de 3 a 5 km) fica no histórico; a 0043 cria a versão 2 (5/6/6) só se a
+  vigente ainda for a versão 1 original. Pedidos já feitos não mudam.
 * Frete grátis (Gestão → Entregas): cliente R$ 0 e a loja paga o custo total da corrida.
 * Entrega própria da loja: não usa as faixas (frete da loja; R$ 1 da Tucaí cobrado da loja).
 

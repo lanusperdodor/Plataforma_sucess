@@ -36,12 +36,13 @@ begin
   ok_items := jsonb_build_array(jsonb_build_object('product_id', cheese, 'quantity', 1));
 
   -- tabela aprovada (versão 1)
-  perform tsfr.ok((public.delivery_pricing_current()->>'versao')::int = 1, 'tabela vigente');
-  perform tsfr.ok((select (private.delivery_split(1500, false, p)) = '{"faixa":1,"versao":1,"distancia_m":1500,"loja_cents":200,"custo_cents":600,"tucai_cents":100,"cliente_cents":400,"frete_gratis":false,"subsidio_cents":0,"entregador_cents":500}'::jsonb from public.delivery_pricing p where is_current), 'até 1,5 km: 5 + 1 = 6 → cliente 4, loja 2');
+  perform tsfr.ok((public.delivery_pricing_current()->>'versao')::int = 2, 'tabela vigente (0043: versão 2, 5/6/6)');
+  perform tsfr.ok((select count(*) = 1 from public.delivery_pricing where version = 1 and not is_current), 'versão 1 (5/6/7) guardada no histórico');
+  perform tsfr.ok((select (private.delivery_split(1500, false, p)) = '{"faixa":1,"versao":2,"distancia_m":1500,"loja_cents":200,"custo_cents":600,"tucai_cents":100,"cliente_cents":400,"frete_gratis":false,"subsidio_cents":0,"entregador_cents":500}'::jsonb from public.delivery_pricing p where is_current), 'até 1,5 km: 5 + 1 = 6 → cliente 4, loja 2');
   perform tsfr.ok((select private.delivery_split(2400, false, p)->>'cliente_cents' = '500' and private.delivery_split(2400, false, p)->>'entregador_cents' = '600' and private.delivery_split(2400, false, p)->>'subsidio_cents' = '0' from public.delivery_pricing p where is_current), '1,5 a 3 km: 6 + 1 = 7 → cliente 5, loja 2');
-  perform tsfr.ok((select private.delivery_split(4200, false, p)->>'entregador_cents' = '700' and private.delivery_split(4200, false, p)->>'cliente_cents' = '500' and private.delivery_split(4200, false, p)->>'loja_cents' = '200' and private.delivery_split(4200, false, p)->>'subsidio_cents' = '100' from public.delivery_pricing p where is_current), '3 a 5 km: 7 + 1 = 8 → cliente 5, loja 2, subsídio Tucaí 1');
+  perform tsfr.ok((select private.delivery_split(4200, false, p)->>'entregador_cents' = '600' and private.delivery_split(4200, false, p)->>'cliente_cents' = '500' and private.delivery_split(4200, false, p)->>'loja_cents' = '200' and private.delivery_split(4200, false, p)->>'tucai_cents' = '100' and private.delivery_split(4200, false, p)->>'subsidio_cents' = '0' from public.delivery_pricing p where is_current), '3 a 5 km: cliente 5 + loja 2 = 7 − Tucaí 1 = entregador 6, sem subsídio');
   perform tsfr.ok((select private.delivery_split(5001, false, p) is null from public.delivery_pricing p where is_current), 'acima de 5 km: fora da área');
-  perform tsfr.ok((select private.delivery_split(4200, true, p)->>'cliente_cents' = '0' and private.delivery_split(4200, true, p)->>'loja_cents' = '800' and private.delivery_split(4200, true, p)->>'entregador_cents' = '700' from public.delivery_pricing p where is_current), 'frete grátis: cliente 0, loja assume o custo total; entregador não perde');
+  perform tsfr.ok((select private.delivery_split(4200, true, p)->>'cliente_cents' = '0' and private.delivery_split(4200, true, p)->>'loja_cents' = '700' and private.delivery_split(4200, true, p)->>'entregador_cents' = '600' from public.delivery_pricing p where is_current), 'frete grátis: cliente 0, loja assume o custo total; entregador não perde');
 
   -- cotação: só com a chave de integração (o navegador não consegue gravar distância)
   perform tsfr.anon();
@@ -80,12 +81,12 @@ begin
   o := public.place_order(lan, ok_items, 'delivery_partner', 'cash', 'Cliente 1', '(35) 99999-0001', 'Rua A, 1, Centro', null, null, null, 'fr-0000003');
   perform tsfr.ok((select delivery_band = 1 and delivery_quote_id is null from public.orders where id = o), 'cotação vencida é ignorada');
 
-  -- 3 a 5 km: subsídio explícito
+  -- 3 a 5 km: Tucaí recebe R$ 1, entregador R$ 6, sem subsídio
   perform tsfr.anon();
   q := public.worker_store_delivery_quote(key, c1, lan, -20.10, -44.60, 4800, 700, 'openrouteservice');
   perform tsfr.login(c1);
   o := public.place_order(lan, ok_items, 'delivery_partner', 'cash', 'Cliente 1', '(35) 99999-0001', 'Rua C, 3, Centro', null, null, null, 'fr-0000004');
-  perform tsfr.ok((select delivery_fee_cents = 500 and merchant_delivery_contribution_cents = 200 and courier_pay_cents = 700 and delivery_subsidy_cents = 100 and delivery_band = 3 from public.orders where id = o), '4,8 km: 5/2/7 + subsídio R$ 1');
+  perform tsfr.ok((select delivery_fee_cents = 500 and merchant_delivery_contribution_cents = 200 and courier_pay_cents = 600 and platform_delivery_fee_cents = 100 and delivery_subsidy_cents = 0 and delivery_band = 3 from public.orders where id = o), '4,8 km: cliente 5, loja 2, entregador 6, Tucaí 1');
 
   -- acima de 5 km: recusado
   perform tsfr.anon();
@@ -116,7 +117,8 @@ begin
   perform tsfr.denied($q$select public.admin_set_delivery_pricing('[{"ate_m":1000,"entregador_cents":100}]'::jsonb, 100, 500, 200, false)$q$, 'cliente muda a tabela de frete');
   perform tsfr.login(m);
   perform tsfr.denied($q$select public.admin_set_delivery_pricing('[{"ate_m":3000,"entregador_cents":500},{"ate_m":2000,"entregador_cents":600}]'::jsonb, 100, 500, 200, false)$q$, 'faixas fora de ordem');
-  perform tsfr.ok(public.admin_set_delivery_pricing('[{"ate_m":1500,"entregador_cents":500},{"ate_m":3000,"entregador_cents":600},{"ate_m":5000,"entregador_cents":700},{"ate_m":8000,"entregador_cents":900}]'::jsonb, 100, 500, 200, true) = 2, 'Master cria a versão 2 (faixa até 8 km)');
+  perform tsfr.denied($q$select public.admin_set_delivery_pricing('[{"ate_m":1500,"entregador_cents":500},{"ate_m":5000,"entregador_cents":700}]'::jsonb, 100, 500, 200, false)$q$, 'tabela em que a Tucaí deixaria de receber (7 + 1 > 5 + 2)');
+  perform tsfr.ok(public.admin_set_delivery_pricing('[{"ate_m":1500,"entregador_cents":500},{"ate_m":3000,"entregador_cents":600},{"ate_m":5000,"entregador_cents":600},{"ate_m":8000,"entregador_cents":800}]'::jsonb, 100, 600, 300, true) = 3, 'Master cria a versão 3 (faixa até 8 km, com cliente até 6 e loja até 3)');
   perform tsfr.ok(exists (select 1 from public.audit_logs where action = 'finance.delivery_pricing'), 'mudança auditada');
   perform tsfr.ok((select delivery_fee_cents = 500 and delivery_band = 2 from public.orders where idempotency_key = 'fr-0000001'), 'pedido antigo não muda');
   perform tsfr.login(c1);

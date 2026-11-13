@@ -117,6 +117,7 @@ async function main() {
       ...one('supabase/tests/rls_ofertas.sql'),
       ...one('supabase/tests/rls_manipulacao.sql'),
       ...one('supabase/tests/rls_frete.sql'),
+      ...one('supabase/tests/rls_endereco.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bike, CheckCircle2, Clock, FileCheck2, PauseCircle, ShieldCheck, Wallet, XCircle } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
+import { AddressFields } from '../components/forms/AddressFields.tsx'
+import { emptyAddress, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
+import { getCourierAddress, saveCourierAddress } from '../features/address/repository.ts'
+import { CourierAddressCard } from './courier/CourierAddressCard.tsx'
 import { LoginInvite } from '../components/feedback/LoginInvite.tsx'
 import { useToast } from '../components/feedback/toast-context.ts'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
@@ -51,8 +55,14 @@ function StatusCard({ c }: { c: MyCourier }) {
 function ApplicationForm({ existing }: { existing: MyCourier | null }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const { refreshAuthz } = useAuth()
+  const { refreshAuthz, session } = useAuth()
   const cities = useCities()
+  const [addr, setAddr] = useState<AddressParts>(emptyAddress())
+  const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
+  const uid = session?.user.id ?? ''
+  const savedAddr = useQuery({ queryKey: ['courier', 'endereco', uid], queryFn: () => getCourierAddress(uid), enabled: !!uid && !!existing })
+  const [addrTouched, setAddrTouched] = useState(false)
+  useEffect(() => { if (savedAddr.data && !addrTouched) setAddr(savedAddr.data) }, [savedAddr.data, addrTouched])
   const [v, setV] = useState<CourierForm>({
     fullName: existing?.fullName ?? '',
     phone: existing?.phone ?? '',
@@ -64,7 +74,11 @@ function ApplicationForm({ existing }: { existing: MyCourier | null }) {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const m = useMutation({
-    mutationFn: () => submitCourierApplication(v),
+    mutationFn: async () => {
+      await submitCourierApplication(v)
+      // o cadastro já existe: grava o endereço (se o banco ainda não tiver a 0042, o cadastro segue valendo)
+      try { await saveCourierAddress(addr) } catch { toast.error('Cadastro enviado, mas o endereço não foi salvo. Salve em "Meu endereço".') }
+    },
     onSuccess: () => {
       toast.success('Cadastro enviado para análise.')
       void qc.invalidateQueries({ queryKey: ['courier'] })
@@ -76,8 +90,11 @@ function ApplicationForm({ existing }: { existing: MyCourier | null }) {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const parsed = courierFormSchema.safeParse(v)
+    const ae = validateAddress(addr)
+    setAddrErrors(ae)
     if (!parsed.success) return setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])))
     setErrors({})
+    if (Object.keys(ae).length > 0) return toast.error('Confira o seu endereço.')
     m.mutate()
   }
   const err = (k: string) => (errors[k] ? <p role="alert" className="mt-1 text-xs text-danger">{errors[k]}</p> : null)
@@ -102,6 +119,11 @@ function ApplicationForm({ existing }: { existing: MyCourier | null }) {
           {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}, {c.state}</option>)}
         </select>
         {err('cityId')}
+      </div>
+      <div className="md:col-span-2">
+        <p className="mb-2 text-sm font-medium text-ink">Seu endereço</p>
+        <AddressFields idPrefix="ent-end" value={addr} onChange={(a) => { setAddrTouched(true); setAddr(a) }} errors={addrErrors} />
+        <p className="mt-1 text-xs text-ink-muted">Só você e a equipe da Tucaí que analisa os cadastros veem este endereço.</p>
       </div>
       <fieldset>
         <legend className="mb-1 text-sm font-medium text-ink">Veículo</legend>
@@ -172,6 +194,7 @@ export function CouriersPage() {
       ) : (
         <>
           {mine.data && <StatusCard c={mine.data} />}
+          {mine.data && mine.data.status !== 'rejected' && userId && <CourierAddressCard userId={userId} />}
           {(!mine.data || mine.data.status === 'rejected') && <ApplicationForm existing={mine.data ?? null} />}
         </>
       )}

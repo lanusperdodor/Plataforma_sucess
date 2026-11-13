@@ -328,3 +328,27 @@ export async function listBusinessReviews(businessId: string): Promise<BusinessR
 export async function replyReview(reviewId: string, reply: string): Promise<void> {
   await exec(supabase.rpc('reply_review', { _review: reviewId, _reply: reply.trim() }), z.unknown())
 }
+
+// ---------- frete por distância (0040): cotação calculada no servidor ----------
+export interface FreightQuote {
+  quoteId: string
+  outOfArea: boolean
+  distanceM: number
+  customerCents: number | null
+  band: number | null
+  freeDelivery: boolean
+}
+/** Pede ao servidor o frete pela rota POR RUAS até o ponto do cliente. O pedido usa essa cotação no banco. */
+export async function requestFreightQuote(businessId: string, lat: number, lng: number): Promise<FreightQuote> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new RepositoryError('forbidden', 'Entre na sua conta para calcular o frete.')
+  const res = await fetch('/api/frete', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ business: businessId, lat, lng }) })
+  const body = (await res.json().catch(() => ({}))) as { erro?: string; quote_id?: string; fora_da_area?: boolean; distancia_m?: number; split?: { cliente_cents?: number; faixa?: number; frete_gratis?: boolean } | null }
+  if (!res.ok || !body.quote_id) throw new RepositoryError('unknown', body.erro ?? 'Não foi possível calcular o frete agora.')
+  return {
+    quoteId: body.quote_id, outOfArea: !!body.fora_da_area, distanceM: body.distancia_m ?? 0,
+    customerCents: body.split?.cliente_cents ?? null, band: body.split?.faixa ?? null, freeDelivery: !!body.split?.frete_gratis,
+  }
+}

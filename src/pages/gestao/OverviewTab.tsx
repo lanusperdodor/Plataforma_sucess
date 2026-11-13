@@ -144,6 +144,12 @@ export function OverviewTab() {
               <dd className="font-bold tabular-nums text-ink">{fees === null ? dash : formatBRL(fees)}</dd>
             </div>
           </dl>
+          {m && m.partnerCustomerFeesCents > 0 && (
+            <p className="text-sm text-ink">
+              Além das taxas, na cobrança entra o <strong>frete pago pelos clientes</strong> nas entregas parceiras ({formatBRL(m.partnerCustomerFeesCents)}):
+              o entregador entrega esse valor à sua loja junto com o pedido, e a Tucaí usa para pagar o entregador.
+            </p>
+          )}
           <p className="text-sm text-ink-muted">As taxas são separadas da mensalidade e cobradas no fechamento do mês.</p>
         </Block>
       </div>

@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ReceiptText } from 'lucide-react'
+import { LocateFixed, ReceiptText } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { useToast } from '../components/feedback/toast-context.ts'
+import { currentPosition } from '../components/map/DeliveryTracking.tsx'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { cartSubtotal, clearCart, useCart } from '../features/cart/cartStore.ts'
 import type { BusinessSummary } from '../features/catalog/schemas.ts'
@@ -16,6 +17,8 @@ import {
   payments,
   placeOrder,
   previewDeliveryFee,
+  requestFreightQuote,
+  type FreightQuote,
   type CheckoutForm,
   type Fulfillment,
 } from '../features/orders/repository.ts'
@@ -46,6 +49,16 @@ export function CheckoutPage() {
   const key = useRef(newIdempotencyKey())
   const [v, setV] = useState<CheckoutForm>({ fulfillment: 'pickup', payment: 'pix_on_delivery', customerName: '', customerPhone: '', address: '', reference: '', notes: '', changeFor: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [quote, setQuote] = useState<FreightQuote | null>(null)
+  const [quoteMsg, setQuoteMsg] = useState<string | null>(null)
+  const calc = useMutation({
+    mutationFn: async () => {
+      const pos = await currentPosition()
+      return requestFreightQuote(cart!.business.id, pos.coords.latitude, pos.coords.longitude)
+    },
+    onSuccess: (q) => { setQuote(q); setQuoteMsg(null) },
+    onError: (e) => { setQuote(null); setQuoteMsg(e instanceof Error ? e.message : 'Não foi possível calcular o frete agora.') },
+  })
   const set = <K extends keyof CheckoutForm>(k: K, val: CheckoutForm[K]) => setV((p) => ({ ...p, [k]: val }))
   const startedFor = useRef('')
   useEffect(() => {
@@ -83,7 +96,9 @@ export function CheckoutPage() {
   if (modes.length === 0) return <Page><EmptyState icon={ReceiptText} title="Sem entrega ou retirada" description="Este estabelecimento desativou os pedidos pela Tucaí." /></Page>
   const mode = modes.includes(v.fulfillment) ? v.fulfillment : modes[0]!
   const subtotal = cartSubtotal(cart)
-  const fee = previewDeliveryFee(mode, b)
+  // entrega parceira: frete pela distância por ruas quando calculado; sem cálculo, o servidor usa a 1ª faixa
+  const fee = mode === 'delivery_partner' && quote && !quote.outOfArea && quote.customerCents !== null ? quote.customerCents : previewDeliveryFee(mode, b)
+  const outOfArea = mode === 'delivery_partner' && !!quote?.outOfArea
   const belowMin = subtotal < b.minOrderCents
 
   const submit = (e: FormEvent) => {
@@ -91,6 +106,7 @@ export function CheckoutPage() {
     const input = { ...v, fulfillment: mode }
     const parsed = checkoutSchema.safeParse(input)
     if (!parsed.success) return setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])))
+    if (outOfArea) return toast.error('Seu local está fora da área de entrega parceira desta loja.')
     setErrors({})
     place.mutate(input)
   }
@@ -112,7 +128,23 @@ export function CheckoutPage() {
             ))}
             {mode === 'pickup' && b.addressLine && <p className="text-sm text-ink-muted">Retirar em: {b.addressLine}</p>}
             {mode === 'delivery_own' && <p className="text-sm text-ink-muted">O próprio estabelecimento leva o pedido até você.</p>}
-            {mode === 'delivery_partner' && <p className="text-sm text-ink-muted">Um entregador parceiro da Tucaí coleta no estabelecimento quando o pedido ficar pronto.</p>}
+            {mode === 'delivery_partner' && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-ink-muted">Um entregador parceiro da Tucaí coleta no estabelecimento quando o pedido ficar pronto. O frete depende da distância pelas ruas.</p>
+                <button type="button" disabled={calc.isPending} onClick={() => calc.mutate()}
+                  className="pressable inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-brand px-5 text-base font-semibold text-ink sm:w-fit">
+                  <LocateFixed aria-hidden="true" className="size-5" />{calc.isPending ? 'Calculando…' : quote ? 'Recalcular pelo meu local' : 'Calcular frete pelo meu local'}
+                </button>
+                {quote && !quote.outOfArea && (
+                  <p role="status" className="rounded-xl bg-muted p-3 text-sm text-ink">
+                    Frete: <strong>{quote.customerCents ? formatBRL(quote.customerCents) : 'Grátis'}</strong> · {(quote.distanceM / 1000).toFixed(1).replace('.', ',')} km pelas ruas{quote.freeDelivery ? ' · frete grátis oferecido pela loja' : ''}. Use este local como ponto de entrega.
+                  </p>
+                )}
+                {outOfArea && <p role="alert" className="rounded-xl bg-muted p-3 text-sm font-semibold text-danger">Seu local fica a {(quote!.distanceM / 1000).toFixed(1).replace('.', ',')} km da loja, acima do limite da entrega parceira. Escolha retirada ou outra loja.</p>}
+                {quoteMsg && <p role="status" className="text-sm text-ink-muted">{quoteMsg}</p>}
+                {!quote && !quoteMsg && <p className="text-xs text-ink-muted">Sem o cálculo, vale o frete da menor faixa ({formatBRL(previewDeliveryFee('delivery_partner', b))}).</p>}
+              </div>
+            )}
           </fieldset>
 
           <fieldset className="grid grid-cols-1 gap-3 rounded-card border border-line bg-surface p-4 sm:grid-cols-2">

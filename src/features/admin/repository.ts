@@ -731,6 +731,9 @@ const deliveryMoneySchema = z.object({
   entregas_parceiras: num, clientes_pagaram_cents: num, lojas_pagaram_cents: num, entregadores_ganharam_cents: num, tucai_parceiras_cents: num,
   entregas_proprias: num, tucai_proprias_cents: num, teste_incluido: z.boolean(), pedidos_teste: num,
   saques_pagos_cents: num, saques_em_analise: num, saques_em_analise_cents: num, saldo_entregadores_cents: num,
+  /** 0040: subsídio da Tucaí (faixas em que cliente + loja não cobrem o custo) */
+  subsidios_cents: num.optional(),
+  por_faixa: z.array(z.object({ faixa: num, entregas: num, entregadores_cents: num, subsidios_cents: num })).optional(),
 })
 export type DeliveryMoney = z.infer<typeof deliveryMoneySchema>
 export const getDeliveryMoney = (from: string, to: string, includeTest: boolean) =>
@@ -750,3 +753,14 @@ export const listCourierWithdrawals = (status: 'solicitado' | 'pago' | 'recusado
   rpc('admin_courier_withdrawals', { _status: status, _include_test: true }, z.array(adminWithdrawalSchema))
 export const decideWithdrawal = (id: string, decision: 'pago' | 'recusado', note?: string) =>
   rpc('admin_decide_withdrawal', { _id: id, _decision: decision, _note: note ?? null }, z.any()).then(() => undefined)
+
+// ---------- tabela de frete por distância (0040) ----------
+const pricingSchema = z.object({
+  versao: num, faixas: z.array(z.object({ ate_m: num, entregador_cents: num })), tucai_cents: num, cliente_max_cents: num, loja_max_cents: num,
+  exige_cotacao: z.boolean(), atualizado_em: z.string(),
+  tabela: z.array(z.object({ faixa: num, entregador_cents: num, custo_cents: num, cliente_cents: num, loja_cents: num, subsidio_cents: num })).nullable(),
+})
+export type DeliveryPricing = z.infer<typeof pricingSchema>
+export const getDeliveryPricing = () => rpc('delivery_pricing_current', undefined, pricingSchema.nullable())
+export const saveDeliveryPricing = (p: { faixas: { ate_m: number; entregador_cents: number }[]; tucai_cents: number; cliente_max_cents: number; loja_max_cents: number; exige_cotacao: boolean }) =>
+  rpc('admin_set_delivery_pricing', { _bands: p.faixas, _platform_fee_cents: p.tucai_cents, _customer_max_cents: p.cliente_max_cents, _merchant_max_cents: p.loja_max_cents, _require_quote: p.exige_cotacao }, num)

@@ -26,6 +26,7 @@ import { createPaymentLink } from '../../features/payments/repository.ts'
 import { CourierPayouts } from './CourierPayouts.tsx'
 import { FinanceReportSection } from './FinanceReport.tsx'
 import { FinanceOverview } from './FinanceOverview.tsx'
+import { DeliveryPricingPanel } from './DeliveryPricingPanel.tsx'
 import { useAdminAccess } from './access-context.ts'
 import { BarList, ColumnChart } from './charts.tsx'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
@@ -321,6 +322,7 @@ function Charges({ canEdit }: { canEdit: boolean }) {
 const SUBTABS = [
   { to: '/admin/financeiro', label: 'Resumo', end: true },
   { to: '/admin/financeiro/entregas', label: 'Entregas e saques', end: false },
+  { to: '/admin/financeiro/frete', label: 'Frete por distância', end: false },
   { to: '/admin/financeiro/mensalidades', label: 'Mensalidades e cobranças', end: false },
   { to: '/admin/financeiro/relatorio', label: 'Relatório detalhado', end: false },
 ] as const
@@ -374,6 +376,7 @@ export function AdminFinance() {
       <Routes>
         <Route index element={<FinanceOverview />} />
         <Route path="entregas" element={<CourierPayouts canDecide={canEdit} />} />
+        <Route path="frete" element={<DeliveryPricingPanel canEdit={canEdit} />} />
         <Route path="mensalidades" element={<PlansAndCharges canEdit={canEdit} />} />
         <Route path="relatorio" element={<><Charts /><FinanceReportSection /></>} />
         <Route path="*" element={<Navigate to="/admin/financeiro" replace />} />

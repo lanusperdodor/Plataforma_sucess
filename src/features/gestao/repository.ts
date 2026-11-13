@@ -220,6 +220,8 @@ export interface MonthMoney {
   commissionBaseCents: number
   partnerFeesCents: number
   ownFeesCents: number
+  /** frete pago pelos clientes nas entregas parceiras: a loja recebe (do entregador) e repassa à Tucaí, que paga o entregador */
+  partnerCustomerFeesCents: number
   /** contribuição por entrega parceira + tarifa por entrega própria (nunca as duas somadas) */
   deliveryFeesCents: number
 }
@@ -232,14 +234,25 @@ export async function getMonthMoney(businessId: string): Promise<MonthMoney> {
     .eq('business_id', businessId).in('status', ['delivered', 'picked_up']).gte('updated_at', start.toISOString()).limit(5000)
   if (error) throw mapPostgrestError(error)
   const rows = z.array(monthOrderSchema).parse(data ?? [])
-  const m: MonthMoney = { orders: rows.length, deliveries: 0, partnerDeliveries: 0, ownDeliveries: 0, receivedCents: 0, commissionCents: 0, commissionOrders: 0, commissionBaseCents: 0, partnerFeesCents: 0, ownFeesCents: 0, deliveryFeesCents: 0 }
+  const m: MonthMoney = { orders: rows.length, deliveries: 0, partnerDeliveries: 0, ownDeliveries: 0, receivedCents: 0, commissionCents: 0, commissionOrders: 0, commissionBaseCents: 0, partnerFeesCents: 0, ownFeesCents: 0, partnerCustomerFeesCents: 0, deliveryFeesCents: 0 }
   for (const r of rows) {
     m.receivedCents += r.subtotal_cents + (r.fulfillment === 'delivery_own' ? r.delivery_fee_cents : 0)
     m.commissionCents += r.commission_cents
     if (r.commission_cents > 0) { m.commissionOrders++; m.commissionBaseCents += r.subtotal_cents }
-    if (r.fulfillment === 'delivery_partner') { m.deliveries++; m.partnerDeliveries++; m.partnerFeesCents += r.merchant_delivery_contribution_cents }
+    if (r.fulfillment === 'delivery_partner') { m.deliveries++; m.partnerDeliveries++; m.partnerFeesCents += r.merchant_delivery_contribution_cents; m.partnerCustomerFeesCents += r.delivery_fee_cents }
     if (r.fulfillment === 'delivery_own') { m.deliveries++; m.ownDeliveries++; m.ownFeesCents += r.platform_delivery_fee_cents }
   }
   m.deliveryFeesCents = m.partnerFeesCents + m.ownFeesCents
   return m
 }
+
+// ---------- frete grátis da loja (0040) ----------
+/** null quando o banco ainda não tem a 0040 (o controle fica escondido). */
+export async function getFreeDelivery(businessId: string): Promise<boolean | null> {
+  if (!isSupabaseConfigured) return null
+  const { data, error } = await supabase.from('businesses').select('free_delivery').eq('id', businessId).maybeSingle()
+  if (error || !data) return null
+  return !!(data as { free_delivery?: boolean }).free_delivery
+}
+export const setFreeDelivery = (businessId: string, on: boolean) =>
+  rpc('merchant_set_free_delivery', { _business: businessId, _on: on }, z.unknown()).then(() => undefined)

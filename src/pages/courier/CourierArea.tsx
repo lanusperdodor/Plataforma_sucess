@@ -108,7 +108,7 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
       {(
         <p className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm text-ink">
           <Banknote aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          Pagamento: {PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · levar troco para ${formatBRL(d.changeForCents)}` : ''}. Combine o repasse com o estabelecimento.
+          Pagamento: {PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · levar troco para ${formatBRL(d.changeForCents)}` : ''}. Receba do cliente e entregue o valor total ao estabelecimento. Seu ganho de {formatBRL(d.payCents)} entra na sua carteira Tucaí.
         </p>
       )}
       {d.status === 'accepted' ? (

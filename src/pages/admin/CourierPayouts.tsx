@@ -67,6 +67,7 @@ export function CourierPayouts({ canDecide }: { canDecide: boolean }) {
             <Flow label="Saques pagos no período" value={m.saques_pagos_cents} icon={Banknote} tone="bg-muted text-ink" />
             <Flow label={`Saques em análise (${m.saques_em_analise})`} value={m.saques_em_analise_cents} icon={Wallet} tone="bg-muted text-ink" />
             <Flow label="Saldo dos entregadores (a pagar)" value={m.saldo_entregadores_cents} icon={Bike} tone="bg-muted text-ink" />
+            {(m.subsidios_cents ?? 0) > 0 && <Flow label="Subsídio da Tucaí (entregas longas)" value={m.subsidios_cents ?? 0} icon={Wallet} tone="bg-muted text-ink" sign="− " />}
           </div>
         </>
       )}

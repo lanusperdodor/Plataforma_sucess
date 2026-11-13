@@ -58,7 +58,9 @@ export function FinanceOverview() {
   // quantidade de entregas (0036); sem ela o resumo funciona igual, só sem a contagem
   const counts = useQuery({ queryKey: ['admin', 'delivery-money', range.from, range.to, includeTest], queryFn: () => getDeliveryMoney(range.from, range.to, includeTest), retry: false })
   const d = r.data
-  const delivery = d?.confirmado.taxas_plataforma_cents ?? 0
+  // taxa por entrega menos o subsídio da Tucaí nas faixas longas (0040)
+  const subsidy = counts.data?.subsidios_cents ?? 0
+  const delivery = (d?.confirmado.taxas_plataforma_cents ?? 0) - subsidy
   const commission = d?.confirmado.comissao_cents ?? 0
   const plans = d?.mensalidades.recebido_cents ?? 0
   const total = delivery + commission + plans
@@ -92,7 +94,7 @@ export function FinanceOverview() {
 
           <div className="rounded-card border border-line bg-surface px-4 sm:px-5">
             <div className="divide-y divide-line">
-              <Line icon={Bike} label="Entregas" hint="Taxa da Tucaí em cada entrega concluída (entregador parceiro ou da loja)." value={v(delivery)} />
+              <Line icon={Bike} label="Entregas" hint={subsidy > 0 ? `Taxa da Tucaí por entrega concluída, já descontado o subsídio de ${formatBRL(subsidy)} das entregas longas.` : 'Taxa da Tucaí em cada entrega concluída (entregador parceiro ou da loja).'} value={v(delivery)} />
               <Line icon={Percent} label="Comissões" hint="Percentual sobre os pedidos de valor maior." value={v(commission)} />
               <Line icon={Receipt} label="Mensalidades recebidas" hint="Planos pagos pelos estabelecimentos neste período." value={v(plans)} />
               <div className="flex items-center justify-between gap-3 py-3">

@@ -33,7 +33,6 @@ import { ownDeliveries, ownDeliveryStatus, type OwnDelivery } from '../../featur
 import { formatBRL } from '../../lib/money.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 import { LiveLocation } from './LiveLocation.tsx'
-import { googleMapsRoute } from '../../features/rastreamento/geo.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -94,13 +93,13 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className={`rounded-xl border p-3 ${d.status === 'accepted' ? 'border-brand' : 'border-line'}`}>
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><Package aria-hidden="true" className="size-4" />1. Coletar em {d.businessName}</p>
-          {d.businessAddress && <a href={googleMapsRoute(null, d.businessAddress) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.businessAddress}</a>}
+          {d.businessAddress && <p className="text-sm text-ink">{d.businessAddress}</p>}
           {bizTel && <a href={`tel:${bizTel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para a loja</a>}
         </div>
         <div className={`rounded-xl border p-3 ${d.status === 'picked_up' ? 'border-brand' : 'border-line'}`}>
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><MapPin aria-hidden="true" className="size-4" />2. Entregar para {d.customerName ?? 'o cliente'}</p>
           {!d.customerName && <p className="text-sm text-ink-muted">Endereço e contato aparecem quando o estabelecimento aceitar o pedido.</p>}
-          {d.address && <a href={googleMapsRoute(null, d.address) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-sm text-brand underline">{d.address}</a>}
+          {d.address && <p className="text-sm text-ink">{d.address}</p>}
           {d.reference && <p className="text-sm text-ink-muted">Referência: {d.reference}</p>}
           {tel && <a href={`tel:${tel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para o cliente</a>}
         </div>
@@ -170,8 +169,8 @@ function OwnCard({ d }: { d: OwnDelivery }) {
         <p className="font-semibold text-ink">#{d.code} · {d.businessName}</p>
         <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-ink">{STATUS_LABEL[d.status as keyof typeof STATUS_LABEL] ?? d.status}</span>
       </div>
-      {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: <a href={googleMapsRoute(null, d.businessAddress) ?? undefined} target="_blank" rel="noopener noreferrer" className="underline">{d.businessAddress}</a></p>}
-      <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? <>: <a href={googleMapsRoute(null, d.address) ?? undefined} target="_blank" rel="noopener noreferrer" className="underline">{d.address}</a></> : null}{d.reference ? ` (${d.reference})` : ''}</p>
+      {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: {d.businessAddress}</p>}
+      <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? `: ${d.address}` : null}{d.reference ? ` (${d.reference})` : ''}</p>
       <p className="text-sm text-ink-muted">{PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · troco para ${formatBRL(d.changeForCents)}` : ''}</p>
       <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} />
       <div className="flex flex-wrap gap-2">

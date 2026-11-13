@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DeliveryTracking } from '../components/map/DeliveryTracking.tsx'
-import { Bike, Check, KeyRound, MessageCircle, ReceiptText, Star } from 'lucide-react'
+import { Bike, Check, KeyRound, MessageCircle, ReceiptText, Star, MapPinned } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
@@ -220,6 +220,11 @@ export function OrderPage() {
               )}
               <p className="text-xs text-ink-muted">Informe o código ao entregador só quando receber o pedido.</p>
             </>
+          )}
+          {(d.status === 'accepted' || d.status === 'picked_up') && (
+            <a href="#mapa-da-entrega" className="pressable inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface sm:w-fit">
+              <MapPinned aria-hidden="true" className="size-5" />Ver rota de entrega
+            </a>
           )}
         </section>
       )}

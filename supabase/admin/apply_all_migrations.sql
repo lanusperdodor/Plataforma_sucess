@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0038) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0039) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -11502,5 +11502,67 @@ $tucai_sql$;
     raise notice 'Tucaí 0038: aplicada agora';
   end if;
 end $tucai_0038$;
+
+-- ===================== supabase/migrations/0039_rastreamento_broadcast.sql =====================
+do $tucai_0039$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0039') then
+    raise notice 'Tucaí 0039: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0039_rastreamento_broadcast: avisos do rastreamento por Supabase Realtime Broadcast em canal PRIVADO, um por pedido.
+--  * Tópico: 'rastreio:<id do pedido>'. Só recebe quem pode ver o pedido (public.can_view_order): cliente do pedido,
+--    equipe do estabelecimento, entregador atribuído (parceiro ou próprio) e equipe da plataforma com orders.view.
+--  * Ninguém publica pelo navegador (não há política de INSERT): só o banco envia, por gatilho, quando a posição/rota muda.
+--  * A mensagem NÃO leva coordenadas: o app recebe "atualizado" e lê delivery_tracking(), que arredonda por perfil (0037).
+--  * O aviso por postgres_changes da 0037 continua funcionando como reserva.
+--  * Fora do Supabase (banco local de testes) o esquema realtime não existe: o bloco abaixo não faz nada.
+
+-- extrai o pedido do tópico sem quebrar com tópicos de outro formato
+create or replace function public.tracking_topic_order(_topic text) returns uuid
+language plpgsql immutable set search_path = '' as $$
+begin
+  if _topic !~ '^rastreio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return null; end if;
+  return substr(_topic, 10)::uuid;
+end $$;
+-- só converte texto em id (não lê dados); usada pela política de recebimento
+revoke all on function public.tracking_topic_order(text) from public, anon;
+grant execute on function public.tracking_topic_order(text) to authenticated;
+
+do $$
+begin
+  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'realtime' and p.proname = 'send')
+     or not exists (select 1 from pg_tables where schemaname = 'realtime' and tablename = 'messages') then
+    raise notice 'Tucaí 0039: Realtime Broadcast indisponível neste banco (ambiente local); nada a fazer.';
+    return;
+  end if;
+
+  execute $f$
+    create or replace function private.tracking_broadcast() returns trigger
+    language plpgsql security definer set search_path = '' as $b$
+    begin
+      perform realtime.send(jsonb_build_object('version', new.version), 'atualizado', 'rastreio:' || new.order_id::text, true);
+      return null;
+    end $b$
+  $f$;
+  execute 'revoke all on function private.tracking_broadcast() from public, anon, authenticated';
+  execute 'drop trigger if exists delivery_tracking_broadcast on public.delivery_tracking_ticks';
+  execute 'create trigger delivery_tracking_broadcast after insert or update on public.delivery_tracking_ticks for each row execute function private.tracking_broadcast()';
+
+  -- receber: só quem pode ver o pedido do tópico
+  execute 'drop policy if exists tucai_rastreio_receber on realtime.messages';
+  execute $p$
+    create policy tucai_rastreio_receber on realtime.messages for select to authenticated
+      using (realtime.messages.extension = 'broadcast'
+             and public.tracking_topic_order(realtime.topic()) is not null
+             and public.can_view_order(public.tracking_topic_order(realtime.topic())))
+  $p$;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0039', '0039_rastreamento_broadcast.sql', 'applied');
+    raise notice 'Tucaí 0039: aplicada agora';
+  end if;
+end $tucai_0039$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

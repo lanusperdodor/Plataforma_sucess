@@ -66,7 +66,7 @@ export function DeliveryTracking({ orderId }: { orderId: string }) {
   const toneClass = { ok: 'text-success', warn: 'text-ink', off: 'text-danger', wait: 'text-ink-muted' }[s.tone]
 
   return (
-    <section aria-labelledby="mapa-entrega" className="flex flex-col gap-3">
+    <section id="mapa-da-entrega" aria-labelledby="mapa-entrega" className="flex scroll-mt-20 flex-col gap-3">
       <h2 id="mapa-entrega" className="flex items-center gap-2 text-base font-semibold text-ink"><MapPinned aria-hidden="true" className="size-5" />Acompanhe no mapa</h2>
       <Suspense fallback={<div className="h-72 animate-pulse rounded-card bg-muted sm:h-96" aria-hidden="true" />}>
         <DeliveryMap
@@ -87,7 +87,7 @@ export function DeliveryTracking({ orderId }: { orderId: string }) {
         {est && (
           <p className="flex items-center gap-2 text-sm text-ink">
             <Navigation aria-hidden="true" className="size-4" />
-            <span><strong>{formatDistance(est.remainingM)}</strong> · cerca de <strong>{est.etaMin} min</strong> {t.leg === 'coleta' ? 'até a loja' : 'até você'}</span>
+            <span><strong>{formatDistance(est.remainingM)}</strong> · cerca de <strong>{est.etaMin} min</strong> {t.leg === 'coleta' ? 'até a loja' : t.viewer === 'cliente' ? 'até você' : 'até o cliente'}</span>
           </p>
         )}
       </div>
@@ -95,6 +95,7 @@ export function DeliveryTracking({ orderId }: { orderId: string }) {
         <p className="text-xs text-ink-muted">Até a retirada do pedido, a posição do entregador aparece aproximada (cerca de 100 m), para proteger a privacidade dele.</p>
       )}
       {t.route && !est && t.position && !stale && <p className="text-xs text-ink-muted">Distância e previsão aparecem quando o entregador está no trajeto calculado.</p>}
+      {!t.route && t.position && t.leg && <p className="text-xs text-ink-muted">A rota pelas ruas aparece assim que for calculada para esta etapa. Até lá, o mapa mostra só as posições reais.</p>}
       {canMark && (
         <div className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-ink">Está no local de entrega? Marque o ponto exato para o entregador chegar mais fácil e o mapa mostrar a rota até você.</p>

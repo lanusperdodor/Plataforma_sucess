@@ -3,6 +3,7 @@ import { Navigation, Radio, Square } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { googleMapsRoute, routeProgress, shouldSend, OFF_ROUTE_M, type LngLat } from '../../features/rastreamento/geo.ts'
 import { getTracking, requestRoute, sendLocation, stopSharing } from '../../features/rastreamento/repository.ts'
+import { DeliveryTracking } from '../../components/map/DeliveryTracking.tsx'
 
 type WakeLockLike = { release(): Promise<void> }
 const nav = () => navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<WakeLockLike> } }
@@ -16,6 +17,7 @@ const nav = () => navigator as Navigator & { wakeLock?: { request(type: 'screen'
 export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { orderId: string; pickupAddress: string | null; dropoffAddress: string | null }) {
   const qc = useQueryClient()
   const [on, setOn] = useState(false)
+  const [showMap, setShowMap] = useState(false)
   const [state, setState] = useState<{ sentAt: number | null; error: string | null; accuracy: number | null; hidden: boolean }>({ sentAt: null, error: null, accuracy: null, hidden: false })
   const watch = useRef<number | null>(null)
   const last = useRef<{ at: number; pos: LngLat } | null>(null)
@@ -112,11 +114,12 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
-      {dest && (
-        <a href={dest} target="_blank" rel="noopener noreferrer" className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface">
-          <Navigation aria-hidden="true" className="size-5" />{leg === 'entrega' ? 'Rota até o cliente no Google Maps' : 'Rota até a loja no Google Maps'}
-        </a>
-      )}
+      {/* mapa da rota DENTRO da Tucaí (loja, entregador, destino e rota pelas ruas) */}
+      <button type="button" onClick={() => setShowMap((v) => !v)} aria-expanded={showMap}
+        className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface">
+        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar mapa' : leg === 'entrega' ? 'Ver rota de entrega' : 'Ver rota até a loja'}
+      </button>
+      {showMap && <DeliveryTracking orderId={orderId} />}
       {on ? (
         <>
           <p role="status" className="flex items-center gap-2 text-sm font-semibold text-success">
@@ -138,6 +141,11 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
         {state.hidden && on ? 'O app está em segundo plano: o navegador pode pausar o envio até você voltar para esta tela. ' : ''}
         O cliente vê sua posição só durante esta entrega (aproximada até a retirada). Mantenha esta tela aberta: com a tela bloqueada o navegador pode parar de enviar.
       </p>
+      {dest && (
+        <a href={dest} target="_blank" rel="noopener noreferrer" className="w-fit text-xs font-medium text-ink-muted underline">
+          Prefere navegação por voz? Abrir no app Google Maps (opcional, sai da Tucaí)
+        </a>
+      )}
     </div>
   )
 }

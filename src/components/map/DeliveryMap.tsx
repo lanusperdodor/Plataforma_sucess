@@ -3,6 +3,7 @@ import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 // o worker do mapa é servido pelo próprio site (CSP sem blob:)
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import { LocateFixed } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { LngLat } from '../../features/rastreamento/geo.ts'
 
@@ -156,5 +157,21 @@ export default function DeliveryMap({ business, destination, position, heading, 
     m.fitBounds(b, { padding: 56, maxZoom: 16, duration: 0 })
   }, [business, destination, position])
 
-  return <div ref={box} role="img" aria-label={label} className="tucai-map h-72 w-full overflow-hidden rounded-card border border-line sm:h-96" />
+  const center = () => {
+    const m = map.current
+    if (!m || !position) return
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    m.easeTo({ center: position, zoom: Math.max(m.getZoom(), 15), duration: reduce ? 0 : 600 })
+  }
+  return (
+    <div className="relative">
+      <div ref={box} role="img" aria-label={label} className="tucai-map h-80 w-full overflow-hidden rounded-card border border-line sm:h-96" />
+      {position && (
+        <button type="button" onClick={center}
+          className="pressable absolute left-3 top-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink shadow-[var(--shadow-card)]">
+          <LocateFixed aria-hidden="true" className="size-4" />Centralizar no entregador
+        </button>
+      )}
+    </div>
+  )
 }

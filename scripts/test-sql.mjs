@@ -113,12 +113,15 @@ async function main() {
       ...one('supabase/tests/rls_carteira.sql'),
       ...one('supabase/tests/rls_rastreamento.sql'),
       ...one('supabase/tests/rls_notificacoes.sql'),
+      ...one('supabase/tests/rls_broadcast.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 
     for (const file of files) {
       const label = file.slice(root.length + 1);
-      const sql = readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+      // "-- @include caminho" insere outro arquivo (ex.: reaplicar uma migration sobre um esquema simulado no teste)
+      const sql = readFileSync(file, 'utf8').replace(/^\uFEFF/, '')
+        .replace(/^-- @include (.+)$/gm, (_m, rel) => readFileSync(join(root, rel.trim()), 'utf8').replace(/^\uFEFF/, ''));
       console.log(`> ${label}`);
       const p = spawnSync(
         tool('psql'),

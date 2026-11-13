@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
-import { HeartHandshake, MessagesSquare, ShieldCheck, Users } from 'lucide-react'
+import { Camera, HeartHandshake, ImagePlus, MessagesSquare, ShieldCheck, Users, X } from 'lucide-react'
 import { ConectuaiNav } from './conectuai/ConectuaiNav.tsx'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -24,6 +24,8 @@ import {
   type SocialProfile,
 } from '../features/conecta/repository.ts'
 import { getSponsoredFeed, trackAd } from '../features/ads/repository.ts'
+import { checkSelection, prepareForPost, type PreparedMedia } from '../features/media/media.ts'
+import { uploadAndAttach, uploadAvatar } from '../features/media/repository.ts'
 import { useCurrentCity } from '../features/location/cityStore.ts'
 import { listMyBusinesses, listProducts } from '../features/merchant/repository.ts'
 import { canInBusiness } from '../features/permissions/permissions.ts'
@@ -60,6 +62,12 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
     testimonialsEnabled: existing?.testimonialsEnabled ?? true,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // foto enviada do aparelho (5 MB, reduzida para 512 px); o endereço público vai para o mesmo campo do perfil
+  const avatar = useMutation({
+    mutationFn: (f: File) => uploadAvatar(session!.user.id, f),
+    onSuccess: (url) => { setV((p) => ({ ...p, avatarUrl: url })); toast.success('Foto enviada. Salve o perfil para aplicar.') },
+    onError: (e) => toast.error(errMsg(e)),
+  })
   const save = useMutation({
     mutationFn: () => saveMyProfile(session!.user.id, v, !!existing),
     onSuccess: () => {
@@ -97,7 +105,15 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
         <textarea id="sp-bio" maxLength={300} value={v.bio} onChange={(e) => set('bio', e.target.value)} className={`${field} min-h-20 py-2`} />
       </div>
       <div>
-        <label htmlFor="sp-avatar" className="mb-1 block text-sm font-medium text-ink">Foto (endereço https, opcional)</label>
+        <span className="mb-1 block text-sm font-medium text-ink">Foto (opcional)</span>
+        <div className="flex items-center gap-3">
+          {v.avatarUrl && <img src={v.avatarUrl} alt="Foto atual" width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" />}
+          <label className={`${btn} cursor-pointer border border-line text-ink ${avatar.isPending ? 'pointer-events-none opacity-60' : ''}`}>
+            <Camera aria-hidden="true" className="size-4" />{avatar.isPending ? 'Enviando…' : 'Enviar foto'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) avatar.mutate(f); e.target.value = '' }} />
+          </label>
+        </div>
+        <label htmlFor="sp-avatar" className="mb-1 mt-2 block text-xs text-ink-muted">ou cole um endereço https da imagem (até 5 MB ao enviar do aparelho)</label>
         <input id="sp-avatar" inputMode="url" value={v.avatarUrl} onChange={(e) => set('avatarUrl', e.target.value)} className={`${field} min-h-11`} />
         {err('avatarUrl')}
       </div>
@@ -153,11 +169,38 @@ function Composer({ profile }: { profile: SocialProfile }) {
   const businesses = useQuery({ queryKey: ['merchant', 'list', userId], queryFn: () => listMyBusinesses(userId) })
   const publishable = (businesses.data ?? []).filter((b) => b.status === 'active' && (canInBusiness(authz, 'store.customize', b.id) || canInBusiness(authz, 'settings.manage', b.id)))
   const products = useQuery({ queryKey: ['merchant', 'products', as], queryFn: () => listProducts(as), enabled: !!as })
+  // fotos (até 5) ou 1 vídeo, já conferidos e comprimidos no aparelho
+  const [media, setMedia] = useState<{ item: PreparedMedia; preview: string }[]>([])
+  const [preparing, setPreparing] = useState(false)
+  const pick = async (list: FileList | null) => {
+    if (!list || list.length === 0) return
+    setPreparing(true)
+    const next = [...media]
+    for (const f of Array.from(list)) {
+      try {
+        const item = await prepareForPost(f)
+        const problem = checkSelection([...next.map((m) => m.item), item])
+        if (problem) { toast.error(problem); break }
+        next.push({ item, preview: URL.createObjectURL(item.blob) })
+      } catch (e) { toast.error(errMsg(e)) }
+    }
+    setMedia(next)
+    setPreparing(false)
+  }
+  const removeMedia = (i: number) => setMedia((m) => { URL.revokeObjectURL(m[i]!.preview); return m.filter((_, j) => j !== i) })
   const post = useMutation({
-    mutationFn: () => createPost({ body, cityId: city?.id ?? null, businessId: as || null, productId: productId || null, sharedPostId: null }),
+    mutationFn: async () => {
+      const id = await createPost({ body, cityId: city?.id ?? null, businessId: as || null, productId: productId || null, sharedPostId: null })
+      if (media.length > 0) {
+        try { await uploadAndAttach(id, userId, media.map((m) => m.item)) } catch (e) { toast.error(`Publicado, mas sem as fotos/vídeo: ${errMsg(e)}`) }
+      }
+      return id
+    },
     onSuccess: () => {
       setBody('')
       setProductId('')
+      media.forEach((m) => URL.revokeObjectURL(m.preview))
+      setMedia([])
       refresh()
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -195,10 +238,31 @@ function Composer({ profile }: { profile: SocialProfile }) {
           )}
         </div>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-ink-muted">{body.length}/2000 caracteres</span>
-        <button type="submit" disabled={post.isPending || !body.trim()} className={`${btn} bg-orange text-ink`}>{post.isPending ? 'Publicando…' : 'Publicar'}</button>
+      {media.length > 0 && (
+        <ul aria-label="Arquivos para publicar" className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {media.map((m, i) => (
+            <li key={m.preview} className="relative overflow-hidden rounded-xl bg-muted">
+              {m.item.kind === 'image'
+                ? <img src={m.preview} alt={`Foto ${i + 1}`} className="aspect-square w-full object-cover" />
+                : <video src={m.preview} muted playsInline preload="metadata" aria-label="Vídeo selecionado" className="aspect-square w-full object-cover" />}
+              <button type="button" onClick={() => removeMedia(i)} aria-label={`Remover ${m.item.kind === 'image' ? `foto ${i + 1}` : 'vídeo'}`}
+                className="pressable absolute right-1 top-1 grid size-8 place-items-center rounded-full bg-ink/70 text-surface"><X aria-hidden="true" className="size-4" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <label className={`${btn} cursor-pointer border border-line text-ink ${preparing || post.isPending ? 'pointer-events-none opacity-60' : ''}`}>
+            <ImagePlus aria-hidden="true" className="size-4" />{preparing ? 'Preparando…' : 'Fotos ou vídeo'}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple className="sr-only"
+              onChange={(e) => { void pick(e.target.files); e.target.value = '' }} />
+          </label>
+          <span className="text-xs text-ink-muted">{body.length}/2000</span>
+        </div>
+        <button type="submit" disabled={post.isPending || preparing || !body.trim()} className={`${btn} bg-orange text-ink`}>{post.isPending ? 'Publicando…' : 'Publicar'}</button>
       </div>
+      <p className="text-xs text-ink-muted">Até 5 fotos (10 MB cada) ou 1 vídeo de até 60 segundos e 50 MB. As fotos são reduzidas e perdem a localização do arquivo antes do envio.</p>
     </form>
   )
 }

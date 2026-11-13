@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { PostMediaView } from './PostMediaView.tsx'
 import { Bookmark, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Pencil, Repeat2, Rocket, Share2, ShoppingBag, Store, Trash2, UserX } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -360,6 +361,7 @@ export function PostCard({ post, startOpen = false, sponsored = false }: { post:
             <span className="text-sm font-semibold text-brand">Ver</span>
           </Link>
         )}
+        <PostMediaView media={post.media} />
         {post.shared && <SharedPreview post={post.shared} />}
         {post.sharedUnavailable && <p className="rounded-2xl border border-dashed border-line p-3 text-sm text-ink-muted">Publicação original indisponível.</p>}
       </div>

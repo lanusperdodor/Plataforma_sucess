@@ -25,6 +25,7 @@ import { AdsTab } from './AdsTab.tsx'
 import { CashRegisterTab } from './CashRegisterTab.tsx'
 import { GestaoContext, useGestao, type GestaoCtx } from './context.ts'
 import { CostingPanel } from './CostingPanel.tsx'
+import { DeliveriesTab } from './DeliveriesTab.tsx'
 import { KitchenTab } from './KitchenTab.tsx'
 import { gestaoNav, NAV_GROUPS, NICHE_LABEL, nicheOf, type NavGroupId } from './nav.ts'
 import { PanelDrawer, PanelMenuButton, PanelSidebar, type PanelNavGroup } from '../../components/panel/PanelNav.tsx'
@@ -211,7 +212,8 @@ function GestaoHeader({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: bool
 /** "Você está em": grupo colorido + módulo + para que serve. Ajuda a não se perder. */
 function PageHeading() {
   const { current } = useCurrentItem()
-  if (!current) return null
+  // o Início já tem o próprio título
+  if (!current || current.to === '') return null
   const g = NAV_GROUPS[current.group]
   return (
     <div className="flex items-center gap-3">
@@ -255,6 +257,7 @@ function GestaoRoutes() {
       <Route path="cardapio" element={guard('menu.manage', <MenuTab b={b} />)} />
       <Route path="pedidos" element={guard('orders.view', <OrdersTab businessId={b.id} canUpdate={can('orders.update_status')} kitchen={role === 'kitchen'} />)} />
       <Route path="cozinha" element={guard('orders.view', <KitchenTab />)} />
+      <Route path="entregas" element={guard('orders.view', <DeliveriesTab />)} />
       <Route path="mesas/*" element={prem('tabs.manage', 'Comandas e mesas', <TablesTab />)} />
       <Route path="caixa" element={prem('cash.manage', 'Caixa presencial', <CashRegisterTab />)} />
       <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />

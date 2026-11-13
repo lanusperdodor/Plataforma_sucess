@@ -12,7 +12,7 @@ vi.mock('../../features/courier/repository.ts', async (orig) => {
     getMyCourier: () => Promise.resolve({ userId: 'k1', fullName: 'Entregador Teste', vehicle: 'moto', plate: 'TST1A23', status: 'approved', isOnline: true }),
     myDeliveries: () => Promise.resolve([]),
     getEarnings: () => Promise.resolve({ todayCents: 0, weekCents: 0, totalCents: 1500, deliveries: 3, wallet: true, heldCents: 500, availableCents: 1000,
-      pendingCents: 0, withdrawnCents: 0, holdDays: 7, releases: [{ dia: '2026-11-20', cents: 500 }] }),
+      pendingCents: 0, withdrawnCents: 0, holdDays: 7, releases: [{ dia: '2026-11-20', cents: 500 }], monthCents: 4500, deliveriesToday: 3, deliveriesMonth: 9 }),
     listWithdrawals: () => Promise.resolve([]),
     requestWithdrawal: (pix: string) => { h.withdraw(pix); return Promise.resolve(1000) },
     listOffers: () => Promise.resolve([{ orderId: 'o1', businessName: '[Teste] Lanchonete do Tuca', businessAddress: 'Rua de Teste, 100', payCents: 500,
@@ -36,7 +36,7 @@ describe('Área do entregador', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByText(/Responda em [12]:\d\d · 2ª rodada/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Compartilhar minha localização/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Informar minha localização/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Recusar' }))
     await vi.waitFor(() => expect(h.decline).toHaveBeenCalledWith('o1'))
     fireEvent.click(screen.getByRole('button', { name: 'Aceitar entrega' }))
@@ -55,5 +55,19 @@ describe('Área do entregador', () => {
     fireEvent.change(screen.getByLabelText('Chave Pix para receber'), { target: { value: 'chave@pix.example' } })
     fireEvent.click(screen.getByRole('button', { name: 'Pedir saque' }))
     await vi.waitFor(() => expect(h.withdraw).toHaveBeenCalledWith('chave@pix.example'))
+  })
+
+  it('início: online/offline, entregas e ganhos do dia e do mês, saldo e botão Solicitar saque', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/entregador']}><Routes><Route path="/entregador/*" element={<CourierArea />} /></Routes></MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('Online')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Ficar offline/ })).toBeInTheDocument()
+    expect(await screen.findByText('R$ 45,00')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getAllByText('R$ 10,00').length).toBeGreaterThan(0)
+    expect(screen.getByRole('link', { name: /Solicitar saque/ })).toHaveAttribute('href', '/entregador/saques')
   })
 })

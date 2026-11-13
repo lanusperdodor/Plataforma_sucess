@@ -50,11 +50,11 @@ describe('Tucaí Gestão em tela cheia', () => {
     expect(screen.getByRole('link', { name: /Voltar à Tucaí/ })).toHaveAttribute('href', '/')
     expect(await screen.findByText('Caixa fechado')).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Módulos do Tucaí Gestão' })
-    for (const l of ['Visão geral', 'Minha loja', 'Cardápio', 'Pedidos recebidos', 'Cozinha', 'Comandas e mesas', 'Caixa', 'Equipe', 'Relatórios', 'Configurações']) {
+    for (const l of ['Início', 'Minha loja', 'Cardápio', 'Pedidos recebidos', 'Cozinha', 'Comandas e mesas', 'Caixa', 'Equipe', 'Relatórios', 'Mensalidade e cobranças', 'Entregas']) {
       expect(within(nav).getByRole('link', { name: new RegExp(l) })).toBeInTheDocument()
     }
-    expect(within(nav).getByRole('link', { name: /Visão geral/ })).toHaveAttribute('aria-current', 'page')
-    expect(await screen.findByText('Pedidos hoje')).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: /^Início/ })).toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByText('Pedidos de hoje')).toBeInTheDocument()
     // fora do marketplace: sem navegação inferior da Tucaí
     expect(screen.queryByRole('navigation', { name: /Navegação principal/i })).not.toBeInTheDocument()
   })

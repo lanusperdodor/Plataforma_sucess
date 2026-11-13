@@ -199,3 +199,47 @@ export async function tableByQr(token: string): Promise<{ businessSlug: string; 
 
 /** Identificador de operação (repetir a mesma ação não duplica no banco). */
 export const newOpId = () => globalThis.crypto.randomUUID()
+
+// ---------- início simplificado: dinheiro do mês a partir dos pedidos concluídos (dados reais, mesmas regras do banco) ----------
+const monthOrderSchema = z.object({
+  fulfillment: z.enum(['delivery_own', 'delivery_partner', 'pickup']), subtotal_cents: z.number(), delivery_fee_cents: z.number(), total_cents: z.number(),
+  commission_cents: z.number(), merchant_delivery_contribution_cents: z.number(), platform_delivery_fee_cents: z.number(),
+})
+export interface MonthMoney {
+  /** pedidos concluídos (entregues ou retirados) no mês */
+  orders: number
+  /** entregas feitas (própria + entregador parceiro) no mês */
+  deliveries: number
+  partnerDeliveries: number
+  ownDeliveries: number
+  /** o que entrou para a loja: produtos + taxa de entrega própria */
+  receivedCents: number
+  commissionCents: number
+  /** pedidos em que houve comissão e a soma dos produtos desses pedidos (para explicar a taxa com dados reais) */
+  commissionOrders: number
+  commissionBaseCents: number
+  partnerFeesCents: number
+  ownFeesCents: number
+  /** contribuição por entrega parceira + tarifa por entrega própria (nunca as duas somadas) */
+  deliveryFeesCents: number
+}
+export async function getMonthMoney(businessId: string): Promise<MonthMoney> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const start = new Date()
+  start.setDate(1); start.setHours(0, 0, 0, 0)
+  const { data, error } = await supabase.from('orders')
+    .select('fulfillment,subtotal_cents,delivery_fee_cents,total_cents,commission_cents,merchant_delivery_contribution_cents,platform_delivery_fee_cents')
+    .eq('business_id', businessId).in('status', ['delivered', 'picked_up']).gte('updated_at', start.toISOString()).limit(5000)
+  if (error) throw mapPostgrestError(error)
+  const rows = z.array(monthOrderSchema).parse(data ?? [])
+  const m: MonthMoney = { orders: rows.length, deliveries: 0, partnerDeliveries: 0, ownDeliveries: 0, receivedCents: 0, commissionCents: 0, commissionOrders: 0, commissionBaseCents: 0, partnerFeesCents: 0, ownFeesCents: 0, deliveryFeesCents: 0 }
+  for (const r of rows) {
+    m.receivedCents += r.subtotal_cents + (r.fulfillment === 'delivery_own' ? r.delivery_fee_cents : 0)
+    m.commissionCents += r.commission_cents
+    if (r.commission_cents > 0) { m.commissionOrders++; m.commissionBaseCents += r.subtotal_cents }
+    if (r.fulfillment === 'delivery_partner') { m.deliveries++; m.partnerDeliveries++; m.partnerFeesCents += r.merchant_delivery_contribution_cents }
+    if (r.fulfillment === 'delivery_own') { m.deliveries++; m.ownDeliveries++; m.ownFeesCents += r.platform_delivery_fee_cents }
+  }
+  m.deliveryFeesCents = m.partnerFeesCents + m.ownFeesCents
+  return m
+}

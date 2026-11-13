@@ -193,6 +193,7 @@ const walletSchema = z
     today_cents: z.number(), week_cents: z.number(), total_cents: z.number().optional(), deliveries: z.number(),
     ganho_total_cents: z.number().optional(), guardado_cents: z.number().optional(), disponivel_cents: z.number().optional(),
     em_saque_cents: z.number().optional(), sacado_cents: z.number().optional(), dias_guardado: z.number().optional(),
+    month_cents: z.number().optional(), deliveries_today: z.number().optional(), deliveries_month: z.number().optional(),
     liberacoes: z.array(z.object({ dia: z.string(), cents: z.number() })).optional(),
   })
   .transform((r) => ({
@@ -201,6 +202,8 @@ const walletSchema = z
     wallet: r.disponivel_cents !== undefined,
     heldCents: r.guardado_cents ?? 0, availableCents: r.disponivel_cents ?? 0, pendingCents: r.em_saque_cents ?? 0,
     withdrawnCents: r.sacado_cents ?? 0, holdDays: r.dias_guardado ?? 7, releases: r.liberacoes ?? [],
+    /** null enquanto o banco não tiver a 0038 (a tela mostra "—", sem inventar) */
+    monthCents: r.month_cents ?? null, deliveriesToday: r.deliveries_today ?? null, deliveriesMonth: r.deliveries_month ?? null,
   }))
 export type CourierEarnings = z.output<typeof walletSchema>
 

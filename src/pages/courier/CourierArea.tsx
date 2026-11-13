@@ -206,8 +206,11 @@ export function OwnDeliveriesPanel({ view = 'tudo' }: { view?: 'ativas' | 'histo
   }
   return (
     <section aria-labelledby="own-deliveries" className="flex flex-col gap-3">
-      <h2 id="own-deliveries" className="text-lg font-semibold text-ink">Entregas da loja</h2>
-      <p className="text-sm text-ink-muted">Você é entregador próprio: aparecem aqui só as entregas que o estabelecimento atribuir a você.</p>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="own-deliveries" className="text-lg font-semibold text-ink">Entregas da loja</h2>
+        {active.data && <span className="rounded-full bg-muted px-3 py-1 text-sm font-semibold text-ink">{active.data.length} para entregar</span>}
+      </div>
+      <p className="text-sm text-ink-muted">Você é entregador próprio: aparecem aqui só as entregas que o estabelecimento atribuir a você. Seu pagamento é combinado direto com a loja.</p>
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : (active.data ?? []).length === 0 ? (
         <EmptyState icon={Truck} title={active.isLoading ? 'Carregando…' : 'Nenhuma entrega atribuída agora'} description="Quando a loja atribuir um pedido a você, ele aparece aqui e você recebe um aviso." />
       ) : (
@@ -298,22 +301,27 @@ export function CourierArea() {
   const deliveriesView = (
     <>
       {ownCourier && <OwnDeliveriesPanel view="ativas" />}
-      <section aria-labelledby="disp" className={`${box} flex flex-col items-start gap-3`}>
-        <h2 id="disp" className="text-lg font-semibold text-ink">Disponibilidade</h2>
-        <p className={`inline-flex items-center gap-2 text-sm font-semibold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>
-          <span aria-hidden="true" className={`size-2.5 rounded-full ${c.isOnline ? 'bg-success' : 'bg-line'}`} />
-          {c.isOnline ? 'Disponível para entregas' : 'Indisponível'}
-        </p>
-        <button type="button" disabled={toggle.isPending} onClick={() => toggle.mutate(!c.isOnline)} className={`pressable inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-base font-semibold ${c.isOnline ? 'border border-line text-ink' : 'bg-orange text-ink'}`}>
-          <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar indisponível' : 'Ficar disponível'}
+      {/* 1. disponibilidade: grande e fácil de ver */}
+      <section aria-labelledby="disp" className={`${box} flex flex-col gap-3`}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="disp" className="text-lg font-semibold text-ink">Você está</h2>
+          <span className={`inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-base font-bold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>
+            <span aria-hidden="true" className={`size-3 rounded-full ${c.isOnline ? 'bg-success' : 'bg-line'}`} />
+            {c.isOnline ? 'Online' : 'Offline'}
+          </span>
+        </div>
+        <button type="button" disabled={toggle.isPending} onClick={() => toggle.mutate(!c.isOnline)} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
+          <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar offline' : 'Ficar online e receber entregas'}
         </button>
         {c.isOnline && (
-          <button type="button" disabled={locate.isPending} onClick={() => locate.mutate()} className={secondary}>
-            <MapPin aria-hidden="true" className="size-4" />{locate.isPending ? 'Obtendo localização…' : 'Compartilhar minha localização'}
+          <button type="button" disabled={locate.isPending} onClick={() => locate.mutate()} className="pressable inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-2 text-left text-sm font-medium text-ink-muted hover:text-ink">
+            <MapPin aria-hidden="true" className="size-4" />{locate.isPending ? 'Obtendo localização…' : 'Informar minha localização (opcional)'}
           </button>
         )}
-        <p className="text-xs text-ink-muted">Opcional. A localização só é enviada quando você toca no botão e é apagada quando fica indisponível.</p>
       </section>
+
+      {/* 2. números do dia, ganhos e saque */}
+      <CourierSummary e={e} />
 
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : current.map((d) => <ActiveDelivery key={d.orderId} d={d} />)}
 
@@ -360,7 +368,8 @@ export function CourierArea() {
       <Routes>
         <Route index element={deliveriesView} />
         <Route path="entregas" element={deliveriesView} />
-        <Route path="ganhos" element={<EarningsPanel e={e} error={earnings.isError ? earnings.error : null} onRetry={() => void earnings.refetch()} history={history.data ?? []} />} />
+        <Route path="ganhos" element={<Navigate to="/entregador/historico" replace />} />
+        <Route path="historico" element={<EarningsPanel e={e} error={earnings.isError ? earnings.error : null} onRetry={() => void earnings.refetch()} history={history.data ?? []} />} />
         <Route path="saques" element={<WithdrawalsPanel e={e} />} />
         <Route path="*" element={<Navigate to="/entregador" replace />} />
       </Routes>
@@ -374,11 +383,11 @@ const dayBR = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 /** Abas do painel do entregador: o mesmo painel para o independente e o próprio; o próprio não tem carteira Tucaí. */
 function CourierTabs({ available, mode }: { available: number; mode: 'parceiro' | 'proprio' }) {
   const tabs = mode === 'parceiro' ? [
-    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
-    { to: '/entregador/ganhos', label: 'Ganhos', icon: PiggyBank, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
+    { to: '/entregador', label: 'Início', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
     { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
+    { to: '/entregador/historico', label: 'Histórico', icon: Clock, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ] : [
-    { to: '/entregador', label: 'Entregas', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
+    { to: '/entregador', label: 'Início', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
     { to: '/entregador/historico', label: 'Histórico', icon: Clock, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ]
   return (
@@ -516,6 +525,33 @@ function WithdrawalsPanel({ e }: { e?: CourierEarnings }) {
             ))}
           </ul>
         )}
+      </div>
+    </section>
+  )
+}
+
+/** Resumo do entregador independente: entregas de hoje, ganhos do dia e do mês, saldo e o botão de saque. */
+function CourierSummary({ e }: { e?: CourierEarnings }) {
+  const money = (n?: number | null) => (n === undefined ? '…' : n === null ? '—' : formatBRL(n))
+  return (
+    <section aria-labelledby="resumo" className="flex flex-col gap-3">
+      <h2 id="resumo" className="sr-only">Resumo do dia e saldo</h2>
+      <dl className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl border border-line bg-surface p-3"><dt className="text-xs text-ink-muted sm:text-sm">Entregas hoje</dt><dd className="text-2xl font-bold tabular-nums text-ink">{e ? (e.deliveriesToday ?? '—') : '…'}</dd></div>
+        <div className="rounded-2xl border border-line bg-surface p-3"><dt className="text-xs text-ink-muted sm:text-sm">Ganhos hoje</dt><dd className="whitespace-nowrap text-base font-bold tabular-nums text-ink sm:text-2xl">{money(e?.todayCents)}</dd></div>
+        <div className="rounded-2xl border border-line bg-surface p-3"><dt className="text-xs text-ink-muted sm:text-sm">Ganhos no mês</dt><dd className="whitespace-nowrap text-base font-bold tabular-nums text-ink sm:text-2xl">{e ? money(e.monthCents) : '…'}</dd></div>
+      </dl>
+      <div className={`${box} flex flex-col gap-3`}>
+        <div>
+          <p className="text-sm text-ink-muted">Saldo disponível para saque</p>
+          <p className="text-3xl font-bold tabular-nums text-ink">{e?.wallet ? formatBRL(e.availableCents) : '—'}</p>
+          {e?.wallet && e.heldCents > 0 && <p className="text-sm text-ink-muted">Mais {formatBRL(e.heldCents)} guardados: cada entrega fica {e.holdDays} dias antes de liberar.</p>}
+          {e?.wallet && e.pendingCents > 0 && <p className="text-sm text-ink">Saque em análise: {formatBRL(e.pendingCents)}.</p>}
+          {e && !e.wallet && <p className="text-sm text-ink-muted">O saque fica disponível assim que a Tucaí atualizar o sistema.</p>}
+        </div>
+        <Link to="/entregador/saques" className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${e?.wallet && e.availableCents > 0 ? 'bg-brand text-surface' : 'border-2 border-line text-ink'}`}>
+          <Wallet aria-hidden="true" className="size-5" />Solicitar saque
+        </Link>
       </div>
     </section>
   )

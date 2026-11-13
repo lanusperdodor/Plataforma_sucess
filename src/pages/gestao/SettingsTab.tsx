@@ -33,7 +33,7 @@ export function SettingsTab() {
   })
   return (
     <div className="flex flex-col gap-4">
-      <SectionTitle title="Configurações" subtitle="Plano, cobranças e dados do estabelecimento." />
+      <SectionTitle title="Mensalidade e cobranças" subtitle="Seu plano, o que você paga à Tucaí e as cobranças em aberto ou pagas." />
       <section className={box} aria-labelledby="plano-atual">
         <h2 id="plano-atual" className="text-base font-semibold text-ink">Plano atual</h2>
         <p className="mt-1 text-sm text-ink">

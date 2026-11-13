@@ -31,7 +31,7 @@ describe('Entregador 2 — Próprio do supermercado', () => {
     // mesmo painel do entregador independente: cabeçalho e abas (sem carteira Tucaí, que é só do independente)
     expect(screen.getByRole('heading', { name: 'Área do entregador' })).toBeInTheDocument()
     const tabs = screen.getByRole('navigation', { name: 'Seções do entregador' })
-    expect(tabs).toHaveTextContent('Entregas')
+    expect(tabs).toHaveTextContent('Início')
     expect(tabs).toHaveTextContent('Histórico')
     expect(tabs).not.toHaveTextContent('Saques')
     fireEvent.click(screen.getByRole('button', { name: 'Saí para entrega' }))

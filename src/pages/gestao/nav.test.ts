@@ -12,7 +12,7 @@ describe('Tucaí Gestão — menu por nicho', () => {
   })
   it('restaurante tem cardápio, cozinha, comandas/mesas e caixa', () => {
     const l = labels('restaurante')
-    expect(l).toEqual(expect.arrayContaining(['Visão geral', 'Minha loja', 'Cardápio', 'Pedidos recebidos', 'Cozinha', 'Comandas e mesas', 'Caixa', 'Meu lucro', 'Equipe', 'Relatórios', 'Configurações']))
+    expect(l).toEqual(expect.arrayContaining(['Início', 'Minha loja', 'Cardápio', 'Pedidos recebidos', 'Cozinha', 'Comandas e mesas', 'Caixa', 'Meu lucro', 'Equipe', 'Relatórios', 'Mensalidade e cobranças', 'Entregas']))
   })
   it('mercadinho tem produtos e separação; não tem mesas', () => {
     const l = labels('mercadinho')
@@ -31,6 +31,11 @@ describe('Tucaí Gestão — menu por nicho', () => {
   })
   it('módulos Premium vêm marcados', () => {
     const prem = gestaoNav('restaurante').filter((i) => i.premium).map((i) => i.label)
-    expect(prem).toEqual(['Comandas e mesas', 'Caixa', 'Controle de gastos', 'Meu lucro', 'Calculadora de custos'])
+    expect(prem).toEqual(['Comandas e mesas', 'Caixa', 'Calculadora de custos', 'Controle de gastos', 'Meu lucro'])
+  })
+  it('seis menus com nomes simples, na ordem', async () => {
+    const { NAV_GROUPS } = await import('./nav.ts')
+    expect(Object.values(NAV_GROUPS).map((g) => g.label)).toEqual(['Início', 'Pedidos', 'Produtos', 'Entregas', 'Financeiro', 'Configurações'])
+    expect(labels('servico')).not.toContain('Entregas')
   })
 })

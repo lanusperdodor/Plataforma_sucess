@@ -52,6 +52,9 @@ begin
   perform tscw.login(k1);
   w := public.courier_wallet();
   perform tscw.ok((w->>'ganho_total_cents')::int = 1500 and (w->>'guardado_cents')::int = 500 and (w->>'disponivel_cents')::int = 1000, 'carteira: 15 ganhos, 5 guardados, 10 disponíveis: ' || w::text);
+  perform tscw.ok((w->>'deliveries_today')::int = 1 and (w->>'today_cents')::int = 500 and (w->>'deliveries_month')::int >= 1
+                  and (w->>'month_cents')::int = case when date_trunc('month', now() at time zone 'America/Sao_Paulo') <= (now() - interval '8 days') at time zone 'America/Sao_Paulo' then 1500 else 500 end,
+                  'resumo de hoje e do mês (0038): ' || w::text);
   perform tscw.ok(jsonb_array_length(w->'liberacoes') = 1 and (w->'liberacoes'->0->>'cents')::int = 500, 'próxima liberação: 5 daqui a 7 dias');
   perform tscw.denied($q$select public.courier_request_withdrawal('  ')$q$, 'saque sem chave Pix');
   w := public.courier_request_withdrawal('chave@pix.example');

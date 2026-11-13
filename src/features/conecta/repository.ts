@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { RepositoryError, backendUnavailable, mapPostgrestError } from '../../lib/errors'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
+import { mediaForPosts, type PostMedia } from '../media/repository'
 
 /**
  * Conectuaí (0008). Leitura e escrita direto nas tabelas, sob RLS e gatilhos que validam
@@ -159,6 +160,8 @@ export interface Post {
   editedAt: string | null
   likedByMe: boolean
   savedByMe: boolean
+  /** fotos ou vídeo (0045) */
+  media: PostMedia[]
 }
 
 const businessSchema = z.object({ id: z.string(), name: z.string(), slug: z.string(), business_type: z.enum(['restaurante', 'loja', 'servico']), logo_url: z.string().nullable() })
@@ -173,12 +176,13 @@ async function enrich(rows: PostRow[], me: string | null): Promise<Post[]> {
   const bizIds = [...new Set(all.map((r) => r.business_id).filter((x): x is string => !!x))]
   const prodIds = [...new Set(all.map((r) => r.product_id).filter((x): x is string => !!x))]
   const postIds = rows.map((r) => r.id)
-  const [profiles, businesses, products, liked, saved] = await Promise.all([
+  const [profiles, businesses, products, liked, saved, media] = await Promise.all([
     profilesByIds(all.map((r) => r.author_id)),
     bizIds.length ? exec(supabase.from('public_businesses').select('id,name,slug,business_type,logo_url').in('id', bizIds), z.array(businessSchema)) : Promise.resolve([]),
     prodIds.length ? exec(supabase.from('products').select('id,name,price_cents,is_available').in('id', prodIds), z.array(productSchema)) : Promise.resolve([]),
     me ? exec(supabase.from('post_likes').select('post_id').eq('user_id', me).in('post_id', postIds), z.array(z.object({ post_id: z.string() }))) : Promise.resolve([]),
     me ? exec(supabase.from('post_saves').select('post_id').eq('user_id', me).in('post_id', postIds), z.array(z.object({ post_id: z.string() }))) : Promise.resolve([]),
+    mediaForPosts(all.map((r) => r.id)),
   ])
   const biz = new Map(businesses.map((b) => [b.id, { id: b.id, name: b.name, slug: b.slug, businessType: b.business_type, logoUrl: b.logo_url }]))
   const prod = new Map(products.map((p) => [p.id, { id: p.id, name: p.name, priceCents: p.price_cents, isAvailable: p.is_available }]))
@@ -199,6 +203,7 @@ async function enrich(rows: PostRow[], me: string | null): Promise<Post[]> {
     editedAt: r.edited_at,
     likedByMe: likedSet.has(r.id),
     savedByMe: savedSet.has(r.id),
+    media: media.get(r.id) ?? [],
   })
   const sharedMap = new Map(shared.map((s) => [s.id, s]))
   return rows.map((r) => {

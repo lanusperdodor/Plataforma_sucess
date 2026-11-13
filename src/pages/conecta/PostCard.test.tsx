@@ -14,7 +14,7 @@ import { PostCard, relative } from './components.tsx'
 const base: Post = {
   id: 'p1', authorId: 'u1', author: { userId: 'u1', handle: 'ana', displayName: 'Ana', bio: null, avatarUrl: null, cityId: null, isPublic: true, createdAt: '', wallEnabled: true, wallAudience: 'everyone', showConnections: true, testimonialsEnabled: true },
   business: null, product: null, shared: null, sharedUnavailable: false, body: 'Texto', isSponsored: false, hidden: false,
-  likeCount: 0, commentCount: 0, createdAt: new Date().toISOString(), editedAt: null, likedByMe: false, savedByMe: false,
+  likeCount: 0, commentCount: 0, createdAt: new Date().toISOString(), editedAt: null, likedByMe: false, savedByMe: false, media: [],
 }
 const view = (p: Post) =>
   render(

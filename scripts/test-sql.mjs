@@ -119,6 +119,7 @@ async function main() {
       ...one('supabase/tests/rls_frete.sql'),
       ...one('supabase/tests/rls_endereco.sql'),
       ...one('supabase/tests/rls_taxa_tucai.sql'),
+      ...one('supabase/tests/rls_midia.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

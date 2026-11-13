@@ -16,10 +16,36 @@ import {
   type ModerationAppeal,
   type ModerationReport,
 } from '../../features/conecta/repository.ts'
+import { adminRemovePostMedia, mediaForPosts } from '../../features/media/repository.ts'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
 const REASON_LABEL: Record<string, string> = { ...REPORT_REASONS, auto_flag: 'Sinalização automática (termos de ameaça)' }
 const TYPE_LABEL = { post: 'Publicação', comment: 'Comentário', profile: 'Perfil', suspension: 'Suspensão' } as Record<string, string>
+
+/** Fotos/vídeo da publicação denunciada, com remoção individual (exige o motivo preenchido). */
+function ReportMedia({ postId, note }: { postId: string; note: string }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const q = useQuery({ queryKey: ['admin', 'moderation', 'media', postId], queryFn: async () => (await mediaForPosts([postId])).get(postId) ?? [] })
+  const remove = useMutation({
+    mutationFn: (id: string) => adminRemovePostMedia(id, note),
+    onSuccess: () => { toast.success('Mídia removida (registrado na auditoria).'); void qc.invalidateQueries({ queryKey: ['admin', 'moderation', 'media', postId] }) },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+  if (!q.data || q.data.length === 0) return null
+  return (
+    <ul aria-label="Mídia da publicação" className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      {q.data.map((m, i) => (
+        <li key={m.id} className="flex flex-col gap-1">
+          {m.kind === 'image'
+            ? <img src={m.url} alt={`Foto ${i + 1} denunciada`} loading="lazy" className="aspect-square w-full rounded-lg object-cover" />
+            : <video src={m.url} controls preload="metadata" aria-label="Vídeo denunciado" className="aspect-square w-full rounded-lg bg-muted object-cover" />}
+          <button type="button" disabled={remove.isPending || note.trim().length < 3} onClick={() => remove.mutate(m.id)} className={dangerButton}>Remover</button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 function ReportRow({ r }: { r: ModerationReport }) {
   const qc = useQueryClient()
@@ -45,6 +71,7 @@ function ReportRow({ r }: { r: ModerationReport }) {
         {r.contentStatus === 'hidden' && ' · já oculto'}
       </p>
       <blockquote className="whitespace-pre-wrap break-words rounded-xl bg-muted p-3 text-ink">{r.contentBody || '(sem texto)'}</blockquote>
+      {r.targetType === 'post' && <ReportMedia postId={r.targetId} note={note} />}
       {r.details && <p className="text-ink">Relato: {r.details}</p>}
       {open && (
         <>

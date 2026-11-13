@@ -46,3 +46,13 @@ Tucaí Gestão → Entregas → "Local da loja no mapa": o dono (ou quem tem `st
 localização do aparelho estando na loja, ou toca/arrasta o alfinete no mapa, e salva. Grava por `merchant_set_location`
 (só território brasileiro, auditado). O Master que revisa estabelecimentos também pode corrigir. Sem o ponto, o pedido usa
 o frete padrão e o mapa do rastreamento não mostra a loja.
+
+## Taxa da Tucaí por entrega (0044)
+* **R$ 1 por entrega concluída**, com entregador independente ou próprio da loja. Fonte única: `delivery_pricing.platform_fee_cents`
+  (o banco não aceita menos de R$ 1).
+* **Independente:** a taxa está dentro do frete (cliente + loja); não é cobrada de novo e não sai do ganho prometido ao entregador.
+* **Próprio da loja:** a loja paga R$ 1 na cobrança do mês; o pagamento do entregador é combinado pela loja (as faixas da rede não se aplicam).
+* **Frete grátis:** a loja paga a corrida inteira, com a taxa incluída.
+* Só pedidos entregues entram na cobrança; uma cobrança por loja por mês (índice único) — sem lançamento duplicado.
+* Receita: Master → Financeiro (Resumo e Entregas e saques). Transparência: Gestão → Início → "Taxas da Tucaí neste mês".
+* Entregador próprio de qualquer loja **não** recebe ofertas da rede, mesmo que também tenha cadastro de independente.

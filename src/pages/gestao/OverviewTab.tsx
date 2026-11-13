@@ -150,6 +150,16 @@ export function OverviewTab() {
               o entregador entrega esse valor à sua loja junto com o pedido, e a Tucaí usa para pagar o entregador.
             </p>
           )}
+          {m && m.deliveries > 0 && (
+            <div className="rounded-xl bg-muted p-3 text-sm text-ink">
+              <p className="font-semibold">Taxa da Tucaí por entrega: {formatBRL(Math.round(m.tucaiFeeCents / m.deliveries))} × {m.deliveries} {m.deliveries === 1 ? 'entrega concluída' : 'entregas concluídas'} = {formatBRL(m.tucaiFeeCents)}</p>
+              <ul className="mt-1 list-disc pl-5 text-ink-muted">
+                {m.partnerDeliveries > 0 && <li>Com entregador parceiro ({formatBRL(m.tucaiFeePartnerCents)}): já está dentro do frete (cliente + sua parte). Não é cobrada de novo e não sai do ganho do entregador.</li>}
+                {m.ownDeliveries > 0 && <li>Com entregador da loja ({formatBRL(m.tucaiFeeOwnCents)}): entra na cobrança do mês. O pagamento do seu entregador é combinado por você.</li>}
+                <li>Frete grátis: sua loja paga a corrida inteira, com a taxa incluída. Só entregas concluídas contam.</li>
+              </ul>
+            </div>
+          )}
           <p className="text-sm text-ink-muted">As taxas são separadas da mensalidade e cobradas no fechamento do mês.</p>
         </Block>
       </div>

@@ -16,7 +16,8 @@ const DESTINOS: { nome: string; ponto: LngLat }[] = [
   { nome: 'perto', ponto: [-46.6018, -20.7189] },
   { nome: 'médio', ponto: [-46.5898, -20.7189] },
   { nome: 'longe', ponto: [-46.5778, -20.7189] },
-  { nome: 'fora da área', ponto: [-46.5498, -20.7189] },
+  // ponto de controle de propósito sem rua por perto: deve sair como "sem rua acessível", não como falha
+  { nome: 'controle: ponto sem rua', ponto: [-46.5498, -20.7189] },
 ]
 const TTL_MS = 10 * 60_000
 let cache: { at: number; body: unknown } | null = null
@@ -34,12 +35,21 @@ export function splitFor(distanceM: number, p: Pricing) {
   return { faixa: i + 1, entregador, tucai: p.tucai_cents, cliente, loja, subsidio: custo - loja - cliente, fora_da_area: false }
 }
 
+/** Destino sem rua (o provedor respondeu e recusou o PONTO) × falha real da API (chave, limite, queda, rede). */
+export function classify(f: RouteFailure | null): 'sem_rua' | 'falha_api' {
+  if (!f) return 'falha_api'
+  // openrouteservice: 2010 = sem ponto roteável perto; 2009 = sem rota entre os pontos; 2004 = distância acima do limite do plano
+  if (f.code === 2010 || f.code === 2009 || (f.status === 404 && f.code === undefined)) return 'sem_rua'
+  return 'falha_api'
+}
+
 /** Tradução simples do erro do openrouteservice. */
 export function motivo(f: RouteFailure | null): string {
   if (!f) return 'sem detalhe'
   if (f.status === 401 || f.status === 403) return 'chave recusada pelo openrouteservice (chave errada, copiada com espaço/aspas, ou ainda não ativada)'
   if (f.status === 429) return 'limite diário/por minuto do plano gratuito atingido'
-  if (f.status === 404 || f.code === 2010) return 'ponto fora das ruas mapeadas'
+  if (f.code === 2009) return 'não existe caminho por ruas entre os dois pontos'
+  if (f.status === 404 || f.code === 2010) return 'destino sem rua acessível num raio de 350 m (o ponto, não a integração)'
   if (f.status === 400 && !f.message) return 'pedido recusado sem explicação (confira o formato da chave abaixo e se ela é do openrouteservice.org)'
   if (f.status === 0) return 'sem conexão com o openrouteservice'
   if (f.status >= 500) return 'openrouteservice fora do ar no momento'
@@ -63,17 +73,26 @@ export async function handleDiagnostics(req: Request, env: DiagnosticsEnv, fetch
   } catch { /* sem banco */ }
 
   const provider = (env.ROUTING_PROVIDER || 'ors').toLowerCase()
-  const rotas = []
-  let estado: 'ok' | 'sem_chave' | 'falhou' = 'ok'
+  const calculadas: unknown[] = []
+  const semRua: unknown[] = []
+  const falhasApi: unknown[] = []
+  let semChave = false
   for (const d of DESTINOS) {
     const falhas: RouteFailure[] = []
     const r = await fetchRoute(env, ORIGEM, d.ponto, fetcher, (f) => { falhas.push(f) })
-    const falha = falhas[0] ?? null
-    if (r === 'sem_chave') { estado = 'sem_chave'; break }
-    if (!r) { estado = 'falhou'; rotas.push({ trajeto: d.nome, erro: 'o provedor de rotas recusou ou não respondeu', respostas_do_provedor: falhas, motivo_provavel: motivo(falha) }); continue }
-    rotas.push({ trajeto: d.nome, distancia_ruas_m: r.distanceM, tempo_s: r.durationS, provedor: r.provider, ...(pricing ? splitFor(r.distanceM, pricing) : {}) })
+    if (r === 'sem_chave') { semChave = true; break }
+    if (r) { calculadas.push({ trajeto: d.nome, distancia_ruas_m: r.distanceM, tempo_s: r.durationS, provedor: r.provider, ...(pricing ? splitFor(r.distanceM, pricing) : {}) }); continue }
+    const f = falhas[falhas.length - 1] ?? null
+    const item = { trajeto: d.nome, resposta_do_provedor: f, motivo: motivo(f) }
+    if (classify(f) === 'sem_rua') semRua.push(item)
+    else falhasApi.push(item)
   }
+  // a integração funciona quando o provedor respondeu de verdade (rota calculada ou "ponto sem rua"): um destino ruim não derruba tudo
+  const integracao = semChave ? 'sem_chave' : calculadas.length > 0 || (semRua.length > 0 && falhasApi.length === 0) ? 'funcionando' : 'com_falha'
+  const estado: 'ok' | 'parcial' | 'sem_chave' | 'falhou' = semChave ? 'sem_chave' : integracao === 'com_falha' ? 'falhou' : falhasApi.length > 0 ? 'parcial' : 'ok'
   const body = {
+    integracao_rotas: integracao,
+    resumo: { rotas_calculadas: calculadas.length, pontos_sem_rua_acessivel: semRua.length, falhas_da_api: falhasApi.length },
     rotas_pelas_ruas: estado,
     provedor_configurado: provider,
     chave_rotas_configurada: provider === 'ors' ? !!env.ORS_API_KEY : provider === 'mapbox' ? !!env.MAPBOX_TOKEN : !!env.OSRM_URL,
@@ -86,12 +105,14 @@ export async function handleDiagnostics(req: Request, env: DiagnosticsEnv, fetch
       comeca_com_bearer: /^\s*bearer/i.test(env.ORS_API_KEY),
     } : null,
     tabela_vigente: pricing ? { versao: pricing.versao, faixas: pricing.faixas, tucai_cents: pricing.tucai_cents, cliente_max_cents: pricing.cliente_max_cents, loja_max_cents: pricing.loja_max_cents } : 'indisponível (migração 0040 pendente?)',
-    exemplos: rotas,
-    observacao: 'Teste somente leitura com trajetos fixos de exemplo. Nada é gravado.',
+    rotas_calculadas: calculadas,
+    pontos_sem_rua_acessivel: semRua,
+    falhas_da_api: falhasApi,
+    observacao: 'Teste somente leitura com trajetos fixos de exemplo. Nada é gravado. "Ponto sem rua" é o destino, não a integração.',
     gerado_em: new Date(now).toISOString(),
   }
-  if (estado === 'ok') cache = { at: now, body }
-  return json(body, estado === 'ok' ? 200 : 503)
+  if (estado === 'ok' || estado === 'parcial') cache = { at: now, body }
+  return json(body, integracao === 'funcionando' ? 200 : 503)
 }
 
 /** só para testes */

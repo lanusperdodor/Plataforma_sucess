@@ -83,7 +83,10 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
     let body: OrsBody
     if (res.ok) body = (await res.json()) as OrsBody
     else {
-      onFail?.(await failure(res))
+      const fail = await failure(res)
+      onFail?.(fail)
+      // ponto sem rua / sem caminho: o GET daria a mesma resposta
+      if (fail.status === 404) return null
       // reserva: a mesma rota pelo GET (aceito pelo openrouteservice com a chave no cabeçalho)
       const alt = await fetcher(`https://api.openrouteservice.org/v2/directions/driving-car?start=${from[0]},${from[1]}&end=${to[0]},${to[1]}`, {
         headers: { Authorization: key, Accept: 'application/json, application/geo+json; charset=utf-8' },

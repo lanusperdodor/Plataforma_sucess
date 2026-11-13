@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Store, Wallet } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowLeft, Calculator, Crown, ExternalLink, Maximize2, Menu, Minimize2, PanelLeftClose, PanelLeftOpen, Store, Wallet, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '../../components/account/AccountMenu.tsx'
 import { ThemeToggleButton } from '../../components/account/ThemeToggle.tsx'
@@ -26,13 +26,13 @@ import { CashRegisterTab } from './CashRegisterTab.tsx'
 import { GestaoContext, useGestao, type GestaoCtx } from './context.ts'
 import { CostingPanel } from './CostingPanel.tsx'
 import { KitchenTab } from './KitchenTab.tsx'
-import { gestaoNav, NICHE_LABEL, nicheOf } from './nav.ts'
+import { gestaoNav, NAV_GROUPS, NICHE_LABEL, nicheOf, type NavGroupId } from './nav.ts'
 import { OverviewTab } from './OverviewTab.tsx'
 import { ReportsTab } from './ReportsTab.tsx'
 import { SettingsTab } from './SettingsTab.tsx'
 import { TablesTab } from './TablesTab.tsx'
 import { TeamTab } from './TeamTab.tsx'
-import { PremiumBadge, PremiumUpsell } from './ui.tsx'
+import { PremiumUpsell } from './ui.tsx'
 
 /** API de tela cheia (opcional; nem todo navegador oferece, ex.: iPhone). */
 function useFullscreen() {
@@ -125,28 +125,125 @@ function BusinessSwitcher({ current }: { current: MerchantBusiness }) {
   )
 }
 
-function GestaoHeader() {
-  const { business: b, niche, plan, can } = useGestao()
-  const fs = useFullscreen()
-  const nav = gestaoNav(niche).filter((i) => can(i.permission))
-  const navRef = useRef<HTMLElement>(null)
+const SIDEBAR_KEY = 'tucai:gestao-menu'
+function readCollapsed() {
+  try { return globalThis.localStorage?.getItem(SIDEBAR_KEY) === '1' } catch { return false }
+}
+function writeCollapsed(v: boolean) {
+  try { globalThis.localStorage?.setItem(SIDEBAR_KEY, v ? '1' : '0') } catch { /* sem armazenamento: só não lembra */ }
+}
+
+/** Item ativo do menu a partir da URL (/painel/:id/<seção>). */
+function useCurrentItem() {
+  const { business: b, niche, can } = useGestao()
   const location = useLocation()
+  const section = location.pathname.replace(`/painel/${b.id}`, '').split('/').filter(Boolean)[0] ?? ''
+  const nav = gestaoNav(niche).filter((i) => can(i.permission))
+  return { nav, current: nav.find((i) => i.to === section) }
+}
+
+/** Menu lateral agrupado por cor. O mesmo componente serve a barra fixa (computador) e a gaveta (celular/tablet). */
+function SideNav({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+  const { business: b } = useGestao()
+  const { nav } = useCurrentItem()
+  const groups = (Object.keys(NAV_GROUPS) as NavGroupId[]).map((g) => ({ id: g, ...NAV_GROUPS[g], items: nav.filter((i) => i.group === g) })).filter((g) => g.items.length > 0)
+  return (
+    <nav aria-label="Módulos do Tucaí Gestão" className="flex flex-col gap-4">
+      {groups.map((g) => (
+        <div key={g.id} className="flex flex-col gap-0.5">
+          {collapsed ? (
+            <span aria-hidden="true" className={`mx-auto mb-1 h-1 w-6 rounded-full ${g.bar}`} />
+          ) : (
+            <p className={`px-3 pb-1 text-[11px] font-bold uppercase tracking-wider ${g.text}`}>{g.label}</p>
+          )}
+          {g.items.map((i) => (
+            <NavLink
+              key={`${i.to}-${i.label}`}
+              to={`/painel/${b.id}${i.to ? `/${i.to}` : ''}`}
+              end={i.to === ''}
+              onClick={onNavigate}
+              title={collapsed ? `${i.label} — ${i.hint}` : i.hint}
+              className={({ isActive }) =>
+                `group relative flex min-h-11 items-center gap-3 rounded-xl text-sm outline-offset-[-2px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-2'} ${
+                  isActive ? `${g.active} font-semibold text-ink` : 'font-medium text-ink-muted hover:bg-muted hover:text-ink'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <span aria-hidden="true" className={`absolute inset-y-2 left-0 w-1 rounded-full ${g.bar}`} />}
+                  <span aria-hidden="true" className={`grid size-8 shrink-0 place-items-center rounded-lg ${g.chip}`}>
+                    <i.icon className="size-4" />
+                  </span>
+                  {collapsed ? <span className="sr-only">{i.label}</span> : <span className="min-w-0 flex-1 truncate">{i.label}</span>}
+                  {i.premium && !collapsed && <span title="Premium" className="text-tone-amber"><Crown aria-hidden="true" className="size-3.5" /><span className="sr-only"> (Premium)</span></span>}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      ))}
+    </nav>
+  )
+}
+
+/** Gaveta do menu no celular/tablet: fecha com Esc, no fundo escuro ou ao escolher um módulo. */
+function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
-  }, [location.pathname])
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    ref.current?.querySelector<HTMLElement>('[aria-current="page"], a, button')?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = overflow
+      prev?.focus?.()
+    }
+  }, [open, onClose])
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[var(--z-sheet)] lg:hidden">
+      <button type="button" aria-label="Fechar menu" onClick={onClose} className="absolute inset-0 bg-black/50" />
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Menu do Tucaí Gestão" className="absolute inset-y-0 left-0 flex w-[min(19rem,86vw)] flex-col bg-surface shadow-[var(--shadow-card)]">
+        <div className="flex min-h-14 items-center justify-between gap-2 border-b border-line px-3">
+          <span className="flex items-center gap-2 text-sm font-bold text-ink">
+            <img src={BRAND.assets.icon} alt="" width={28} height={28} className="size-7 rounded-lg" />Tucaí <span className="font-medium text-ink-muted">Gestão</span>
+          </span>
+          <button type="button" onClick={onClose} className="pressable grid size-11 place-items-center rounded-full text-ink hover:bg-muted" aria-label="Fechar menu"><X aria-hidden="true" className="size-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3"><SideNav onNavigate={onClose} /></div>
+        <div className="border-t border-line p-3">
+          <Link to="/" onClick={onClose} className="pressable flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-ink hover:bg-muted"><ArrowLeft aria-hidden="true" className="size-4" />Voltar à Tucaí</Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GestaoHeader({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean }) {
+  const { business: b, niche, plan } = useGestao()
+  const fs = useFullscreen()
   return (
     <header className="sticky top-0 z-[var(--z-nav)] border-b border-line bg-surface">
-      <div className="mx-auto flex min-h-14 max-w-[96rem] items-center gap-2 px-3 md:gap-3 md:px-4">
-        <Link to="/painel" className="inline-flex min-h-11 shrink-0 items-center gap-2" aria-label="Tucaí Gestão — meus estabelecimentos">
+      <div aria-hidden="true" className="h-1 bg-linear-to-r from-tone-blue via-tone-violet to-tone-orange" />
+      <div className="flex min-h-14 items-center gap-2 px-2 md:gap-3 md:px-4">
+        <button type="button" onClick={onMenu} aria-expanded={menuOpen} aria-label="Abrir menu" className="pressable grid size-11 shrink-0 place-items-center rounded-full text-ink hover:bg-muted lg:hidden">
+          <Menu aria-hidden="true" className="size-6" />
+        </button>
+        <Link to="/painel" className="hidden min-h-11 shrink-0 items-center gap-2 lg:inline-flex" aria-label="Tucaí Gestão — meus estabelecimentos">
           <img src={BRAND.assets.icon} alt="" width={28} height={28} className="size-7 rounded-lg" />
-          <span className="hidden text-sm font-bold text-ink sm:inline">Tucaí <span className="font-medium text-ink-muted">Gestão</span></span>
+          <span className="text-sm font-bold text-ink">Tucaí <span className="font-medium text-ink-muted">Gestão</span></span>
         </Link>
-        <span aria-hidden="true" className="hidden h-6 w-px bg-line sm:block" />
+        <span aria-hidden="true" className="hidden h-6 w-px bg-line lg:block" />
         <div className="flex min-w-0 items-center gap-2">
           {b.logoUrl ? (
             <img src={b.logoUrl} alt="" width={32} height={32} className="size-8 shrink-0 rounded-lg object-cover" />
           ) : (
-            <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-ink"><Store className="size-4" /></span>
+            <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-tone-violet/15 text-tone-violet"><Store className="size-4" /></span>
           )}
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-bold text-ink">{b.name}</p>
@@ -166,37 +263,62 @@ function GestaoHeader() {
           )}
           <ThemeToggleButton />
           <AccountMenu compact />
-          <Link to="/" className="pressable inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm font-semibold text-ink hover:bg-muted md:px-3">
+          <Link to="/" className="pressable hidden min-h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold text-ink hover:bg-muted sm:inline-flex">
             <ArrowLeft aria-hidden="true" className="size-4" />
             <span className="hidden md:inline">Voltar à Tucaí</span>
             <span className="sr-only md:hidden">Voltar à Tucaí</span>
           </Link>
         </div>
       </div>
-      <nav ref={navRef} aria-label="Módulos do Tucaí Gestão" className="mx-auto flex max-w-[96rem] gap-1 overflow-x-auto px-2 md:px-3 [scrollbar-width:thin]">
-        {nav.map((i) => (
-          <NavLink
-            key={`${i.to}-${i.label}`}
-            to={`/painel/${b.id}${i.to ? `/${i.to}` : ''}`}
-            end
-            className={({ isActive }) =>
-              `relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-t-lg px-3 text-sm outline-offset-[-2px] transition-colors hover:bg-muted ${
-                isActive ? 'font-semibold text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-ink' : 'font-medium text-ink-muted'
-              }`
-            }
-          >
-            <i.icon aria-hidden="true" className="size-4" />
-            {i.label}
-            {i.premium && <PremiumBadge />}
-          </NavLink>
-        ))}
-      </nav>
     </header>
   )
 }
 
+/** Barra lateral fixa (computador, notebook, TV). Pode ser recolhida só aos ícones; a escolha fica salva neste aparelho. */
+function Sidebar() {
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggle = () => setCollapsed((v) => { writeCollapsed(!v); return !v })
+  return (
+    <aside className={`sticky top-[3.75rem] hidden h-[calc(100dvh-3.75rem)] shrink-0 flex-col border-r border-line bg-surface lg:flex ${collapsed ? 'w-[4.5rem]' : 'w-64 2xl:w-72'}`}>
+      <div className="flex-1 overflow-y-auto p-3 [scrollbar-width:thin]"><SideNav collapsed={collapsed} /></div>
+      <button type="button" onClick={toggle} aria-expanded={!collapsed} className={`pressable flex min-h-12 items-center gap-2 border-t border-line px-4 text-sm font-medium text-ink-muted hover:bg-muted hover:text-ink ${collapsed ? 'justify-center' : ''}`}>
+        {collapsed ? <PanelLeftOpen aria-hidden="true" className="size-5" /> : <PanelLeftClose aria-hidden="true" className="size-5" />}
+        {collapsed ? <span className="sr-only">Expandir menu</span> : 'Recolher menu'}
+      </button>
+    </aside>
+  )
+}
+
+/** "Você está em": grupo colorido + módulo + para que serve. Ajuda a não se perder. */
+function PageHeading() {
+  const { current } = useCurrentItem()
+  if (!current) return null
+  const g = NAV_GROUPS[current.group]
+  return (
+    <div className="flex items-center gap-3">
+      <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-2xl ${g.chip}`}><current.icon className="size-5" /></span>
+      <div className="min-w-0">
+        <p className={`text-xs font-bold uppercase tracking-wider ${g.text}`}>{g.label}</p>
+        <p className="truncate text-sm text-ink-muted">{current.hint}</p>
+      </div>
+    </div>
+  )
+}
+
 function Section({ children }: { children: ReactNode }) {
-  return <div className="mx-auto flex w-full max-w-[96rem] min-w-0 flex-col gap-4 p-3 md:gap-6 md:p-6">{children}</div>
+  return <div className="mx-auto flex w-full max-w-[120rem] min-w-0 flex-col gap-4 p-3 sm:p-4 md:gap-6 md:p-6 2xl:p-8">{children}</div>
+}
+
+function CalculatorCard({ businessId }: { businessId: string }) {
+  return (
+    <Link to={`/painel/${businessId}/calculadora`} className="hover-lift pressable flex items-center gap-3 rounded-card border border-line bg-surface p-4">
+      <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-tone-green/15 text-tone-green"><Calculator className="size-5" /></span>
+      <span className="min-w-0">
+        <span className="block font-semibold text-ink">Calculadora de custos</span>
+        <span className="block text-sm text-ink-muted">Descubra se o preço de cada produto cobre os custos e deixa lucro.</span>
+      </span>
+    </Link>
+  )
 }
 
 function GestaoRoutes() {
@@ -218,7 +340,8 @@ function GestaoRoutes() {
       <Route path="caixa" element={prem('cash.manage', 'Caixa presencial', <CashRegisterTab />)} />
       <Route path="vendas" element={guard('reports.view', <SalesTab businessId={b.id} />)} />
       <Route path="gastos" element={prem('reports.view', 'Controle de gastos', <ExpensesTab businessId={b.id} />)} />
-      <Route path="lucro" element={prem('reports.view', 'Meu lucro', <><ProfitTab businessId={b.id} /><CostingPanel /></>)} />
+      <Route path="lucro" element={prem('reports.view', 'Meu lucro', <><ProfitTab businessId={b.id} /><CalculatorCard businessId={b.id} /></>)} />
+      <Route path="calculadora" element={prem('reports.view', 'Calculadora de custos', <CostingPanel />)} />
       <Route path="anuncios" element={guard('store.customize', <AdsTab />)} />
       <Route path="equipe" element={guard('staff.manage', <TeamTab />)} />
       <Route path="relatorios" element={guard('reports.view', <ReportsTab />)} />
@@ -238,6 +361,10 @@ function GestaoFrame({ children }: { children: ReactNode }) {
 function GestaoBusiness() {
   const { businessId = '' } = useParams()
   const { authz } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const { pathname } = useLocation()
+  useEffect(() => setMenuOpen(false), [pathname])
   const q = useQuery({ queryKey: ['merchant', 'business', businessId], queryFn: () => getBusiness(businessId), enabled: !!businessId })
   const plan = useQuery({ queryKey: ['gestao', 'plan', businessId], queryFn: () => getBusinessPlan(businessId), enabled: !!q.data })
   const extras = useQuery({ queryKey: ['gestao', 'extras', businessId, authz?.userId], queryFn: () => listMemberExtras(businessId), enabled: !!q.data })
@@ -272,9 +399,13 @@ function GestaoBusiness() {
     <GestaoContext.Provider value={ctx}>
       <GestaoFrame>
         <a href="#gestao-conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[var(--z-toast)] focus:rounded-full focus:bg-surface focus:px-4 focus:py-2">Pular para o conteúdo</a>
-        <GestaoHeader />
-        <main id="gestao-conteudo" className="flex-1">
+        <GestaoHeader onMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        <MenuDrawer open={menuOpen} onClose={closeMenu} />
+        <div className="flex flex-1">
+        <Sidebar />
+        <main id="gestao-conteudo" className="min-w-0 flex-1">
           <Section>
+            <PageHeading />
             {plan.error instanceof RepositoryError && plan.error.detail?.field === 'schema' && (
               <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm text-ink">
                 Alguns módulos do Tucaí Gestão (visão geral, plano, mesas, caixa, equipe, anúncios) aguardam a atualização do banco de dados. {OUTDATED_MESSAGE}
@@ -295,6 +426,7 @@ function GestaoBusiness() {
             )}
           </Section>
         </main>
+        </div>
         <NewOrderToast />
       </GestaoFrame>
     </GestaoContext.Provider>

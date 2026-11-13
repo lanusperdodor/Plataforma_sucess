@@ -31,6 +31,6 @@ describe('Tucaí Gestão — menu por nicho', () => {
   })
   it('módulos Premium vêm marcados', () => {
     const prem = gestaoNav('restaurante').filter((i) => i.premium).map((i) => i.label)
-    expect(prem).toEqual(['Comandas e mesas', 'Caixa', 'Controle de gastos', 'Meu lucro'])
+    expect(prem).toEqual(['Comandas e mesas', 'Caixa', 'Controle de gastos', 'Meu lucro', 'Calculadora de custos'])
   })
 })

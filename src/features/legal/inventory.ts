@@ -39,6 +39,14 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     clearable: true,
   },
   {
+    key: 'tucai:gestao-menu',
+    where: 'localStorage',
+    category: 'preferencias',
+    purpose: 'Lembrar se o menu lateral do Tucaí Gestão fica aberto ou recolhido neste aparelho.',
+    lifetime: 'Até você mudar ou apagar.',
+    clearable: true,
+  },
+  {
     key: 'tucai:perfil',
     where: 'localStorage',
     category: 'preferencias',

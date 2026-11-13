@@ -256,3 +256,10 @@ export async function getFreeDelivery(businessId: string): Promise<boolean | nul
 }
 export const setFreeDelivery = (businessId: string, on: boolean) =>
   rpc('merchant_set_free_delivery', { _business: businessId, _on: on }, z.unknown()).then(() => undefined)
+
+// ---------- local da loja no mapa (0041): base do frete por distância e do mapa do rastreamento ----------
+const locationSchema = z.object({ lat: z.coerce.number().nullable(), lng: z.coerce.number().nullable(), address: z.string().nullable() })
+export type StoreLocation = z.infer<typeof locationSchema>
+export const getStoreLocation = (businessId: string) => rpc('merchant_location', { _business: businessId }, locationSchema)
+export const setStoreLocation = (businessId: string, lat: number | null, lng: number | null) =>
+  rpc('merchant_set_location', { _business: businessId, _lat: lat, _lng: lng }, z.unknown()).then(() => undefined)

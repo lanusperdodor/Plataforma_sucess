@@ -38,3 +38,9 @@ nova versão e os pedidos antigos guardam a deles):
 5. Depois de testar, ligar "Exigir cálculo da distância" no Master.
 
 Testes: `supabase/tests/rls_frete.sql`, `src/worker/freight.test.ts`, `src/pages/CheckoutPage.test.tsx`.
+
+## Local da loja no mapa (0041)
+Tucaí Gestão → Entregas → "Local da loja no mapa": o dono (ou quem tem `store.customize`/`settings.manage`) usa a
+localização do aparelho estando na loja, ou toca/arrasta o alfinete no mapa, e salva. Grava por `merchant_set_location`
+(só território brasileiro, auditado). O Master que revisa estabelecimentos também pode corrigir. Sem o ponto, o pedido usa
+o frete padrão e o mapa do rastreamento não mostra a loja.

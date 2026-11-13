@@ -73,13 +73,24 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
       return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'mapbox' }
     }
     if (!env.ORS_API_KEY) return 'sem_chave'
+    const key = env.ORS_API_KEY.trim()
     const res = await fetcher('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
       method: 'POST',
-      headers: { Authorization: env.ORS_API_KEY, 'Content-Type': 'application/json', Accept: 'application/geo+json' },
+      headers: { Authorization: key, 'Content-Type': 'application/json; charset=utf-8', Accept: 'application/json, application/geo+json; charset=utf-8' },
       body: JSON.stringify({ coordinates: [from, to], instructions: false }),
     })
-    if (!res.ok) { onFail?.(await failure(res)); return null }
-    const body = (await res.json()) as { features?: { geometry?: { coordinates?: LngLat[] }; properties?: { summary?: { distance?: number; duration?: number } } }[] }
+    type OrsBody = { features?: { geometry?: { coordinates?: LngLat[] }; properties?: { summary?: { distance?: number; duration?: number } } }[] }
+    let body: OrsBody
+    if (res.ok) body = (await res.json()) as OrsBody
+    else {
+      onFail?.(await failure(res))
+      // reserva: a mesma rota pelo GET (aceito pelo openrouteservice com a chave no cabeçalho)
+      const alt = await fetcher(`https://api.openrouteservice.org/v2/directions/driving-car?start=${from[0]},${from[1]}&end=${to[0]},${to[1]}`, {
+        headers: { Authorization: key, Accept: 'application/json, application/geo+json; charset=utf-8' },
+      })
+      if (!alt.ok) { onFail?.(await failure(alt)); return null }
+      body = (await alt.json()) as OrsBody
+    }
     const f = body.features?.[0]
     if (!f?.geometry?.coordinates || f.geometry.coordinates.length < 2) return null
     return { geometry: simplify(f.geometry.coordinates), distanceM: Math.round(f.properties?.summary?.distance ?? 0), durationS: Math.round(f.properties?.summary?.duration ?? 0), provider: 'openrouteservice' }

@@ -33,6 +33,7 @@ import { ownDeliveries, ownDeliveryStatus, type OwnDelivery } from '../../featur
 import { formatBRL } from '../../lib/money.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 import { LiveLocation } from './LiveLocation.tsx'
+import { OfferCard, useApproxPosition } from './OfferCard.tsx'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -104,7 +105,7 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
           {tel && <a href={`tel:${tel}`} className="mt-1 flex items-center gap-1 text-sm text-ink"><Phone aria-hidden="true" className="size-4" />Ligar para o cliente</a>}
         </div>
       </div>
-      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} />
+      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} pickupName={d.businessName} dropoffName={d.customerName ?? 'Cliente'} payCents={d.payCents} />
       {(
         <p className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm text-ink">
           <Banknote aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
@@ -172,7 +173,7 @@ function OwnCard({ d }: { d: OwnDelivery }) {
       {d.businessAddress && <p className="text-sm text-ink"><Package aria-hidden="true" className="mr-1 inline size-4" />Retirar em: {d.businessAddress}</p>}
       <p className="text-sm text-ink"><MapPin aria-hidden="true" className="mr-1 inline size-4" />Entregar para {d.customerName}{d.address ? `: ${d.address}` : null}{d.reference ? ` (${d.reference})` : ''}</p>
       <p className="text-sm text-ink-muted">{PAYMENT_LABEL[d.payment]} · total {formatBRL(d.totalCents)}{d.changeForCents ? ` · troco para ${formatBRL(d.changeForCents)}` : ''}</p>
-      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} />
+      <LiveLocation orderId={d.orderId} pickupAddress={d.businessAddress} dropoffAddress={d.address} pickupName={d.businessName} dropoffName={d.customerName ?? 'Cliente'} />
       <div className="flex flex-wrap gap-2">
         {d.status === 'ready' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('out_for_delivery')} className={primary}>Saí para entrega</button>}
         {d.status === 'out_for_delivery' && <button type="button" disabled={step.isPending} onClick={() => step.mutate('delivered')} className={primary}>Confirmar entrega</button>}
@@ -237,6 +238,7 @@ export function CourierArea() {
   const approved = q.data?.status === 'approved'
   const active = useQuery({ queryKey: ['courier', 'active'], queryFn: () => myDeliveries(true), enabled: approved, refetchInterval: 20_000 })
   const offers = useQuery({ queryKey: ['courier', 'offers'], queryFn: listOffers, enabled: approved && !!q.data?.isOnline && (active.data ?? []).length === 0, refetchInterval: 15_000 })
+  const approx = useApproxPosition((offers.data ?? []).length > 0)
   const earnings = useQuery({ queryKey: ['courier', 'earnings'], queryFn: getEarnings, enabled: approved })
   const history = useQuery({ queryKey: ['courier', 'history'], queryFn: () => myDeliveries(false), enabled: approved })
   const toggle = useMutation({
@@ -334,27 +336,15 @@ export function CourierArea() {
           ) : (offers.data ?? []).length === 0 ? (
             <EmptyState icon={Navigation} title={offers.isLoading ? 'Buscando ofertas…' : 'Nenhuma oferta agora'} description="A lista atualiza sozinha. Pedidos aparecem assim que são feitos; a coleta é liberada quando a loja marca como pronto." />
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {(offers.data ?? []).map((o) => (
-                <li key={o.orderId} className={`${box} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-                  <div className="text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Nova entrega disponível{o.city ? ` · ${o.city}` : ''}</p>
-                    <p className="font-semibold text-ink">{o.businessName}</p>
-                    {o.orderStatus && <p className="text-ink">{PREP_LABEL[o.orderStatus] ?? o.orderStatus}</p>}
-                    {o.businessAddress && <p className="text-ink-muted">Coleta: {o.businessAddress}</p>}
-                    <p className="text-ink-muted">Destino: {o.neighborhood ?? 'informado após aceitar'} · {o.itemsCount} {o.itemsCount === 1 ? 'item' : 'itens'}</p>
-                    <OfferDeadline expiresAt={o.expiresAt} round={o.round} />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-lg font-bold text-success">{formatBRL(o.payCents)}</span>
-                    <button type="button" disabled={decline.isPending} onClick={() => decline.mutate(o.orderId)} className={secondary}>Recusar</button>
-                    <button type="button" disabled={accept.isPending} onClick={() => accept.mutate(o.orderId)} className={primary}>Aceitar entrega</button>
-                  </div>
-                </li>
+                <OfferCard key={o.orderId} o={o} vehicle={c.vehicle} me={approx} status={o.orderStatus ? PREP_LABEL[o.orderStatus] ?? o.orderStatus : null}
+                  deadline={<OfferDeadline expiresAt={o.expiresAt} round={o.round} />}
+                  busy={accept.isPending || decline.isPending} onAccept={() => accept.mutate(o.orderId)} onReject={() => decline.mutate(o.orderId)} />
               ))}
             </ul>
           )}
-          <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, já no momento do pedido (a coleta só é liberada quando a loja marca como pronto). Retiradas e entregas feitas pela própria loja não geram oferta. Distância e tempo não são estimados: a Tucaí ainda não usa serviço de mapas. Endereço completo e contato do cliente aparecem após aceitar.</p>
+          <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, já no momento do pedido (a coleta só é liberada quando a loja marca como pronto). Retiradas e entregas feitas pela própria loja não geram oferta. A distância da entrega é calculada pelas ruas no servidor; o trecho até a loja e o tempo são estimativas. Endereço completo e contato do cliente aparecem após aceitar.</p>
         </section>
       )}
 

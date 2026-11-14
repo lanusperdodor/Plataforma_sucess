@@ -54,3 +54,31 @@ describe('geometria do rastreamento', () => {
     expect(shouldSend({ at: 0, pos: p }, 5_000, [-44.57, -20.0790])).toBe(false) // cedo demais
   })
 })
+
+import { nextStep, osmDirections, roughEtaMin } from './geo'
+describe('navegação: próxima instrução e estimativas', () => {
+  const steps = [
+    { text: 'Siga pela Rua A', type: 'depart', distance_m: 200, at: null },
+    { text: 'Vire à direita na Av. B', type: 'turn-right', distance_m: 500, at: null },
+    { text: 'Vire à esquerda na Rua C', type: 'turn-left', distance_m: 300, at: null },
+    { text: 'Você chegou', type: 'arrive', distance_m: 0, at: null },
+  ]
+  it('no início, a próxima manobra é a conversão para a Av. B daqui a 200 m', () => {
+    expect(nextStep(steps, 1000, 1000)).toMatchObject({ step: { type: 'turn-right' }, inM: 200 })
+  })
+  it('no meio da Av. B, a próxima é a Rua C', () => {
+    const r = nextStep(steps, 1000, 600)!
+    expect(r.step.type).toBe('turn-left')
+    expect(Math.round(r.inM)).toBe(300)
+  })
+  it('perto do fim, mostra a chegada', () => {
+    expect(nextStep(steps, 1000, 100)).toMatchObject({ step: { type: 'arrive' } })
+    expect(nextStep([], 1000, 100)).toBeNull()
+  })
+  it('estimativa sem rota e link alternativo gratuito', () => {
+    expect(roughEtaMin(2500, 'moto')).toBe(6)
+    expect(roughEtaMin(2500, 'bicicleta')).toBe(12)
+    expect(osmDirections({ lat: -20.07, lng: -44.57 }, { lat: -20.08, lng: -44.58 })).toContain('openstreetmap.org/directions?engine=fossgis_osrm_car&route=-20.07000%2C-44.57000%3B-20.08000%2C-44.58000')
+    expect(osmDirections(null, null)).toBeNull()
+  })
+})

@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigation, Radio, Square } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { googleMapsRoute, routeProgress, shouldSend, OFF_ROUTE_M, type LngLat } from '../../features/rastreamento/geo.ts'
-import { getTracking, requestRoute, sendLocation, stopSharing } from '../../features/rastreamento/repository.ts'
-import { DeliveryTracking } from '../../components/map/DeliveryTracking.tsx'
+import { routeProgress, shouldSend, OFF_ROUTE_M, type LngLat } from '../../features/rastreamento/geo.ts'
+import { getRouteSteps, getTracking, requestRoute, sendLocation, stopSharing, toLngLat } from '../../features/rastreamento/repository.ts'
+import { CourierNavigation, type GpsFix } from '../../components/map/CourierNavigation.tsx'
 
 type WakeLockLike = { release(): Promise<void> }
 const nav = () => navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<WakeLockLike> } }
@@ -14,10 +14,15 @@ const nav = () => navigator as Navigator & { wakeLock?: { request(type: 'screen'
  * aparelho permite e para sozinho quando a entrega termina (o componente sai da tela e o banco apaga a posição).
  * Navegadores costumam pausar o GPS com a tela bloqueada ou o app em segundo plano: isso é avisado, não prometido.
  */
-export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { orderId: string; pickupAddress: string | null; dropoffAddress: string | null }) {
+export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupName = 'Loja', dropoffName = 'Cliente', payCents = null }: {
+  orderId: string; pickupAddress: string | null; dropoffAddress: string | null; pickupName?: string; dropoffName?: string; payCents?: number | null
+}) {
   const qc = useQueryClient()
   const [on, setOn] = useState(false)
   const [showMap, setShowMap] = useState(false)
+  // posição precisa do próprio aparelho (só para a tela do entregador; o servidor recebe a cada ~20 s)
+  const [fix, setFix] = useState<GpsFix | null>(null)
+  const [routeUi, setRouteUi] = useState<{ recalculating: boolean; error: string | null }>({ recalculating: false, error: null })
   const [state, setState] = useState<{ sentAt: number | null; error: string | null; accuracy: number | null; hidden: boolean }>({ sentAt: null, error: null, accuracy: null, hidden: false })
   const watch = useRef<number | null>(null)
   const last = useRef<{ at: number; pos: LngLat } | null>(null)
@@ -40,12 +45,16 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
       need = routeAsk.current.offCount >= 2 && now - routeAsk.current.at > 120_000
     }
     if (!need) return
+    const recalculo = !!r
     routeAsk.current = { at: now, leg, offCount: 0 }
+    setRouteUi({ recalculating: recalculo, error: null })
     try {
       await requestRoute(orderId, leg)
       void qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
-    } catch {
-      // sem rota no mapa (limite, sem chave, sem coordenadas): o Google Maps continua disponível
+      setRouteUi({ recalculating: false, error: null })
+    } catch (e) {
+      // sem rota (limite, sem chave, sem coordenadas, rua não encontrada): a navegação segue com a linha reta e o link do OpenStreetMap
+      setRouteUi({ recalculating: false, error: e instanceof Error ? e.message : 'Rota não encontrada.' })
     }
   }, [orderId, qc])
 
@@ -69,6 +78,7 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
         const pos: LngLat = [p.coords.longitude, p.coords.latitude]
         const now = Date.now()
         setState((s) => ({ ...s, accuracy: p.coords.accuracy, error: null }))
+        setFix({ pos, heading: Number.isFinite(p.coords.heading) && p.coords.heading !== null && (p.coords.speed ?? 0) > 0.5 ? p.coords.heading : null, accuracy: p.coords.accuracy, at: now })
         if (sending.current || !shouldSend(last.current, now, pos)) return
         sending.current = true
         last.current = { at: now, pos }
@@ -107,19 +117,32 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
   }, [])
 
   const leg = tracking?.leg ?? null
-  const dest = leg === 'coleta'
-    ? googleMapsRoute(tracking?.business.lat != null && tracking.business.lng != null ? { lat: tracking.business.lat, lng: tracking.business.lng } : null, pickupAddress)
-    : googleMapsRoute(tracking?.destination ?? null, dropoffAddress)
+  const steps = useQuery({
+    queryKey: ['rastreio', 'passos', orderId, tracking?.route?.computed_at ?? ''],
+    queryFn: () => getRouteSteps(orderId),
+    enabled: showMap && !!tracking?.route,
+    staleTime: Infinity,
+  })
+  const store = tracking?.business.lat != null && tracking.business.lng != null ? toLngLat({ lat: tracking.business.lat, lng: tracking.business.lng }) : null
+  const destination = tracking?.destination ? toLngLat(tracking.destination) : null
   const sentAgo = state.sentAt ? Math.round((Date.now() - state.sentAt) / 1000) : null
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
-      {/* acompanhamento DENTRO da Tucaí: pista com a motinha (loja → cliente) */}
-      <button type="button" onClick={() => setShowMap((v) => !v)} aria-expanded={showMap}
+      {/* navegação DENTRO da Tucaí: mapa OpenStreetMap, rota pelas ruas e próxima conversão. Abrir já liga o GPS. */}
+      <button type="button" onClick={() => { if (!showMap && !on) start(); setShowMap((v) => !v) }} aria-expanded={showMap}
         className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface">
-        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar acompanhamento' : leg === 'entrega' ? 'Ver rota de entrega' : 'Ver rota até a loja'}
+        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar navegação' : leg === 'entrega' ? 'Navegar até o cliente' : 'Navegar até a loja'}
       </button>
-      {showMap && <DeliveryTracking orderId={orderId} />}
+      {showMap && (
+        <CourierNavigation
+          leg={leg} vehicle={tracking?.vehicle ?? 'moto'} fix={fix} store={store} destination={destination}
+          route={tracking?.route && tracking.route.leg === leg ? tracking.route : null} steps={steps.data ?? []}
+          pickup={{ name: pickupName, address: pickupAddress }} dropoff={{ name: dropoffName, address: dropoffAddress }}
+          payCents={payCents} deliveryDistanceM={null}
+          recalculating={routeUi.recalculating} routeError={routeUi.error} gpsError={state.error} sharing={on}
+        />
+      )}
       {on ? (
         <>
           <p role="status" className="flex items-center gap-2 text-sm font-semibold text-success">
@@ -141,11 +164,6 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress }: { order
         {state.hidden && on ? 'O app está em segundo plano: o navegador pode pausar o envio até você voltar para esta tela. ' : ''}
         O cliente vê sua posição só durante esta entrega (aproximada até a retirada). Mantenha esta tela aberta: com a tela bloqueada o navegador pode parar de enviar.
       </p>
-      {dest && (
-        <a href={dest} target="_blank" rel="noopener noreferrer" className="w-fit text-xs font-medium text-ink-muted underline">
-          Prefere navegação por voz? Abrir no app Google Maps (opcional, sai da Tucaí)
-        </a>
-      )}
     </div>
   )
 }

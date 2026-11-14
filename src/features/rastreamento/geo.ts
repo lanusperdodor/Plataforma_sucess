@@ -82,3 +82,38 @@ export function shouldSend(last: { at: number; pos: LngLat } | null, now: number
   if (elapsed >= 20_000) return true
   return elapsed >= 8_000 && haversine(last.pos, pos) > 60
 }
+
+// ---------- navegação do entregador (0046) ----------
+export interface NavStep { text: string; type: string; distance_m: number; at: LngLat | null }
+
+/**
+ * Próxima instrução: cada passo começa onde terminam os anteriores (soma das distâncias). Com a distância já
+ * percorrida na rota, a próxima manobra é o primeiro passo que começa à frente.
+ */
+export function nextStep(steps: NavStep[], routeTotalM: number, remainingM: number): { step: NavStep; inM: number } | null {
+  if (steps.length === 0 || routeTotalM <= 0) return null
+  const sumSteps = steps.reduce((a, s) => a + s.distance_m, 0) || routeTotalM
+  // percorrido em "metros de passos" (a soma dos passos pode diferir um pouco do total da rota)
+  const done = Math.max(0, Math.min(sumSteps, (1 - remainingM / routeTotalM) * sumSteps))
+  let start = 0
+  for (const s of steps) {
+    if (start > done + 5) return { step: s, inM: start - done }
+    start += s.distance_m
+  }
+  const last = steps[steps.length - 1]!
+  return { step: last, inM: Math.max(0, sumSteps - done) }
+}
+
+/** Tempo a partir da distância e da velocidade média do veículo (usado só quando não há rota calculada). */
+export const SPEED_KMH: Record<string, number> = { moto: 25, carro: 22, bicicleta: 13, a_pe: 5 }
+export function roughEtaMin(distanceM: number, vehicle: string | null | undefined): number {
+  const kmh = SPEED_KMH[vehicle ?? 'moto'] ?? 20
+  return Math.max(1, Math.round(distanceM / 1000 / kmh * 60))
+}
+
+/** Rota no OpenStreetMap (gratuito) — alternativa quando o cálculo de rotas da Tucaí não está disponível. */
+export function osmDirections(from: { lat: number; lng: number } | null, to: { lat: number; lng: number } | null): string | null {
+  if (!to) return null
+  const a = from ? `${from.lat.toFixed(5)},${from.lng.toFixed(5)}` : ''
+  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(`${a};${to.lat.toFixed(5)},${to.lng.toFixed(5)}`)}`
+}

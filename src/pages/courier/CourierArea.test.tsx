@@ -16,7 +16,7 @@ vi.mock('../../features/courier/repository.ts', async (orig) => {
     listWithdrawals: () => Promise.resolve([]),
     requestWithdrawal: (pix: string) => { h.withdraw(pix); return Promise.resolve(1000) },
     listOffers: () => Promise.resolve([{ orderId: 'o1', businessName: '[Teste] Lanchonete do Tuca', businessAddress: 'Rua de Teste, 100', payCents: 500,
-      offeredAt: '2026-11-11T12:00:00Z', neighborhood: 'Centro', itemsCount: 2, expiresAt: new Date(Date.now() + 120_000).toISOString(), round: 2 }]),
+      offeredAt: '2026-11-11T12:00:00Z', neighborhood: 'Centro', itemsCount: 2, expiresAt: new Date(Date.now() + 120_000).toISOString(), round: 2, deliveryDistanceM: 2260, store: null, orderStatus: null, city: null }]),
     declineOffer: (id: string) => { h.decline(id); return Promise.resolve() },
     acceptDelivery: (id: string) => { h.accept(id); return Promise.resolve() },
   }
@@ -37,9 +37,13 @@ describe('Área do entregador', () => {
     )
     expect(await screen.findByText(/Responda em [12]:\d\d · 2ª rodada/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Informar minha localização/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }))
+    // card no estilo app: valor em destaque, distância pelas ruas e tempo estimado
+    expect(screen.getByText('R$ 5,00')).toBeInTheDocument()
+    expect(screen.getByText('2,3 km')).toBeInTheDocument()
+    expect(screen.getByText(/Entrega 2,3 km pelas ruas/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Rejeitar' }))
     await vi.waitFor(() => expect(h.decline).toHaveBeenCalledWith('o1'))
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar entrega' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }))
     await vi.waitFor(() => expect(h.accept).toHaveBeenCalledWith('o1'))
   })
 

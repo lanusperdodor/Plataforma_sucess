@@ -54,7 +54,7 @@ describe('rota de entrega no Worker', () => {
     })
     const r = await handleRoutes(req({ order: ORDER, leg: 'entrega' }), { ORS_API_KEY: 'segredo-ors' }, f)
     expect(r!.status).toBe(200)
-    expect(await r!.json()).toEqual({ distance_m: 1543, duration_s: 302, provider: 'openrouteservice', points: 3 })
+    expect(await r!.json()).toEqual({ distance_m: 1543, duration_s: 302, provider: 'openrouteservice', points: 3, steps: [] })
     expect(orsAuth).toBe('segredo-ors')
     expect(stored).toMatchObject({ _ticket: 'bilhete-1', _distance_m: 1543, _duration_s: 302, _provider: 'openrouteservice' })
     // o token do usuário é repassado ao banco (RLS e permissões valem); a chave do provedor nunca vai ao banco
@@ -91,7 +91,7 @@ describe('rota de entrega no Worker', () => {
     const r = await fetchRoute({ ROUTING_PROVIDER: 'osrm', OSRM_URL: 'https://rotas.tucai.example/' }, [-44.57, -20.07], [-44.58, -20.08], f)
     expect(r).toMatchObject({ provider: 'osrm', distanceM: 1835, durationS: 280 })
     const calls = (f as unknown as { mock: { calls: [string][] } }).mock.calls
-    expect(calls[0]![0]).toBe('https://rotas.tucai.example/route/v1/driving/-44.57,-20.07;-44.58,-20.08?overview=simplified&geometries=geojson')
+    expect(calls[0]![0]).toBe('https://rotas.tucai.example/route/v1/driving/-44.57,-20.07;-44.58,-20.08?overview=simplified&geometries=geojson&steps=true')
     expect(await fetchRoute({ ROUTING_PROVIDER: 'osrm', OSRM_URL: 'https://router.project-osrm.org' }, [0, 0], [1, 1], f)).toBe('sem_chave')
     expect(await fetchRoute({ ROUTING_PROVIDER: 'osrm' }, [0, 0], [1, 1], f)).toBe('sem_chave')
   })

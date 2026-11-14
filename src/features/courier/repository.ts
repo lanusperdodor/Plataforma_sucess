@@ -115,6 +115,8 @@ const offerSchema = z
     offered_at: z.string(), neighborhood_hint: z.string().nullable(), items_count: z.number(),
     offer_expires_at: z.string().nullable().optional(), offer_round: z.number().int().optional(),
     order_status: z.string().nullable().optional(), city_name: z.string().nullable().optional(),
+    // 0046: distância da entrega (loja → cliente, pelas ruas, no servidor) e ponto aproximado da loja
+    delivery_distance_m: z.number().nullable().optional(), store_lat: z.coerce.number().nullable().optional(), store_lng: z.coerce.number().nullable().optional(),
   })
   .transform((r) => ({
     orderId: r.order_id, businessName: r.business_name, businessAddress: r.business_address, payCents: r.courier_pay_cents,
@@ -122,6 +124,8 @@ const offerSchema = z
     expiresAt: r.offer_expires_at ?? null, round: r.offer_round ?? 1,
     /** Etapa do pedido na loja (oferta antecipada, 0026): a coleta só é liberada quando 'ready'. */
     orderStatus: r.order_status ?? null, city: r.city_name ?? null,
+    deliveryDistanceM: r.delivery_distance_m ?? null,
+    store: r.store_lat != null && r.store_lng != null ? ([r.store_lng, r.store_lat] as [number, number]) : null,
   }))
 export type DeliveryOffer = z.output<typeof offerSchema>
 

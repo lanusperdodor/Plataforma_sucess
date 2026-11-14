@@ -19,7 +19,8 @@ export interface RoutesEnv {
 }
 
 type LngLat = [number, number]
-export interface ProviderRoute { geometry: LngLat[]; distanceM: number; durationS: number; provider: string }
+import { orsSteps, osrmSteps, type RouteStep } from './steps'
+export interface ProviderRoute { geometry: LngLat[]; distanceM: number; durationS: number; provider: string; steps: RouteStep[] }
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } })
@@ -55,12 +56,12 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
       // OSRM próprio: o servidor de demonstração do projeto não pode ser usado em produção (política de uso)
       if (!env.OSRM_URL || /router\.project-osrm\.org/i.test(env.OSRM_URL) || !/^https:\/\//i.test(env.OSRM_URL)) return 'sem_chave'
       const base = env.OSRM_URL.replace(/\/$/, '')
-      const res = await fetcher(`${base}/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=simplified&geometries=geojson`)
+      const res = await fetcher(`${base}/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=simplified&geometries=geojson&steps=true`)
       if (!res.ok) return null
-      const body = (await res.json()) as { code?: string; routes?: { geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number }[] }
+      const body = (await res.json()) as { code?: string; routes?: { geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number; legs?: unknown }[] }
       const r = body.routes?.[0]
       if (body.code !== 'Ok' || !r?.geometry?.coordinates || r.geometry.coordinates.length < 2) return null
-      return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'osrm' }
+      return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'osrm', steps: osrmSteps(r.legs) }
     }
     if (provider === 'mapbox') {
       if (!env.MAPBOX_TOKEN) return 'sem_chave'
@@ -70,16 +71,16 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
       const body = (await res.json()) as { routes?: { geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number }[] }
       const r = body.routes?.[0]
       if (!r?.geometry?.coordinates || r.geometry.coordinates.length < 2) return null
-      return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'mapbox' }
+      return { geometry: simplify(r.geometry.coordinates), distanceM: Math.round(r.distance ?? 0), durationS: Math.round(r.duration ?? 0), provider: 'mapbox', steps: [] }
     }
     if (!env.ORS_API_KEY) return 'sem_chave'
     const key = env.ORS_API_KEY.trim()
     const res = await fetcher('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
       method: 'POST',
       headers: { Authorization: key, 'Content-Type': 'application/json; charset=utf-8', Accept: 'application/json, application/geo+json; charset=utf-8' },
-      body: JSON.stringify({ coordinates: [from, to], instructions: false }),
+      body: JSON.stringify({ coordinates: [from, to], instructions: true, language: 'pt' }),
     })
-    type OrsBody = { features?: { geometry?: { coordinates?: LngLat[] }; properties?: { summary?: { distance?: number; duration?: number } } }[] }
+    type OrsBody = { features?: { geometry?: { coordinates?: LngLat[] }; properties?: { summary?: { distance?: number; duration?: number }; segments?: unknown } }[] }
     let body: OrsBody
     if (res.ok) body = (await res.json()) as OrsBody
     else {
@@ -88,7 +89,7 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
       // ponto sem rua / sem caminho: o GET daria a mesma resposta
       if (fail.status === 404) return null
       // reserva: a mesma rota pelo GET (aceito pelo openrouteservice com a chave no cabeçalho)
-      const alt = await fetcher(`https://api.openrouteservice.org/v2/directions/driving-car?start=${from[0]},${from[1]}&end=${to[0]},${to[1]}`, {
+      const alt = await fetcher(`https://api.openrouteservice.org/v2/directions/driving-car?start=${from[0]},${from[1]}&end=${to[0]},${to[1]}&language=pt`, {
         headers: { Authorization: key, Accept: 'application/json, application/geo+json; charset=utf-8' },
       })
       if (!alt.ok) { onFail?.(await failure(alt)); return null }
@@ -96,7 +97,7 @@ export async function fetchRoute(env: RoutesEnv, from: LngLat, to: LngLat, fetch
     }
     const f = body.features?.[0]
     if (!f?.geometry?.coordinates || f.geometry.coordinates.length < 2) return null
-    return { geometry: simplify(f.geometry.coordinates), distanceM: Math.round(f.properties?.summary?.distance ?? 0), durationS: Math.round(f.properties?.summary?.duration ?? 0), provider: 'openrouteservice' }
+    return { geometry: simplify(f.geometry.coordinates), distanceM: Math.round(f.properties?.summary?.distance ?? 0), durationS: Math.round(f.properties?.summary?.duration ?? 0), provider: 'openrouteservice', steps: orsSteps(f.properties?.segments, f.geometry.coordinates) }
   } catch (e) {
     onFail?.({ status: 0, message: e instanceof Error ? e.message.slice(0, 160) : 'sem rede' })
     return null
@@ -142,7 +143,10 @@ export async function handleRoutes(req: Request, env: RoutesEnv, fetcher: typeof
   const route = await fetchRoute(env, [Number(a.origin.lng), Number(a.origin.lat)], [Number(a.destination.lng), Number(a.destination.lat)], fetcher)
   if (route === 'sem_chave') return json({ erro: 'Cálculo de rotas ainda não configurado. Use o Google Maps.' }, 503)
   if (!route) return json({ erro: 'O serviço de rotas não respondeu. Use o Google Maps.' }, 502)
-  const saved = await rpc(env, 'route_store', { _ticket: a.ticket, _geometry: route.geometry, _distance_m: route.distanceM, _duration_s: route.durationS, _provider: route.provider }, token, fetcher)
+  const args = { _ticket: a.ticket, _geometry: route.geometry, _distance_m: route.distanceM, _duration_s: route.durationS, _provider: route.provider }
+  let saved = await rpc(env, 'route_store', { ...args, _steps: route.steps }, token, fetcher)
+  // banco ainda sem a 0046 (função com instruções não existe): grava só a rota
+  if (!saved.ok && saved.status === 404) saved = await rpc(env, 'route_store', args, token, fetcher)
   if (!saved.ok) return json({ erro: saved.message ?? 'Não foi possível salvar a rota.' }, 409)
-  return json({ distance_m: route.distanceM, duration_s: route.durationS, provider: route.provider, points: route.geometry.length })
+  return json({ distance_m: route.distanceM, duration_s: route.durationS, provider: route.provider, points: route.geometry.length, steps: route.steps })
 }

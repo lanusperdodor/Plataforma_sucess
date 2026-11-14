@@ -84,3 +84,17 @@ export function subscribeTracking(orderId: string, onChange: () => void): () => 
 }
 
 export const toLngLat = (p: { lat: number; lng: number }): LngLat => [p.lng, p.lat]
+
+// ---------- instruções de conversão (0046): só o entregador da etapa ----------
+const stepSchema = z.object({ text: z.string(), type: z.string(), distance_m: z.number(), at: z.tuple([z.number(), z.number()]).nullable().optional() })
+  .transform((s) => ({ text: s.text, type: s.type, distance_m: s.distance_m, at: (s.at ?? null) as LngLat | null }))
+export type RouteStepView = z.output<typeof stepSchema>
+
+/** Instruções da etapa atual. Sem a 0046 no banco (ou sem rota), devolve lista vazia: a navegação segue só com o traçado. */
+export async function getRouteSteps(orderId: string): Promise<RouteStepView[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.rpc('courier_route_steps', { _order: orderId })
+  if (error) return []
+  const parsed = z.object({ steps: z.array(stepSchema) }).safeParse(data)
+  return parsed.success ? parsed.data.steps : []
+}

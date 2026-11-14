@@ -9,7 +9,6 @@ import { formatBRL } from '../../lib/money.ts'
 import { useGestao } from './context.ts'
 
 const dateBR = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR')
-const pctOf = (part: number, whole: number) => `${((part / whole) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
 
 /** Bloco com título, números e uma frase que explica. Sem gráficos, sem enfeite. */
 function Block({ title, action, children, note }: { title: string; action?: { to: string; label: string }; children: ReactNode; note?: ReactNode }) {
@@ -63,7 +62,6 @@ export function OverviewTab() {
   const sub = billing.data?.subscription ?? null
   const charges = billing.data?.charges ?? []
   const sit = planSituation(charges, !!sub, plan?.source)
-  const fees = m ? m.commissionCents + m.deliveryFeesCents : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,53 +113,6 @@ export function OverviewTab() {
           )}
         </Block>
 
-        <Block title="Taxas da Tucaí neste mês" action={{ to: `${base}/configuracoes`, label: 'Cobranças' }}>
-          <dl className="flex flex-col divide-y divide-line">
-            <div className="flex items-start justify-between gap-3 py-2">
-              <dt className="min-w-0 text-sm text-ink">
-                <span className="font-semibold">Comissão</span>
-                <span className="block text-ink-muted">
-                  {!m ? '…' : m.commissionOrders === 0 ? 'Nenhum pedido teve comissão neste mês (só pedidos de valor maior pagam).'
-                    : `Cobrada em ${m.commissionOrders} ${m.commissionOrders === 1 ? 'pedido' : 'pedidos'} de valor maior: cerca de ${pctOf(m.commissionCents, m.commissionBaseCents)} do valor desses pedidos.`}
-                </span>
-              </dt>
-              <dd className="shrink-0 font-semibold tabular-nums text-ink">{m ? formatBRL(m.commissionCents) : dash}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-3 py-2">
-              <dt className="min-w-0 text-sm text-ink">
-                <span className="font-semibold">Entregas</span>
-                <span className="block text-ink-muted">
-                  {!m ? '…' : m.deliveries === 0 ? 'Nenhuma entrega neste mês.' : [
-                    m.partnerDeliveries > 0 ? `${formatBRL(Math.round(m.partnerFeesCents / m.partnerDeliveries))} por entrega × ${m.partnerDeliveries} com entregador parceiro` : null,
-                    m.ownDeliveries > 0 ? `${formatBRL(Math.round(m.ownFeesCents / m.ownDeliveries))} por entrega × ${m.ownDeliveries} com entregador da loja` : null,
-                  ].filter(Boolean).join('; ') + '.'}
-                </span>
-              </dt>
-              <dd className="shrink-0 font-semibold tabular-nums text-ink">{m ? formatBRL(m.deliveryFeesCents) : dash}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <dt className="text-sm font-semibold text-ink">Total de taxas</dt>
-              <dd className="font-bold tabular-nums text-ink">{fees === null ? dash : formatBRL(fees)}</dd>
-            </div>
-          </dl>
-          {m && m.partnerCustomerFeesCents > 0 && (
-            <p className="text-sm text-ink">
-              Além das taxas, na cobrança entra o <strong>frete pago pelos clientes</strong> nas entregas parceiras ({formatBRL(m.partnerCustomerFeesCents)}):
-              o entregador entrega esse valor à sua loja junto com o pedido, e a Tucaí usa para pagar o entregador.
-            </p>
-          )}
-          {m && m.deliveries > 0 && (
-            <div className="rounded-xl bg-muted p-3 text-sm text-ink">
-              <p className="font-semibold">Taxa da Tucaí por entrega: {formatBRL(Math.round(m.tucaiFeeCents / m.deliveries))} × {m.deliveries} {m.deliveries === 1 ? 'entrega concluída' : 'entregas concluídas'} = {formatBRL(m.tucaiFeeCents)}</p>
-              <ul className="mt-1 list-disc pl-5 text-ink-muted">
-                {m.partnerDeliveries > 0 && <li>Com entregador parceiro ({formatBRL(m.tucaiFeePartnerCents)}): já está dentro do frete (cliente + sua parte). Não é cobrada de novo e não sai do ganho do entregador.</li>}
-                {m.ownDeliveries > 0 && <li>Com entregador da loja ({formatBRL(m.tucaiFeeOwnCents)}): entra na cobrança do mês. O pagamento do seu entregador é combinado por você.</li>}
-                <li>Frete grátis: sua loja paga a corrida inteira, com a taxa incluída. Só entregas concluídas contam.</li>
-              </ul>
-            </div>
-          )}
-          <p className="text-sm text-ink-muted">As taxas são separadas da mensalidade e cobradas no fechamento do mês.</p>
-        </Block>
       </div>
       {month.isError && <p role="status" className="text-sm text-ink-muted">Não foi possível carregar os números do mês agora.</p>}
     </div>

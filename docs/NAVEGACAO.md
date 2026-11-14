@@ -37,3 +37,11 @@ Para usar OSRM próprio sem custo de licença é preciso um servidor (ex.: VPS o
 * Banco: `supabase/tests/rls_rastreamento.sql`, `rls_broadcast.sql`, `rls_navegacao.sql` (instruções só do entregador, ofertas com distância, compatibilidade).
 * Worker: `src/worker/routes.test.ts`, `steps.test.ts` (openrouteservice e OSRM, português, banco sem a 0046).
 * App: `geo.test.ts` (próxima conversão, estimativas), `LiveLocation.test.tsx` (GPS → mapa, conversão, distância/tempo, rota não encontrada, sem internet), `CourierArea.test.tsx` (ofertas).
+
+## Ponto de entrega pelo endereço (0047)
+Sem o ponto marcado pelo cliente, não há destino para a rota nem para a motinha avançar. Agora:
+* Depois do pedido (sem cotação pelo GPS), o app localiza o **endereço digitado** (busca de endereços do openrouteservice,
+  mesma chave, ~1.000 buscas/dia no plano gratuito) e grava o ponto pelo cliente (`customer_set_delivery_point`).
+* Se ainda faltar, ao abrir a navegação o entregador localiza pelo endereço e grava (`courier_set_delivery_point_from_address`):
+  só se não houver ponto, só até ~60 km da loja, registrado no histórico do pedido. O cliente pode corrigir depois.
+* Só aceita resultado com precisão de endereço/rua/local (nunca o centro da cidade).

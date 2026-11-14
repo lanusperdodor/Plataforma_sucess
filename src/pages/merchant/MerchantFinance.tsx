@@ -51,13 +51,15 @@ function Period({ value, onChange }: { value: { from: string; to: string }; onCh
   )
 }
 
-/** Resultado = vendas − custo dos produtos − taxas Tucaí − despesas. Estimado: avisa quando faltam custos. */
+/**
+ * Resultado = vendas − custo dos produtos − despesas, ANTES das tarifas do contrato com a Tucaí
+ * (as tarifas não são exibidas ao empresário: seguem o contrato). Estimado: avisa quando faltam custos.
+ */
 export function profitOf(f: MerchantFinance) {
-  const taxas = f.comissao_cents + f.taxas_entrega_cents
-  const receitaLiquida = f.faturamento_bruto_cents - taxas
+  const receita = f.faturamento_bruto_cents
   const margemBruta = f.vendas_itens_com_custo_cents - f.custo_produtos_cents
-  const resultado = receitaLiquida - f.custo_produtos_cents - f.despesas_cents
-  return { taxas, receitaLiquida, margemBruta, resultado, completo: f.itens_sem_custo === 0 }
+  const resultado = receita - f.custo_produtos_cents - f.despesas_cents
+  return { receita, margemBruta, resultado, completo: f.itens_sem_custo === 0 }
 }
 
 // ---------- Caixa / painel do dia e do mês ----------
@@ -76,7 +78,6 @@ export function CashTab({ businessId }: { businessId: string }) {
             <Stat label="Pedidos concluídos (período)" value={String(f.pedidos)} />
             <Stat label="Ticket médio" value={f.pedidos ? formatBRL(f.ticket_medio_cents) : '—'} />
             <Stat label="Cancelados/recusados" value={String(f.cancelados)} />
-            <Stat label="Líquido estimado" value={money(profitOf(f).receitaLiquida)} hint="Vendas − taxas Tucaí" />
             <Stat label="Recebido na entrega/retirada" value={formatBRL(f.recebido_na_entrega_cents)} hint="Pedidos pagos direto à loja" />
           </dl>
           <div>
@@ -177,8 +178,6 @@ export function ProfitTab({ businessId }: { businessId: string }) {
             )}
             <dl className="grid grid-cols-2 gap-3 md:grid-cols-3">
               <Stat label="Faturamento bruto" value={formatBRL(f.faturamento_bruto_cents)} hint="Produtos + entrega própria" />
-              <Stat label="Taxas Tucaí" value={`− ${formatBRL(p.taxas)}`} hint="Comissão e logística" />
-              <Stat label="Receita líquida" value={money(p.receitaLiquida)} />
               <Stat label="Custo dos produtos" value={`− ${formatBRL(f.custo_produtos_cents)}`} />
               <Stat label="Margem bruta" value={money(p.margemBruta)} hint="Só itens com custo" />
               <Stat label="Despesas operacionais" value={`− ${formatBRL(f.despesas_cents)}`} />
@@ -186,7 +185,7 @@ export function ProfitTab({ businessId }: { businessId: string }) {
             <div className="rounded-xl border border-line p-3">
               <p className="text-sm text-ink-muted">Lucro estimado no período {p.completo ? '' : '(incompleto)'}</p>
               <p className={`text-2xl font-bold tabular-nums ${p.resultado < 0 ? 'text-danger' : 'text-ink'}`}>{money(p.resultado)}</p>
-              <p className="text-xs text-ink-muted">Receita líquida − custo dos produtos − despesas. Valores liquidados: pedidos pagos na entrega entram no seu caixa na hora; a parte da Tucaí é cobrada à parte (aba Plano).</p>
+              <p className="text-xs text-ink-muted">Faturamento − custo dos produtos − despesas, antes das tarifas do seu contrato com a Tucaí (cobradas à parte).</p>
             </div>
           </>
         )}

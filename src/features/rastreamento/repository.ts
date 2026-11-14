@@ -98,3 +98,20 @@ export async function getRouteSteps(orderId: string): Promise<RouteStepView[]> {
   const parsed = z.object({ steps: z.array(stepSchema) }).safeParse(data)
   return parsed.success ? parsed.data.steps : []
 }
+
+// ---------- ponto de entrega pelo endereço (0047) ----------
+/** Converte o endereço digitado em ponto no mapa (Worker /api/geocode). Lança erro com mensagem quando não acha com precisão. */
+export async function geocodeAddress(address: string, near?: { lat: number; lng: number } | null): Promise<{ lat: number; lng: number }> {
+  if (!isSupabaseConfigured) throw backendUnavailable()
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new RepositoryError('forbidden', 'Entre na sua conta.')
+  const res = await fetch('/api/geocode', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ address, near: near ?? undefined }) })
+  const body = (await res.json().catch(() => ({}))) as { erro?: string; lat?: number; lng?: number }
+  if (!res.ok || typeof body.lat !== 'number' || typeof body.lng !== 'number') throw new RepositoryError('unknown', body.erro ?? 'Endereço não encontrado no mapa.')
+  return { lat: body.lat, lng: body.lng }
+}
+
+/** Entregador grava o ponto pelo endereço (só se o cliente não marcou; perto da loja; registrado no histórico). */
+export const courierSetPointFromAddress = (orderId: string, lat: number, lng: number) =>
+  exec(supabase.rpc('courier_set_delivery_point_from_address', { _order: orderId, _lat: lat, _lng: lng }), z.unknown()).then(() => undefined)

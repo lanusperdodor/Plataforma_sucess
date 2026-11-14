@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   routeFail: null as string | null,
   steps: [] as unknown[],
   gps: null as ((p: GeolocationPosition) => void) | null,
+  geo: vi.fn(), setPoint: vi.fn(),
 }))
 const base = {
   leg: 'entrega', viewer: 'entregador', status: 'out_for_delivery', vehicle: 'moto',
@@ -27,6 +28,8 @@ vi.mock('../../features/rastreamento/repository.ts', async (orig) => ({
   stopSharing: () => Promise.resolve(),
   requestRoute: () => (h.routeFail ? Promise.reject(new Error(h.routeFail)) : Promise.resolve({ distanceM: 1, durationS: 1 })),
   subscribeTracking: () => () => undefined,
+  geocodeAddress: (...a: unknown[]) => { h.geo(...a); return Promise.resolve({ lat: -20.072, lng: -44.578 }) },
+  courierSetPointFromAddress: (...a: unknown[]) => { h.setPoint(...a); return Promise.resolve() },
 }))
 vi.mock('../../components/map/NavigationMap.tsx', () => ({ default: (p: Record<string, unknown>) => { h.mapProps = p; return <div data-testid="mapa-navegacao" /> } }))
 vi.mock('../../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
@@ -74,6 +77,14 @@ describe('entregador: navegação dentro da Tucaí', () => {
     expect(await screen.findByText('O cliente não marcou o ponto de entrega.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Abrir a rota no OpenStreetMap' })).toHaveAttribute('href', expect.stringContaining('openstreetmap.org/directions'))
     expect(screen.getByText('aproximado')).toBeInTheDocument()
+  })
+
+  it('cliente não marcou o ponto: localiza pelo endereço digitado e grava o destino', async () => {
+    h.tracking = { ...base, destination: null, route: null }
+    show()
+    fireEvent.click(await screen.findByRole('button', { name: 'Navegar até o cliente' }))
+    await vi.waitFor(() => expect(h.geo).toHaveBeenCalledWith('Rua das Flores, 120', { lat: -20.084, lng: -44.578 }))
+    await vi.waitFor(() => expect(h.setPoint).toHaveBeenCalledWith('o1', -20.072, -44.578))
   })
 
   it('sem internet e sem GPS: avisos claros', async () => {

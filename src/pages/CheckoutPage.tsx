@@ -6,6 +6,7 @@ import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { AddressFields } from '../components/forms/AddressFields.tsx'
 import { emptyAddress, formatAddress, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
 import { getMyAddress, saveMyAddress } from '../features/address/repository.ts'
+import { geocodeAddress, setDeliveryPoint } from '../features/rastreamento/repository.ts'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { useToast } from '../components/feedback/toast-context.ts'
@@ -88,6 +89,11 @@ export function CheckoutPage() {
     onSuccess: (id, input) => {
       // guarda o endereço para o próximo pedido (se falhar, o pedido já foi feito: não atrapalha)
       if (input.fulfillment !== 'pickup' && remember && userId) void saveMyAddress(userId, addr).catch(() => undefined)
+      // ponto no mapa para a rota e o acompanhamento: com a cotação pelo GPS o banco já gravou o ponto (0040);
+      // sem ela, localiza pelo endereço digitado (o cliente pode corrigir depois pela página do pedido)
+      if (input.fulfillment !== 'pickup' && !quote) {
+        void geocodeAddress(input.address).then((p) => setDeliveryPoint(id, p.lat, p.lng)).catch(() => undefined)
+      }
       clearCart()
       toast.success('Pedido enviado ao estabelecimento.')
       navigate(`/pedidos/${id}`, { replace: true })

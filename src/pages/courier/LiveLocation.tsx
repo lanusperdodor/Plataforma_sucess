@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigation, Radio, Square } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { routeProgress, shouldSend, OFF_ROUTE_M, type LngLat } from '../../features/rastreamento/geo.ts'
-import { getRouteSteps, getTracking, requestRoute, sendLocation, stopSharing, toLngLat } from '../../features/rastreamento/repository.ts'
+import { courierSetPointFromAddress, geocodeAddress, getRouteSteps, getTracking, requestRoute, sendLocation, stopSharing, toLngLat } from '../../features/rastreamento/repository.ts'
 import { CourierNavigation, type GpsFix } from '../../components/map/CourierNavigation.tsx'
 
 type WakeLockLike = { release(): Promise<void> }
@@ -117,6 +117,22 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
   }, [])
 
   const leg = tracking?.leg ?? null
+  // cliente não marcou o ponto no mapa: localiza pelo endereço digitado (uma vez) e libera a rota até ele
+  const geoTried = useRef(false)
+  useEffect(() => {
+    if (!showMap || geoTried.current || !tracking || tracking.destination || !dropoffAddress || leg === null) return
+    geoTried.current = true
+    const near = tracking.business.lat != null && tracking.business.lng != null ? { lat: tracking.business.lat, lng: tracking.business.lng } : null
+    void geocodeAddress(dropoffAddress, near)
+      .then((p) => courierSetPointFromAddress(orderId, p.lat, p.lng))
+      .then(() => {
+        routeAsk.current = { at: 0, leg: null, offCount: 0 }
+        void qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
+      })
+      .catch((e: unknown) => {
+        if (leg === 'entrega') setRouteUi((r) => ({ ...r, error: `Não achamos o endereço do cliente no mapa (${e instanceof Error ? e.message : 'erro'}). Ligue para o cliente ou use o link abaixo.` }))
+      })
+  }, [showMap, tracking, dropoffAddress, leg, orderId, qc])
   const steps = useQuery({
     queryKey: ['rastreio', 'passos', orderId, tracking?.route?.computed_at ?? ''],
     queryFn: () => getRouteSteps(orderId),

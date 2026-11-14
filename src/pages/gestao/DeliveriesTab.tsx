@@ -30,7 +30,7 @@ function FreeDeliveryToggle({ businessId }: { businessId: string }) {
       <input type="checkbox" className="mt-1 size-5" checked={q.data} disabled={change.isPending} onChange={(e) => change.mutate(e.target.checked)} />
       <span>
         <span className="block font-semibold text-ink">Frete grátis para os clientes</span>
-        <span className="block text-sm text-ink-muted">O cliente não paga entrega e sua loja assume o valor inteiro da corrida (ganho do entregador + R$ 1 da Tucaí), cobrado no fechamento do mês.</span>
+        <span className="block text-sm text-ink-muted">O cliente não paga entrega; o valor da corrida é cobrado da sua loja conforme o contrato.</span>
       </span>
     </label>
   )

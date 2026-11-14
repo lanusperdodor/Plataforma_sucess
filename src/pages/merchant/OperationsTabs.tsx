@@ -183,7 +183,6 @@ export function OrdersTab({ businessId, canUpdate, kitchen = false, onlyDelivery
                 {o.rejectionReason && <p className="text-sm text-ink-muted">Motivo: {o.rejectionReason}</p>}
                 <p className="text-sm">
                   Total <strong>{formatBRL(o.totalCents)}</strong>
-                  <span className="text-ink-muted"> · comissão {formatBRL(o.commissionCents)}{o.merchantDeliveryCents ? ` · logística ${formatBRL(o.merchantDeliveryCents)}` : ''}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {canUpdate && staffNextSteps(o.status, o.fulfillment).filter((s) => !kitchen || KITCHEN_STEPS.includes(s)).map((s) => (
@@ -233,9 +232,6 @@ export function SalesTab({ businessId }: { businessId: string }) {
             {([
               ['Pedidos concluídos', String(s.ordersCompleted)],
               ['Vendas (itens)', formatBRL(s.grossCents)],
-              ['Comissão Tucaí', formatBRL(s.commissionCents)],
-              ['Logística', formatBRL(s.deliveryCostsCents)],
-              ['Seu líquido', formatBRL(Math.max(0, s.netCents))],
               ['Pedidos recebidos', String(s.ordersTotal)],
               ['Recusados/cancelados', String(s.ordersCancelled)],
               ['Ticket médio', s.ordersCompleted ? formatBRL(Math.round(s.grossCents / s.ordersCompleted)) : '—'],
@@ -251,7 +247,7 @@ export function SalesTab({ businessId }: { businessId: string }) {
               </ol>
             )}
           </div>
-          <p className="text-xs text-ink-muted">Comissão de 2% só acima de R$ 50 por pedido. Logística: R$ 2,00 por entrega parceira + R$ 1,00 de tarifa por entrega gerenciada. Valores dos pedidos concluídos, gravados no momento do pedido.</p>
+          <p className="text-xs text-ink-muted">Valores dos pedidos concluídos, gravados no momento do pedido. As tarifas da Tucaí seguem o seu contrato.</p>
         </>
       )}
     </div>

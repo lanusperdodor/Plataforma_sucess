@@ -141,7 +141,7 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
             ))}
           </div>
           {v.deliveryOffer === 'partner' && (
-            <p className="text-xs text-ink-muted">O frete depende da distância por ruas: o cliente paga de R$ 4,00 a R$ 5,00 e sua loja contribui com até R$ 2,00; o entregador parceiro recebe de R$ 5,00 a R$ 6,00 e a Tucaí R$ 1,00 em toda corrida. O pedido é oferecido aos entregadores disponíveis da sua cidade.</p>
+            <p className="text-xs text-ink-muted">O frete do cliente é calculado pela distância pelas ruas e o pedido é oferecido aos entregadores parceiros disponíveis da sua cidade. As tarifas da sua loja seguem o contrato com a Tucaí.</p>
           )}
           <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
             <input type="checkbox" className="size-5" checked={v.acceptsPickup} onChange={(e) => set('acceptsPickup', e.target.checked)} />

@@ -18,6 +18,7 @@ import { handlePayments, type PaymentsEnv } from './payments'
 import { handleRoutes, type RoutesEnv } from './routes'
 import { handleFreight } from './freight'
 import { handleCep } from './cep'
+import { handleGeocode } from './geocode'
 import { handleDiagnostics } from './diagnostics'
 
 export interface Env extends PaymentsEnv, RoutesEnv {
@@ -164,6 +165,8 @@ export default {
     if (route) return route
     const freight = await handleFreight(request, env)
     if (freight) return freight
+    const geo = await handleGeocode(request, env)
+    if (geo) return withHeaders(geo, {})
     const diag = await handleDiagnostics(request, env)
     if (diag) return withHeaders(diag, {})
     const cep = await handleCep(request)

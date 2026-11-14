@@ -34,7 +34,7 @@ export function roadState(input: {
       const total = haversine(from, target)
       if (total > 0) frac = 1 - haversine(position, target) / total
     } else if (target) {
-      // indo para a loja sem saber de onde saiu: até 3 km do ponto, aproxima
+      // sem o ponto de partida (loja sem mapa ou indo à loja): até 3 km do destino, aproxima
       frac = 1 - Math.min(haversine(position, target), 3000) / 3000
     }
   }

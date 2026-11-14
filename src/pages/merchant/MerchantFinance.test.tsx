@@ -44,9 +44,10 @@ describe('finanças do lojista', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
     await vi.waitFor(() => expect(h.cost).toHaveBeenCalledWith('b1', 'p1', '9,00'))
   })
-  it('fórmula: receita − taxas − custos − despesas', () => {
+  it('fórmula: faturamento − custos − despesas (tarifas do contrato não aparecem para o empresário)', () => {
     h.missing = 0
     const p = profitOf(fin() as never)
-    expect(p).toEqual({ taxas: 600, receitaLiquida: 3800, margemBruta: 2600, resultado: 3800 - 1800 - 105000, completo: true })
+    expect(p).toEqual({ receita: 4400, margemBruta: 2600, resultado: 4400 - 1800 - 105000, completo: true })
+    expect(p).not.toHaveProperty('taxas')
   })
 })

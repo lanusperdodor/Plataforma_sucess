@@ -123,6 +123,25 @@ begin
   rq := public.route_request(o1, 'coleta');
   perform public.route_store((rq->>'ticket')::uuid, '[[-44.57123,-20.07123],[-44.57,-20.07]]'::jsonb, 190, 41, 'teste');
   perform tsnv.ok(((public.delivery_tracking(o1))->'route'->>'distance_m')::int = 190, 'rota sem instruções ainda é aceita');
+  -- 0047: ponto pelo endereço quando o cliente não marcou
+  perform tsnv.su();
+  update public.orders set delivery_lat = null, delivery_lng = null, delivery_point_source = null where id = o1;
+  perform tsnv.login(c1);
+  perform tsnv.denied(format('select public.courier_set_delivery_point_from_address(%L, -20.075, -44.575)', o1), 'cliente usa a função do entregador');
+  perform tsnv.login(kp);
+  perform tsnv.denied(format('select public.courier_set_delivery_point_from_address(%L, -20.075, -44.575)', o1), 'outro entregador grava o ponto');
+  perform tsnv.login(k1);
+  perform tsnv.denied(format('select public.courier_set_delivery_point_from_address(%L, -21.9, -44.575)', o1), 'endereço longe da loja (homônimo em outra cidade)');
+  perform public.courier_set_delivery_point_from_address(o1, -20.0751234, -44.5751234);
+  perform tsnv.su();
+  perform tsnv.ok((select delivery_lat = -20.07512 and delivery_point_source = 'endereco' from public.orders where id = o1), 'ponto gravado pelo endereço');
+  perform tsnv.ok(exists (select 1 from public.order_events where order_id = o1 and note = 'Ponto de entrega localizado pelo endereço'), 'registrado no histórico');
+  perform tsnv.login(k1);
+  perform tsnv.denied(format('select public.courier_set_delivery_point_from_address(%L, -20.076, -44.576)', o1), 'não troca o ponto já marcado');
+  perform tsnv.login(c1);
+  perform public.customer_set_delivery_point(o1, -20.0761, -44.5761);
+  perform tsnv.su();
+  perform tsnv.ok((select delivery_point_source = 'cliente' from public.orders where id = o1), 'cliente corrige: origem vira cliente');
   raise notice 'RLS_NAVEGACAO_OK';
 end $$;
 rollback;

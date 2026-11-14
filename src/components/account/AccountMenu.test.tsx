@@ -30,15 +30,13 @@ describe('Menu de conta', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /Sair/ }))
     expect(h.signOut).toHaveBeenCalled()
   })
-  it('quem é cliente e entregador escolhe o perfil ativo', async () => {
+  it('entregador: painel simplificado, sem perfil de cliente nem "Meus pedidos"', async () => {
     h.session = { user: { id: 'k', email: 'carlos@x.com' } }
     h.authz = { userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] }
     show()
     fireEvent.click(await screen.findByRole('button', { name: /Conta de/ }))
-    expect(screen.getByRole('menuitemradio', { name: /Cliente \(minhas compras\)/ })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('menuitem', { name: /Meus pedidos/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Entregador/ }))
-    expect(localStorage.getItem('tucai:perfil')).toBe('entregador')
+    expect(screen.queryByRole('menuitemradio', { name: /Cliente/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /Meus pedidos/ })).toBeNull()
   })
   it('Master não tem perfil de cliente: sem "Meus pedidos" no painel nem no site', async () => {
     h.session = { user: { id: 'm', email: 'admin@tucai.example.com' } }

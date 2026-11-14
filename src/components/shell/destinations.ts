@@ -12,6 +12,9 @@ import {
   Store,
   Truck,
   CircleUser,
+  IdCard,
+  Users,
+  Wallet,
   UtensilsCrossed,
   Wrench,
   Lock,
@@ -20,7 +23,7 @@ import {
 import type { AuthContext } from '../../features/permissions/permissions.ts'
 import type { ActiveContext } from '../../lib/activeContext.ts'
 
-export type DestinationId = 'inicio' | 'explorar' | 'conectuai' | 'pedidos' | 'perfil' | 'loja-pedidos' | 'loja-painel' | 'entregas' | 'notificacoes' | 'master'
+export type DestinationId = 'inicio' | 'explorar' | 'conectuai' | 'pedidos' | 'perfil' | 'loja-pedidos' | 'loja-painel' | 'entregas' | 'notificacoes' | 'master' | 'comunidade' | 'saques' | 'meus-dados'
 
 export type NavDestination = {
   id: DestinationId
@@ -137,7 +140,7 @@ const INICIO = NAV_DESTINATIONS.find((d) => d.id === 'inicio')!
 const CONECTUAI = NAV_DESTINATIONS.find((d) => d.id === 'conectuai')!
 
 /** Navegação principal do perfil ativo (cliente vê a de compras; loja, entregador e Master, a operacional). */
-export function destinationsFor(ctx: ActiveContext): readonly NavDestination[] {
+export function destinationsFor(ctx: ActiveContext, opts: { wallet?: boolean } = {}): readonly NavDestination[] {
   switch (ctx.kind) {
     case 'loja':
       return [
@@ -148,10 +151,12 @@ export function destinationsFor(ctx: ActiveContext): readonly NavDestination[] {
         PERFIL,
       ]
     case 'entregador':
+      // painel simplificado: só o que o entregador usa (o próprio da loja não tem carteira Tucaí, logo sem Saques)
       return [
         { id: 'entregas', label: 'Entregas', to: '/entregador', icon: Truck, prefixes: ['/entregador'] },
-        { id: 'notificacoes', label: 'Avisos', to: '/notificacoes', icon: Bell, prefixes: ['/notificacoes'] },
-        PERFIL,
+        { id: 'comunidade', label: 'Comunidade', to: '/conectuai/c', icon: Users, prefixes: ['/conectuai'] },
+        ...(opts.wallet === false ? [] : [{ id: 'saques' as const, label: 'Saques', to: '/entregador/saques', icon: Wallet, prefixes: ['/entregador/saques'] }]),
+        { id: 'meus-dados', label: 'Meus dados', to: '/entregador/dados', icon: IdCard, prefixes: ['/entregador/dados', '/perfil', '/conta'] },
       ]
     case 'master':
       return [INICIO, { id: 'master', label: 'Painel Master', to: '/admin', icon: ShieldCheck, prefixes: ['/admin'] }, PERFIL]
@@ -165,15 +170,16 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
 
-/** Devolve o id do destino primário ativo (no máximo um) ou null para rotas desconhecidas. */
+/** Devolve o id do destino primário ativo (no máximo um; vence o prefixo mais específico) ou null para rotas desconhecidas. */
 export function resolveActiveDestination(pathname: string, list: readonly NavDestination[] = NAV_DESTINATIONS): DestinationId | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  let best: { id: DestinationId; len: number } | null = null
   for (const destination of list) {
-    if (destination.prefixes.some((prefix) => matchesPrefix(path, prefix))) {
-      return destination.id
+    for (const prefix of destination.prefixes) {
+      if (matchesPrefix(path, prefix) && (!best || prefix.length > best.len)) best = { id: destination.id, len: prefix.length }
     }
   }
-  return null
+  return best?.id ?? null
 }
 
 /** Visual neutro: ícones na cor do texto (o item ativo ganha o destaque). Mantido para os menus que o chamam. */

@@ -34,6 +34,7 @@ import { formatBRL } from '../../lib/money.ts'
 import { phoneDigits } from '../BusinessPage.tsx'
 import { LiveLocation } from './LiveLocation.tsx'
 import { OfferCard, useApproxPosition } from './OfferCard.tsx'
+import { CourierProfilePanel } from './CourierProfilePanel.tsx'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -285,6 +286,7 @@ export function CourierArea() {
           <Route index element={<OwnDeliveriesPanel view="ativas" />} />
           <Route path="entregas" element={<OwnDeliveriesPanel view="ativas" />} />
           <Route path="historico" element={<OwnDeliveriesPanel view="historico" />} />
+          <Route path="dados" element={<CourierProfilePanel c={c ?? null} userId={userId!} />} />
           <Route path="*" element={<Navigate to="/entregador" replace />} />
         </Routes>
       </Page>
@@ -360,6 +362,7 @@ export function CourierArea() {
         <Route path="ganhos" element={<Navigate to="/entregador/historico" replace />} />
         <Route path="historico" element={<EarningsPanel e={e} error={earnings.isError ? earnings.error : null} onRetry={() => void earnings.refetch()} history={history.data ?? []} />} />
         <Route path="saques" element={<WithdrawalsPanel e={e} />} />
+        <Route path="dados" element={<CourierProfilePanel c={c} userId={userId!} />} />
         <Route path="*" element={<Navigate to="/entregador" replace />} />
       </Routes>
     </Page>
@@ -373,20 +376,19 @@ const dayBR = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 function CourierTabs({ available, mode }: { available: number; mode: 'parceiro' | 'proprio' }) {
   const tabs = mode === 'parceiro' ? [
     { to: '/entregador', label: 'Início', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
-    { to: '/entregador/saques', label: 'Saques', icon: Wallet, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
     { to: '/entregador/historico', label: 'Histórico', icon: Clock, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ] : [
     { to: '/entregador', label: 'Início', icon: Truck, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: true },
     { to: '/entregador/historico', label: 'Histórico', icon: Clock, tone: 'bg-muted text-ink', on: 'bg-surface ring-orange', end: false },
   ]
   return (
-    <nav aria-label="Seções do entregador" className={`grid gap-2 ${tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+    <nav aria-label="Seções do entregador" className="grid grid-cols-2 gap-2">
       {tabs.map((t) => (
         <NavLink
           key={t.to}
           to={t.to}
           end={t.end}
-          className={({ isActive }) => `pressable flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-line p-2 text-sm font-semibold text-ink sm:flex-row sm:gap-2 ${isActive ? `${t.on} ring-2` : 'bg-surface hover:bg-muted'}`}
+          className={({ isActive }) => `pressable flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-line p-2 text-base font-semibold text-ink sm:flex-row sm:gap-2 ${isActive ? `${t.on} ring-2` : 'bg-surface hover:bg-muted'}`}
         >
           <span aria-hidden="true" className={`grid size-8 place-items-center rounded-lg ${t.tone}`}><t.icon className="size-4" /></span>
           <span>{t.label}</span>

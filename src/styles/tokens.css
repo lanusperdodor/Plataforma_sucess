@@ -325,3 +325,7 @@ textarea:focus-visible {
 @keyframes tucai-pulse { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(1.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tucai-nav-vehicle::before { animation: none; } }
 .tucai-map .maplibregl-ctrl-attrib { font-size: 0.6875rem; }
+
+/* Painel do entregador: letras e botões maiores em toda a tela (tudo é em rem) */
+html.tucai-entregador { font-size: 112.5%; }
+@media (min-width: 1920px) { html.tucai-entregador { font-size: 125%; } }

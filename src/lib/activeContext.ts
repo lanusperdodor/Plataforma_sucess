@@ -21,8 +21,8 @@ function subscribe(l: () => void) { listeners.add(l); return () => listeners.del
 
 /**
  * Perfis que a conta realmente tem. Lojista/empresário (dono ou equipe de um estabelecimento) usa só o
- * perfil empresarial e a equipe da plataforma (Master/operador) só o painel: nenhum dos dois tem perfil de
- * cliente (sem aba "Pedidos" de compras). Os demais sempre têm o de cliente.
+ * perfil empresarial, a equipe da plataforma (Master/operador) só o painel e o entregador só o painel de entregas:
+ * nenhum deles tem perfil de cliente (sem aba "Pedidos" de compras). Os demais sempre têm o de cliente.
  */
 export function availableContexts(authz: AuthContext | null | undefined): ActiveContext[] {
   const memberships = authz?.memberships ?? []
@@ -30,9 +30,11 @@ export function availableContexts(authz: AuthContext | null | undefined): Active
   const businessMemberships = memberships.filter((m) => m.role !== 'courier_own')
   const ownCourier = memberships.some((m) => m.role === 'courier_own')
   const staff = !!authz?.roles.some((r) => r === 'platform_master' || r === 'platform_operator')
-  const out: ActiveContext[] = businessMemberships.length > 0 || staff ? [] : [{ kind: 'cliente' }]
+  const courier = !!authz?.roles.includes('courier_partner') || ownCourier
+  // entregador usa só o painel de entregador (sem perfil de compras), como o lojista e a equipe da plataforma
+  const out: ActiveContext[] = businessMemberships.length > 0 || staff || courier ? [] : [{ kind: 'cliente' }]
   for (const m of businessMemberships) out.push({ kind: 'loja', businessId: m.businessId })
-  if (authz?.roles.includes('courier_partner') || ownCourier) out.push({ kind: 'entregador' })
+  if (courier) out.push({ kind: 'entregador' })
   if (staff) out.push({ kind: 'master' })
   return out
 }

@@ -269,3 +269,24 @@ export async function currentOwnCourier(orderId: string): Promise<string | null>
   const rows = await exec(supabase.from('orders').select('own_courier_id').eq('id', orderId), z.array(z.object({ own_courier_id: z.string().nullable() })))
   return rows[0]?.own_courier_id ?? null
 }
+
+// ---------- meus dados (0048): celular e veículo sem voltar para análise ----------
+export const courierProfileSchema = z
+  .object({
+    phone: z.string().trim().regex(/^[0-9+() -]{8,20}$/, 'Celular inválido.'),
+    vehicle: z.enum(vehicles),
+    plate: z.string().trim(),
+    cnh: z.string().trim(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.vehicle === 'moto' || v.vehicle === 'carro') {
+      if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(v.plate.toUpperCase().replace(/[^A-Z0-9]/g, ''))) ctx.addIssue({ code: 'custom', path: ['plate'], message: 'Placa inválida (ex.: ABC1D23).' })
+      if (!['A', 'B', 'AB', 'AC', 'AD', 'AE'].includes(v.cnh.toUpperCase())) ctx.addIssue({ code: 'custom', path: ['cnh'], message: 'Escolha a categoria da CNH.' })
+    }
+  })
+export type CourierProfileForm = z.input<typeof courierProfileSchema>
+export async function updateCourierProfile(input: CourierProfileForm): Promise<void> {
+  const v = courierProfileSchema.parse(input)
+  const motor = v.vehicle === 'moto' || v.vehicle === 'carro'
+  await exec(supabase.rpc('courier_update_profile', { _phone: v.phone, _vehicle: v.vehicle, _vehicle_plate: motor ? v.plate : null, _cnh_category: motor ? v.cnh : null }), z.unknown())
+}

@@ -27,9 +27,10 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
   const [open, setOpen] = useState(false)
   const { session, authz } = useAuth()
   const ctx = useActiveContext(authz)
-  const items = destinationsFor(ctx)
+  const items = destinationsFor(ctx, { wallet: !!authz?.roles.includes('courier_partner') })
   const active = resolveActiveDestination(pathname, items)
-  const groups = visibleGroups(audienceOf(!!session, authz), ctx)
+  // entregador: painel simplificado, só os destinos dele (sem grupos extras)
+  const groups = ctx.kind === 'entregador' ? [] : visibleGroups(audienceOf(!!session, authz), ctx)
   const rail = mode === 'rail'
   const drawerOpen = rail && open
 

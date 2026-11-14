@@ -11,7 +11,10 @@ export type BottomNavProps = {
 export function BottomNav({ onPrefetch }: BottomNavProps) {
   const { pathname } = useLocation()
   const { authz } = useAuth()
-  const items = destinationsFor(useActiveContext(authz))
+  const ctx = useActiveContext(authz)
+  const items = destinationsFor(ctx, { wallet: !!authz?.roles.includes('courier_partner') })
+  // entregador: botões e letras maiores (usa o celular na rua, muitas vezes com pressa)
+  const big = ctx.kind === 'entregador'
   const active = resolveActiveDestination(pathname, items)
 
   return (
@@ -20,7 +23,7 @@ export function BottomNav({ onPrefetch }: BottomNavProps) {
       className="fixed inset-x-0 bottom-0 border-t border-line bg-surface"
       style={{
         zIndex: 'var(--z-nav)',
-        height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
+        height: big ? 'calc(var(--bottom-nav-h) + 1rem + env(safe-area-inset-bottom))' : 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
@@ -35,16 +38,16 @@ export function BottomNav({ onPrefetch }: BottomNavProps) {
                 aria-current={isActive ? 'page' : undefined}
                 onPointerEnter={() => onPrefetch?.(item.to)}
                 onFocus={() => onPrefetch?.(item.to)}
-                className={`pressable flex h-full min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 text-[0.6875rem] leading-none no-underline ${
+                className={`pressable flex h-full min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 ${big ? 'text-xs font-semibold' : 'text-[0.6875rem]'} leading-none no-underline ${
                   isActive ? 'font-bold text-ink' : 'font-medium text-ink-muted'
                 }`}
               >
                 <span
-                  className={`flex h-7 w-12 items-center justify-center rounded-full ${
+                  className={`flex ${big ? 'h-9 w-14' : 'h-7 w-12'} items-center justify-center rounded-full ${
                     isActive ? 'bg-muted' : 'bg-transparent'
                   }`}
                 >
-                  <Icon aria-hidden="true" size={20} strokeWidth={isActive ? 2.25 : 1.75} className={toneOf(item.id)} />
+                  <Icon aria-hidden="true" size={big ? 26 : 20} strokeWidth={isActive ? 2.25 : 1.75} className={toneOf(item.id)} />
                 </span>
                 <span className="max-w-full truncate px-1">{item.label}</span>
               </Link>

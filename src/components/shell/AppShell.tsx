@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { prefetchRoute } from '../../app/lazy.ts'
 import { useScrollRestoration } from '../../app/useScrollRestoration.ts'
@@ -10,6 +10,8 @@ import { SideNav } from './SideNav.tsx'
 import { TopBar } from './TopBar.tsx'
 import { useBreakpoint } from './useBreakpoint.ts'
 import { useCartSummary } from './useShellData.ts'
+import { useAuth } from '../../features/auth/AuthProvider.tsx'
+import { useActiveContext } from '../../lib/activeContext.ts'
 
 export type AppShellProps = {
   children?: ReactNode
@@ -19,6 +21,13 @@ export function AppShell({ children }: AppShellProps) {
   const layout = useBreakpoint()
   const navigate = useNavigate()
   const cart = useCartSummary()
+  const { authz } = useAuth()
+  const courier = useActiveContext(authz).kind === 'entregador'
+  // painel do entregador: letras e botões maiores em toda a tela (tudo é medido em rem)
+  useEffect(() => {
+    document.documentElement.classList.toggle('tucai-entregador', courier)
+    return () => document.documentElement.classList.remove('tucai-entregador')
+  }, [courier])
   const [message, setMessage] = useState('')
   useScrollRestoration()
 
@@ -40,7 +49,8 @@ export function AppShell({ children }: AppShellProps) {
         >
           Pular para o conteúdo
         </a>
-        <TopBar layout={layout} location={<LocationPicker />} />
+        <TopBar layout={layout} simple={courier} location={courier ? <span /> : <LocationPicker />}
+          search={courier ? <span aria-hidden="true" /> : undefined} />
         <div className="flex min-w-0">
           {mobile ? null : <SideNav mode={desktop ? 'expanded' : 'rail'} onPrefetch={prefetchRoute} />}
           <main
@@ -49,7 +59,7 @@ export function AppShell({ children }: AppShellProps) {
             className="min-w-0 flex-1 outline-none"
             style={
               mobile
-                ? { paddingBottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }
+                ? { paddingBottom: courier ? 'calc(var(--bottom-nav-h) + 1rem + env(safe-area-inset-bottom))' : 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }
                 : undefined
             }
           >
@@ -68,7 +78,7 @@ export function AppShell({ children }: AppShellProps) {
         {mobile ? (
           <>
             <BottomNav onPrefetch={prefetchRoute} />
-            <CartFab count={cart.count} totalCents={cart.totalCents} onOpen={() => navigate('/sacola')} />
+            {!courier && <CartFab count={cart.count} totalCents={cart.totalCents} onOpen={() => navigate('/sacola')} />}
           </>
         ) : null}
         <div aria-live="polite" role="status" className="sr-only" data-testid="announcer">

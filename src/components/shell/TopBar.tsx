@@ -14,6 +14,8 @@ export interface TopBarProps {
   location?: ReactNode;
   /** Substitui a entrada de busca padrão (SmartSearch). */
   search?: ReactNode;
+  /** painel simplificado (entregador): sem sacola e com o logo levando às entregas */
+  simple?: boolean;
 }
 
 const TARGET =
@@ -63,7 +65,7 @@ function DefaultSearch({ wide }: { wide: boolean }) {
 const inertIf = (on: boolean): Record<string, string> =>
   on ? { inert: "" } : {};
 
-export function TopBar({ layout, location, search }: TopBarProps) {
+export function TopBar({ layout, location, search, simple = false }: TopBarProps) {
   const compact = useCompactHeader();
   const { count } = useCartSummary();
   const unread = useUnreadCount();
@@ -86,7 +88,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
   );
   const profile = <AccountMenu compact={!desktop} />;
   const theme = <ThemeToggleButton />;
-  const bag = (
+  const bag = simple ? null : (
     <Link
       to="/sacola"
       aria-label={
@@ -108,6 +110,20 @@ export function TopBar({ layout, location, search }: TopBarProps) {
     : "opacity-100 translate-y-0";
   const fade = `transition-[opacity,transform] duration-200 ease-out ${hideTop}`;
 
+  // painel simplificado (entregador): uma linha só — logo, tema, avisos e conta
+  if (layout === "mobile" && simple) {
+    return (
+      <header className="sticky top-0 z-30 h-[var(--header-h-compact)] border-b border-line bg-surface/90 backdrop-blur-md">
+        <div className="flex h-full items-center justify-between gap-2 px-3">
+          <Link to="/entregador" aria-label={`${BRAND.name} — entregas`} className="pressable inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+            <img src={BRAND.assets.icon} alt="" width={32} height={32} className="size-8 rounded-lg" />
+          </Link>
+          <div className="flex shrink-0 items-center">{theme}{bell}{profile}</div>
+        </div>
+      </header>
+    );
+  }
+
   if (layout === "mobile") {
     return (
       <header data-compact={compact} className={shell}>
@@ -117,7 +133,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
             {...inertIf(compact)}
           >
             <Link
-              to="/"
+              to={simple ? '/entregador' : '/'}
               aria-label={`${BRAND.name} — início`}
               className="pressable inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
             >
@@ -150,7 +166,7 @@ export function TopBar({ layout, location, search }: TopBarProps) {
     <header data-compact={compact} className={shell}>
       <div className="mx-auto flex h-full max-w-6xl items-center gap-4 px-6">
         <Link
-          to="/"
+          to={simple ? "/entregador" : "/"}
           aria-label={`${BRAND.name} — início`}
           className="pressable inline-flex min-h-11 shrink-0 items-center"
         >

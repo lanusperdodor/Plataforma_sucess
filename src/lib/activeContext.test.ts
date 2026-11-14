@@ -10,9 +10,10 @@ describe('perfil ativo', () => {
     expect(resolveContext('cliente', owner)).toEqual({ kind: 'loja', businessId: 'b1' })
     expect(resolveContext('qualquer', owner)).toEqual({ kind: 'loja', businessId: 'b1' })
   })
-  it('cliente comum e entregador mantêm o perfil de cliente', () => {
+  it('cliente comum fica com o perfil de cliente; entregador só com o painel de entregas', () => {
     expect(availableContexts(ctx(['customer']))).toEqual([{ kind: 'cliente' }])
-    expect(availableContexts(ctx(['customer', 'courier_partner'])).map((c) => c.kind)).toEqual(['cliente', 'entregador'])
+    expect(availableContexts(ctx(['customer', 'courier_partner'])).map((c) => c.kind)).toEqual(['entregador'])
+    expect(resolveContext('cliente', ctx(['customer', 'courier_partner']))).toEqual({ kind: 'entregador' })
     expect(resolveContext('entregador', ctx(['customer']))).toEqual({ kind: 'cliente' })
   })
 })
@@ -40,8 +41,8 @@ describe('login único: quatro perfis + Master', () => {
   it('empresário e funcionário vão para o estabelecimento; entregador próprio para entregas; cliente para compras', () => {
     expect(kinds({ userId: 'e', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'owner' }] })).toEqual(['loja'])
     expect(kinds({ userId: 'f', roles: ['customer'], memberships: [{ businessId: 'b1', role: 'attendant' }] })).toEqual(['loja'])
-    expect(kinds({ userId: 'p', roles: ['customer'], memberships: [{ businessId: 'b2', role: 'courier_own' }] })).toEqual(['cliente', 'entregador'])
-    expect(kinds({ userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).toEqual(['cliente', 'entregador'])
+    expect(kinds({ userId: 'p', roles: ['customer'], memberships: [{ businessId: 'b2', role: 'courier_own' }] })).toEqual(['entregador'])
+    expect(kinds({ userId: 'k', roles: ['customer', 'courier_partner'], memberships: [] })).toEqual(['entregador'])
     expect(kinds({ userId: 'c', roles: ['customer'], memberships: [] })).toEqual(['cliente'])
   })
   it('a mesma conta alterna entre os painéis que tem, sem conta duplicada', () => {

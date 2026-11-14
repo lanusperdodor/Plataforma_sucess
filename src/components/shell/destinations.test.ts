@@ -67,7 +67,12 @@ describe('navegação por perfil ativo', () => {
   it('cliente vê compras; loja vê pedidos recebidos; entregador só operação; Master sem "Pedidos" de compra', () => {
     expect(destinationsFor({ kind: 'cliente' }).map((d) => d.id)).toContain('pedidos')
     expect(destinationsFor({ kind: 'loja', businessId: 'b1' }).map((d) => d.to)).toEqual(['/', '/painel/b1/pedidos', '/painel/b1', '/conectuai', '/perfil'])
-    expect(destinationsFor({ kind: 'entregador' }).map((d) => d.id)).toEqual(['entregas', 'notificacoes', 'perfil'])
+    // painel simplificado do entregador: Entregas, Comunidade, Saques e Meus dados (o próprio da loja não tem Saques)
+    expect(destinationsFor({ kind: 'entregador' }).map((d) => d.label)).toEqual(['Entregas', 'Comunidade', 'Saques', 'Meus dados'])
+    expect(destinationsFor({ kind: 'entregador' }, { wallet: false }).map((d) => d.label)).toEqual(['Entregas', 'Comunidade', 'Meus dados'])
+    expect(resolveActiveDestination('/entregador/saques', destinationsFor({ kind: 'entregador' }))).toBe('saques')
+    expect(resolveActiveDestination('/entregador/historico', destinationsFor({ kind: 'entregador' }))).toBe('entregas')
+    expect(resolveActiveDestination('/conectuai/c/futebol', destinationsFor({ kind: 'entregador' }))).toBe('comunidade')
     expect(destinationsFor({ kind: 'master' }).map((d) => d.id)).not.toContain('pedidos')
     expect(visibleGroups(a, { kind: 'entregador' }).map((g) => g.id)).toEqual(['trabalho', 'conta'])
   })

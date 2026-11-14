@@ -142,6 +142,17 @@ begin
   perform public.customer_set_delivery_point(o1, -20.0761, -44.5761);
   perform tsnv.su();
   perform tsnv.ok((select delivery_point_source = 'cliente' from public.orders where id = o1), 'cliente corrige: origem vira cliente');
+  -- 0048: meus dados do entregador (sem voltar para análise)
+  perform tsnv.login(k1);
+  perform tsnv.denied($q$select public.courier_update_profile('123', 'moto', 'ABC1D23', 'A')$q$, 'celular inválido');
+  perform tsnv.denied($q$select public.courier_update_profile('(35) 98888-0000', 'moto', 'XX', 'A')$q$, 'placa inválida');
+  perform tsnv.denied($q$select public.courier_update_profile('(35) 98888-0000', 'bicicleta')$q$, 'troca de veículo no meio de uma entrega');
+  perform public.courier_update_profile('(35) 98888-0000', 'moto', 'abc-1d23', 'a');
+  perform tsnv.su();
+  perform tsnv.ok((select phone = '(35) 98888-0000' and vehicle_plate = 'ABC1D23' and cnh_category = 'A' and status = 'approved' from public.couriers where user_id = k1), 'dados atualizados e continua aprovado');
+  perform tsnv.ok(exists (select 1 from public.audit_logs where action = 'courier.profile_update'), 'alteração auditada');
+  perform tsnv.login(c1);
+  perform tsnv.denied($q$select public.courier_update_profile('(35) 98888-0000', 'moto', 'ABC1D23', 'A')$q$, 'quem não é entregador');
   raise notice 'RLS_NAVEGACAO_OK';
 end $$;
 rollback;

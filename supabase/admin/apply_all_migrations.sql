@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0053) PARA O SQL EDITOR DO SUPABASE
+-- TUCAÍ — BANCO COMPLETO (migrations 0001 a 0055) PARA O SQL EDITOR DO SUPABASE
 -- Gerado automaticamente a partir de supabase/migrations por `npm run sql:bundle`. NÃO editar aqui.
 -- Seguro para rodar quantas vezes quiser: aplica só o que falta e registra em private.tucai_migrations.
 -- Uso: copie TODO o conteúdo, cole no SQL Editor e clique em Run.
@@ -13336,5 +13336,171 @@ $tucai_sql$;
     raise notice 'Tucaí 0053: aplicada agora';
   end if;
 end $tucai_0053$;
+
+-- ===================== supabase/migrations/0054_rota_por_etapa.sql =====================
+do $tucai_0054$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0054') then
+    raise notice 'Tucaí 0054: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0054 — Rota por etapa, traçada pelo botão do entregador (sem cálculo automático em sequência).
+--  * Coleta ("Traçar rota até o restaurante"): sai de onde o entregador está agora (GPS do aparelho; sem GPS, o endereço
+--    cadastrado dele, localizado no mapa) e vai até o local cadastrado do estabelecimento.
+--  * Entrega ("Traçar rota até o cliente", depois de "Peguei o pedido"): sai do local cadastrado do estabelecimento
+--    e vai até o ponto do cliente.
+-- A rota só serve para a tela de navegação (o frete continua calculado no servidor pela 0040). O ponto de partida
+-- informado pelo aparelho é validado (Brasil e até 100 km da loja). Limites da 0037 mantidos (6 por pedido; 90 s por etapa).
+
+create or replace function private.route_request_core(_order uuid, _leg text, _from jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_leg text := private.tracking_leg(_order, auth.uid()); o public.orders%rowtype; b record; l public.delivery_locations%rowtype;
+        lim int; dest jsonb; orig jsonb; rid uuid; f_lat double precision; f_lng double precision;
+begin
+  if auth.uid() is null or v_leg is null or v_leg is distinct from _leg then raise exception 'Esta entrega não está atribuída a você nesta etapa.' using errcode = '42501'; end if;
+  select * into o from public.orders where id = _order;
+  select bc.lat, bc.lng into b from public.businesses bc where bc.id = o.business_id;
+
+  if _from is not null then
+    f_lat := (_from->>'lat')::double precision; f_lng := (_from->>'lng')::double precision;
+    if f_lat is null or f_lng is null or f_lat not between -34 and 6 or f_lng not between -75 and -28 then
+      raise exception 'Ponto de partida inválido.' using errcode = '22023';
+    end if;
+    if b.lat is not null and (abs(f_lat - b.lat) > 0.9 or abs(f_lng - b.lng) > 0.9) then
+      raise exception 'Você está longe demais do estabelecimento para traçar a rota (mais de 100 km).' using errcode = 'P0001';
+    end if;
+  end if;
+
+  if v_leg = 'coleta' then
+    if b.lat is null then raise exception 'O restaurante ainda não marcou o endereço no mapa; use o endereço escrito.' using errcode = 'P0001'; end if;
+    dest := jsonb_build_object('lat', b.lat, 'lng', b.lng);
+    if _from is not null then
+      orig := jsonb_build_object('lat', round(f_lat::numeric, 6), 'lng', round(f_lng::numeric, 6));
+    else
+      select * into l from public.delivery_locations where order_id = _order and courier_id = auth.uid();
+      if l.order_id is null or l.received_at < now() - interval '2 minutes' then
+        raise exception 'Ligue o GPS (ou cadastre seu endereço em Meus dados) para traçar a rota até o restaurante.' using errcode = 'P0001';
+      end if;
+      orig := jsonb_build_object('lat', l.lat, 'lng', l.lng);
+    end if;
+  else
+    if o.delivery_lat is null then raise exception 'O endereço do cliente ainda não foi localizado no mapa; use o endereço escrito.' using errcode = 'P0001'; end if;
+    dest := jsonb_build_object('lat', o.delivery_lat, 'lng', o.delivery_lng);
+    if b.lat is not null then
+      orig := jsonb_build_object('lat', b.lat, 'lng', b.lng);
+    elsif _from is not null then
+      orig := jsonb_build_object('lat', round(f_lat::numeric, 6), 'lng', round(f_lng::numeric, 6));
+    else
+      select * into l from public.delivery_locations where order_id = _order and courier_id = auth.uid();
+      if l.order_id is null then raise exception 'O restaurante não marcou o endereço no mapa; ligue o GPS para traçar a rota.' using errcode = 'P0001'; end if;
+      orig := jsonb_build_object('lat', l.lat, 'lng', l.lng);
+    end if;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('route:' || _order::text));
+  if (select count(*) from private.route_requests where order_id = _order) >= 6 then
+    raise exception 'Limite de rotas desta entrega atingido; use o endereço escrito.' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from private.route_requests r where r.order_id = _order and r.leg = _leg and r.created_at > now() - interval '90 seconds') then
+    raise exception 'A rota acabou de ser traçada; aguarde um pouco para traçar de novo.' using errcode = 'P0001';
+  end if;
+  lim := private.routing_daily_limit();
+  if (select count(*) from private.route_requests where created_at > now() - interval '1 day') >= lim then
+    raise exception 'Cálculo de rotas indisponível no momento; use o endereço escrito.' using errcode = 'P0001';
+  end if;
+  insert into private.route_requests(order_id, leg, requested_by) values (_order, _leg, auth.uid()) returning id into rid;
+  return jsonb_build_object('ticket', rid, 'origin', orig, 'destination', dest);
+end $$;
+revoke all on function private.route_request_core(uuid, text, jsonb) from public, anon, authenticated;
+
+-- sem ponto de partida (usa a localização compartilhada); a entrega sai da loja
+create or replace function public.route_request(_order uuid, _leg text) returns jsonb
+language sql security definer set search_path = '' as $$ select private.route_request_core(_order, _leg, null) $$;
+
+-- com ponto de partida do aparelho (GPS agora ou endereço cadastrado do entregador)
+create or replace function public.route_request_from(_order uuid, _leg text, _lat double precision, _lng double precision) returns jsonb
+language sql security definer set search_path = '' as $$
+  select private.route_request_core(_order, _leg, jsonb_build_object('lat', _lat, 'lng', _lng))
+$$;
+
+do $$ begin
+  revoke all on function public.route_request(uuid, text) from public, anon;
+  grant execute on function public.route_request(uuid, text) to authenticated;
+  revoke all on function public.route_request_from(uuid, text, double precision, double precision) from public, anon;
+  grant execute on function public.route_request_from(uuid, text, double precision, double precision) to authenticated;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0054', '0054_rota_por_etapa.sql', 'applied');
+    raise notice 'Tucaí 0054: aplicada agora';
+  end if;
+end $tucai_0054$;
+
+-- ===================== supabase/migrations/0055_proprio_fica_online.sql =====================
+do $tucai_0055$
+begin
+  if exists (select 1 from private.tucai_migrations where version = '0055') then
+    raise notice 'Tucaí 0055: já aplicada';
+  else
+    execute $tucai_sql$
+-- 0055 — Entregador próprio já logado fica Online direto, sem ir à página de cadastro.
+-- Na primeira vez, a Área do entregador pede só celular e veículo (pré-preenchidos) e o aceite dos termos; a cidade
+-- é a da loja dele e o nome é o do perfil. O cadastro nasce liberado (0050) e já fica Online. Nas próximas vezes,
+-- o botão "Ficar online" funciona como para qualquer entregador.
+
+create or replace function public.own_courier_go_online(
+  _phone text, _vehicle public.courier_vehicle, _vehicle_plate text default null, _cnh_category text default null, _accept_terms boolean default false
+) returns public.courier_status
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid();
+  c public.couriers%rowtype;
+  v_city uuid; v_name text;
+  plate text := nullif(upper(regexp_replace(coalesce(_vehicle_plate, ''), '[^A-Za-z0-9]', '', 'g')), '');
+  cnh text := nullif(upper(btrim(coalesce(_cnh_category, ''))), '');
+begin
+  if uid is null then raise exception 'forbidden' using errcode = '42501'; end if;
+  perform private.limit_for('courier.submit');
+  if not private.is_any_own_courier(uid) then
+    raise exception 'Somente entregador próprio de um estabelecimento usa esta opção.' using errcode = '42501';
+  end if;
+  select * into c from public.couriers where user_id = uid for update;
+  if found then
+    if c.status <> 'approved' then raise exception 'Seu cadastro de entregador está em análise ou suspenso. Fale com o suporte.' using errcode = 'P0001'; end if;
+    update public.couriers set is_online = true where user_id = uid;
+    return c.status;
+  end if;
+  if not coalesce(_accept_terms, false) then raise exception 'É preciso aceitar os termos de parceria.' using errcode = 'P0001'; end if;
+  if _vehicle in ('bicicleta', 'a_pe') then plate := null; cnh := null; end if;
+  if _vehicle in ('moto', 'carro') and (plate is null or cnh is null) then
+    raise exception 'Informe a placa e a categoria da CNH.' using errcode = 'P0001';
+  end if;
+  select b.city_id into v_city
+    from public.business_members m join public.businesses b on b.id = m.business_id
+    join public.cities ci on ci.id = b.city_id and ci.is_active
+   where m.user_id = uid and m.member_role = 'courier_own'
+   order by m.created_at limit 1;
+  if v_city is null then raise exception 'A loja ainda não tem cidade cadastrada.' using errcode = 'P0001'; end if;
+  select nullif(btrim(p.full_name), '') into v_name from public.profiles p where p.id = uid;
+  if v_name is null or char_length(v_name) < 3 then raise exception 'Complete seu nome em Minha conta antes de ficar online.' using errcode = 'P0001'; end if;
+  insert into public.couriers(user_id, full_name, phone, city_id, vehicle, vehicle_plate, cnh_category,
+                              status, terms_version, terms_accepted_at, submitted_at)
+  values (uid, v_name, btrim(_phone), v_city, _vehicle, plate, cnh, 'pending', private.courier_terms_version(), now(), now());
+  -- o gatilho da 0050 libera o cadastro; só então pode ficar Online
+  update public.couriers set is_online = true where user_id = uid and status = 'approved';
+  perform private.audit('courier.own_join_network', 'couriers', uid::text, jsonb_build_object('vehicle', _vehicle));
+  return (select x.status from public.couriers x where x.user_id = uid);
+end $$;
+
+do $$ begin
+  revoke all on function public.own_courier_go_online(text, public.courier_vehicle, text, text, boolean) from public, anon;
+  grant execute on function public.own_courier_go_online(text, public.courier_vehicle, text, text, boolean) to authenticated;
+end $$;
+
+$tucai_sql$;
+    insert into private.tucai_migrations(version, name, how) values ('0055', '0055_proprio_fica_online.sql', 'applied');
+    raise notice 'Tucaí 0055: aplicada agora';
+  end if;
+end $tucai_0055$;
 
 select version, name, how, applied_at from private.tucai_migrations order by version;

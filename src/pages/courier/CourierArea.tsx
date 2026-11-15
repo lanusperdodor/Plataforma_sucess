@@ -36,6 +36,7 @@ import { LiveLocation } from './LiveLocation.tsx'
 import { OfferCard, useApproxPosition } from './OfferCard.tsx'
 import { CourierProfilePanel } from './CourierProfilePanel.tsx'
 import { OfferAlertsCard } from './OfferAlertsCard.tsx'
+import { OwnGoOnlineCard } from './OwnGoOnlineCard.tsx'
 import { alertNewOffers, unlockSound, useNewOffers } from '../../features/courier/offerAlert.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
@@ -65,7 +66,8 @@ function ActiveDelivery({ d }: { d: CourierDelivery }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [code, setCode] = useState('')
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['courier'] })
+  // a etapa muda (coleta → entrega): atualiza também o botão da rota
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['courier'] }); void qc.invalidateQueries({ queryKey: ['rastreio'] }) }
   const pickup = useMutation({ mutationFn: () => pickupDelivery(d.orderId), onSuccess: () => { toast.success('Coleta confirmada.'); refresh() }, onError: (e) => toast.error(msg(e)) })
   const release = useMutation({ mutationFn: () => releaseDelivery(d.orderId), onSuccess: () => { toast.success('Entrega liberada para outro entregador.'); refresh() }, onError: (e) => toast.error(msg(e)) })
   const [verified, setVerified] = useState(false)
@@ -162,7 +164,7 @@ function OwnCard({ d }: { d: OwnDelivery }) {
   const toast = useToast()
   const step = useMutation({
     mutationFn: (s: 'out_for_delivery' | 'delivered') => ownDeliveryStatus(d.orderId, s),
-    onSuccess: (_v, s) => { toast.success(s === 'delivered' ? 'Entrega concluída!' : 'Saída registrada. O cliente foi avisado.'); void qc.invalidateQueries({ queryKey: ['courier', 'own'] }) },
+    onSuccess: (_v, s) => { toast.success(s === 'delivered' ? 'Entrega concluída!' : 'Saída registrada. O cliente foi avisado.'); void qc.invalidateQueries({ queryKey: ['courier', 'own'] }); void qc.invalidateQueries({ queryKey: ['rastreio'] }) },
     onError: (e) => toast.error(msg(e)),
   })
   const tel = phoneDigits(d.customerPhone)
@@ -289,7 +291,7 @@ export function CourierArea() {
       <Page>
         <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
         <CourierTabs mode="proprio" available={0} />
-        <JoinNetworkCard pending={!!c && c.status !== 'approved'} />
+        <OwnGoOnlineCard pending={!!c && c.status === 'pending'} />
         <Routes>
           <Route index element={<OwnDeliveriesPanel view="ativas" />} />
           <Route path="entregas" element={<OwnDeliveriesPanel view="ativas" />} />
@@ -382,21 +384,6 @@ export function CourierArea() {
         <Route path="*" element={<Navigate to="/entregador" replace />} />
       </Routes>
     </Page>
-  )
-}
-
-/** Entregador próprio sem cadastro de parceiro: convite para receber também os pedidos de todas as lojas da cidade. */
-function JoinNetworkCard({ pending }: { pending: boolean }) {
-  return (
-    <section aria-labelledby="rede" className={`${box} flex flex-col gap-3 border-2 border-orange`}>
-      <h2 id="rede" className="text-lg font-semibold text-ink">Receber pedidos de todas as lojas</h2>
-      <p className="text-base text-ink-muted">
-        {pending
-          ? 'Seu cadastro de entregador parceiro ainda não está liberado. Confira o andamento na página de cadastro.'
-          : 'Hoje você recebe só as entregas da sua loja. Faça o cadastro de entregador parceiro (gratuito e liberado na hora) para ficar Online e ver os pedidos de todas as lojas da sua cidade. Quem aceitar primeiro leva a entrega.'}
-      </p>
-      <Link to="/entregadores" className={`${primary} w-full`}>{pending ? 'Ver meu cadastro' : 'Quero receber pedidos de todas as lojas'}</Link>
-    </section>
   )
 }
 

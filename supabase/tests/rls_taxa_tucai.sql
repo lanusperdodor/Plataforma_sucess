@@ -78,9 +78,21 @@ begin
   -- entregador próprio COM cadastro aprovado de parceiro também vê e aceita ofertas da rede (0052)
   perform tstx.su();
   perform tstx.ok(private.is_any_own_courier(kp), 'Entregador 2 é entregador próprio do supermercado');
-  insert into public.couriers(user_id, full_name, phone, city_id, vehicle, status, is_online, terms_version, terms_accepted_at)
-  values (kp, 'Entregador Teste Dois', '35999990003', city, 'bicicleta', 'approved', true, 'v1', now())
-  on conflict (user_id) do update set status = 'approved', is_online = true, city_id = city;
+  -- 0055: já logado, fica Online direto (sem página de cadastro): cidade da loja, nome do perfil
+  perform tstx.ok(not exists (select 1 from public.couriers where user_id = kp), 'entregador próprio ainda sem cadastro de parceiro');
+  perform tstx.login(k1);
+  perform tstx.denied($q$select public.own_courier_go_online('35999990003', 'bicicleta', null, null, true)$q$, 'independente usa a função do próprio');
+  perform tstx.login(kp);
+  perform tstx.denied($q$select public.own_courier_go_online('35999990003', 'bicicleta', null, null, false)$q$, 'sem aceitar os termos');
+  perform tstx.denied($q$select public.own_courier_go_online('35999990003', 'moto', null, null, true)$q$, 'moto sem placa e CNH');
+  perform tstx.ok(public.own_courier_go_online('35999990003', 'bicicleta', null, null, true) = 'approved', 'liberado na hora');
+  perform tstx.su();
+  perform tstx.ok((select is_online and city_id = (select city_id from public.businesses where id = sup) from public.couriers where user_id = kp), 'Online, na cidade da loja');
+  perform tstx.login(kp);
+  perform public.set_courier_online(false);
+  perform tstx.ok(public.own_courier_go_online('x', 'bicicleta') = 'approved', 'próximas vezes: só fica Online');
+  perform tstx.su();
+  perform tstx.ok((select is_online and phone = '35999990003' from public.couriers where user_id = kp), 'dados não mudam ao ficar Online de novo');
   perform tstx.login(kp);
   perform tstx.ok(exists (select 1 from public.courier_list_offers() where order_id = op), 'entregador próprio com cadastro de parceiro vê a oferta da rede');
   perform tstx.login(k1);

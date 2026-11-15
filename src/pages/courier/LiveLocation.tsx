@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Navigation, Radio, Square } from 'lucide-react'
+import { Loader2, Navigation, Radio, RotateCcw, Square, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { routeProgress, shouldSend, OFF_ROUTE_M, type LngLat } from '../../features/rastreamento/geo.ts'
+import { shouldSend, type LngLat } from '../../features/rastreamento/geo.ts'
 import { courierSetPointFromAddress, geocodeAddress, getRouteSteps, getTracking, requestRoute, sendLocation, stopSharing, toLngLat } from '../../features/rastreamento/repository.ts'
 import { CourierNavigation, type GpsFix } from '../../components/map/CourierNavigation.tsx'
+import { getMyCourierAddress } from '../../features/address/repository.ts'
+import { formatAddress } from '../../features/address/address.ts'
 
 type WakeLockLike = { release(): Promise<void> }
 const nav = () => navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<WakeLockLike> } }
@@ -22,41 +24,18 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
   const [showMap, setShowMap] = useState(false)
   // posição precisa do próprio aparelho (só para a tela do entregador; o servidor recebe a cada ~20 s)
   const [fix, setFix] = useState<GpsFix | null>(null)
+  const fixRef = useRef<GpsFix | null>(null)
+  fixRef.current = fix
   const [routeUi, setRouteUi] = useState<{ recalculating: boolean; error: string | null }>({ recalculating: false, error: null })
   const [state, setState] = useState<{ sentAt: number | null; error: string | null; accuracy: number | null; hidden: boolean }>({ sentAt: null, error: null, accuracy: null, hidden: false })
   const watch = useRef<number | null>(null)
   const last = useRef<{ at: number; pos: LngLat } | null>(null)
   const sending = useRef(false)
   const wake = useRef<WakeLockLike | null>(null)
-  const routeAsk = useRef<{ at: number; leg: string | null; offCount: number }>({ at: 0, leg: null, offCount: 0 })
   const t = useQuery({ queryKey: ['rastreio', orderId], queryFn: () => getTracking(orderId), refetchInterval: 30_000 })
   const tracking = t.data
   const trackingRef = useRef(tracking)
   useEffect(() => { trackingRef.current = tracking }, [tracking])
-
-  const maybeRoute = useCallback(async (leg: 'coleta' | 'entrega', pos: LngLat) => {
-    const cur = trackingRef.current
-    const r = cur?.route && cur.route.leg === leg ? cur.route : null
-    const now = Date.now()
-    let need = !r && routeAsk.current.leg !== leg
-    if (r) {
-      const p = routeProgress(pos, r.geometry)
-      routeAsk.current.offCount = p && p.offRouteM > OFF_ROUTE_M ? routeAsk.current.offCount + 1 : 0
-      need = routeAsk.current.offCount >= 2 && now - routeAsk.current.at > 120_000
-    }
-    if (!need) return
-    const recalculo = !!r
-    routeAsk.current = { at: now, leg, offCount: 0 }
-    setRouteUi({ recalculating: recalculo, error: null })
-    try {
-      await requestRoute(orderId, leg)
-      void qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
-      setRouteUi({ recalculating: false, error: null })
-    } catch (e) {
-      // sem rota (limite, sem chave, sem coordenadas, rua não encontrada): a navegação segue com a linha reta e o link do OpenStreetMap
-      setRouteUi({ recalculating: false, error: e instanceof Error ? e.message : 'Rota não encontrada.' })
-    }
-  }, [orderId, qc])
 
   const stop = useCallback((tellServer = true) => {
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current)
@@ -87,7 +66,7 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
           heading: Number.isFinite(p.coords.heading) ? p.coords.heading : null,
           speedKmh: Number.isFinite(p.coords.speed) && p.coords.speed !== null ? p.coords.speed * 3.6 : null, at: p.timestamp || now,
         })
-          .then((leg) => { setState((s) => ({ ...s, sentAt: Date.now() })); void maybeRoute(leg, pos) })
+          .then(() => { setState((s) => ({ ...s, sentAt: Date.now() })) })
           .catch((e: unknown) => {
             const m = e instanceof Error ? e.message : 'Falha ao enviar a localização.'
             setState((s) => ({ ...s, error: m }))
@@ -98,7 +77,7 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
       (e) => setState((s) => ({ ...s, error: e.code === 1 ? 'Permissão de localização negada. Libere nas configurações do navegador.' : 'Sem sinal de GPS no momento.' })),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 },
     )
-  }, [orderId, maybeRoute, stop])
+  }, [orderId, stop])
 
   // tela bloqueada/app em segundo plano: avisa; ao voltar, pede a tela acesa de novo
   useEffect(() => {
@@ -125,14 +104,47 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
     const near = tracking.business.lat != null && tracking.business.lng != null ? { lat: tracking.business.lat, lng: tracking.business.lng } : null
     void geocodeAddress(dropoffAddress, near)
       .then((p) => courierSetPointFromAddress(orderId, p.lat, p.lng))
-      .then(() => {
-        routeAsk.current = { at: 0, leg: null, offCount: 0 }
-        void qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
-      })
+      .then(() => { void qc.invalidateQueries({ queryKey: ['rastreio', orderId] }) })
       .catch((e: unknown) => {
         if (leg === 'entrega') setRouteUi((r) => ({ ...r, error: `Não achamos o endereço do cliente no mapa (${e instanceof Error ? e.message : 'erro'}). Ligue para o cliente ou use o link abaixo.` }))
       })
   }, [showMap, tracking, dropoffAddress, leg, orderId, qc])
+  // ponto de partida da coleta: GPS agora; sem GPS, o endereço cadastrado do entregador
+  const startPoint = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
+    const gps = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      if (!('geolocation' in navigator) || typeof navigator.geolocation.getCurrentPosition !== 'function') return resolve(null)
+      navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null),
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 })
+    })
+    if (gps) return gps
+    if (fixRef.current) return { lat: fixRef.current.pos[1], lng: fixRef.current.pos[0] }
+    const parts = await getMyCourierAddress()
+    if (!parts) return null
+    const cur = trackingRef.current
+    const near = cur?.business.lat != null && cur.business.lng != null ? { lat: cur.business.lat, lng: cur.business.lng } : null
+    return geocodeAddress(formatAddress(parts), near).catch(() => null)
+  }, [])
+
+  // botão único da etapa: "até o restaurante" (do entregador até a loja) → depois de pegar, "até o cliente" (da loja até o cliente)
+  const [routing, setRouting] = useState(false)
+  const trace = useCallback(async () => {
+    if (!leg || routing) return
+    setShowMap(true)
+    if (!on) start()
+    setRouting(true)
+    setRouteUi({ recalculating: false, error: null })
+    try {
+      const from = leg === 'coleta' ? await startPoint() : null
+      if (leg === 'coleta' && !from) throw new Error('Não conseguimos sua localização. Ligue o GPS ou cadastre seu endereço em Meus dados.')
+      await requestRoute(orderId, leg, from)
+      await qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
+    } catch (e) {
+      setRouteUi({ recalculating: false, error: e instanceof Error ? e.message : 'Rota não encontrada.' })
+    } finally {
+      setRouting(false)
+    }
+  }, [leg, routing, on, start, startPoint, orderId, qc])
+
   const steps = useQuery({
     queryKey: ['rastreio', 'passos', orderId, tracking?.route?.computed_at ?? ''],
     queryFn: () => getRouteSteps(orderId),
@@ -141,18 +153,37 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
   })
   const store = tracking?.business.lat != null && tracking.business.lng != null ? toLngLat({ lat: tracking.business.lat, lng: tracking.business.lng }) : null
   const destination = tracking?.destination ? toLngLat(tracking.destination) : null
+  const hasRoute = !!tracking?.route && tracking.route.leg === leg
   const sentAgo = state.sentAt ? Math.round((Date.now() - state.sentAt) / 1000) : null
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
-      {/* navegação DENTRO da Tucaí: mapa OpenStreetMap, rota pelas ruas e próxima conversão. Abrir já liga o GPS. */}
-      <button type="button" onClick={() => { if (!showMap && !on) start(); setShowMap((v) => !v) }} aria-expanded={showMap}
-        className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand px-5 text-base font-semibold text-surface">
-        <Navigation aria-hidden="true" className="size-5" />{showMap ? 'Fechar navegação' : leg === 'entrega' ? 'Navegar até o cliente' : 'Navegar até a loja'}
-      </button>
+      {/* um botão só, no mesmo lugar: muda conforme a etapa (restaurante → cliente) */}
+      {leg && (
+        <button type="button" disabled={routing} onClick={() => void trace()}
+          className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-brand px-5 text-lg font-bold text-surface disabled:opacity-70">
+          {routing ? <Loader2 aria-hidden="true" className="size-5 animate-spin" /> : hasRoute ? <RotateCcw aria-hidden="true" className="size-5" /> : <Navigation aria-hidden="true" className="size-5" />}
+          {routing ? 'Traçando a rota…' : `${hasRoute ? 'Traçar de novo' : 'Traçar rota'} até ${leg === 'entrega' ? 'o cliente' : 'o restaurante'}`}
+        </button>
+      )}
+      <p className="text-sm text-ink-muted">
+        {leg === 'entrega'
+          ? `Rota do restaurante (${pickupName}) até o cliente (${dropoffName}).`
+          : leg === 'coleta' ? `Rota de onde você está até o restaurante (${pickupName}). Depois de “Peguei o pedido”, o botão muda para a rota até o cliente.` : ''}
+      </p>
+      {hasRoute && !showMap && (
+        <button type="button" onClick={() => { if (!on) start(); setShowMap(true) }} className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-brand px-5 text-base font-semibold text-ink">
+          <Navigation aria-hidden="true" className="size-5" />Abrir o mapa da rota
+        </button>
+      )}
+      {showMap && (
+        <button type="button" onClick={() => setShowMap(false)} className="pressable inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-ink">
+          <X aria-hidden="true" className="size-4" />Fechar o mapa
+        </button>
+      )}
       {showMap && (
         <CourierNavigation
-          leg={leg} vehicle={tracking?.vehicle ?? 'moto'} fix={fix} store={store} destination={destination}
+          leg={leg} vehicle={tracking?.vehicle ?? 'moto'} fix={fix} store={store} destination={leg === 'entrega' ? destination : null}
           route={tracking?.route && tracking.route.leg === leg ? tracking.route : null} steps={steps.data ?? []}
           pickup={{ name: pickupName, address: pickupAddress }} dropoff={{ name: dropoffName, address: dropoffAddress }}
           payCents={payCents} deliveryDistanceM={null}

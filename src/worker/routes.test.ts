@@ -33,6 +33,24 @@ describe('rota de entrega no Worker', () => {
     expect(f).toHaveBeenCalledTimes(1)
   })
 
+  it('ponto de partida do aparelho: usa route_request_from; banco antigo cai na função antiga', async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = []
+    const f = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : {} })
+      if (url.endsWith('/rpc/route_request_from')) return ok({ message: 'not found' }, 404)
+      return ok({ code: 'P0001', message: 'Ligue o GPS' }, 400)
+    }) as unknown as typeof fetch
+    const r = await handleRoutes(req({ order: ORDER, leg: 'coleta', from: { lat: -20.08, lng: -44.58 } }), { ORS_API_KEY: 'k' }, f)
+    expect(r!.status).toBe(409)
+    expect(calls[0]).toMatchObject({ url: expect.stringContaining('/rpc/route_request_from'), body: { _order: ORDER, _leg: 'coleta', _lat: -20.08, _lng: -44.58 } })
+    expect(calls[1]!.url).toMatch(/\/rpc\/route_request$/)
+    // ponto inválido é ignorado (não vai ao banco como partida)
+    calls.length = 0
+    await handleRoutes(req({ order: ORDER, leg: 'coleta', from: { lat: 'x', lng: null } }), { ORS_API_KEY: 'k' }, f)
+    expect(calls[0]!.url).toMatch(/\/rpc\/route_request$/)
+  })
+
   it('sem chave do provedor: avisa e não grava', async () => {
     const f = fakeFetch({ '/rpc/route_request': () => ok({ ticket: 't', origin: { lat: -20.07, lng: -44.57 }, destination: { lat: -20.08, lng: -44.58 } }) })
     const r = await handleRoutes(req({ order: ORDER, leg: 'coleta' }), {}, f)

@@ -87,6 +87,13 @@ export async function setOnline(online: boolean): Promise<boolean> {
   return exec(supabase.rpc('set_courier_online', { _online: online }), z.boolean())
 }
 
+/** Entregador próprio já logado: fica Online direto (1ª vez cria o cadastro de parceiro com a cidade da loja). 0055. */
+export async function ownCourierGoOnline(input: { phone: string; vehicle: Vehicle; plate?: string; cnh?: string; acceptTerms: boolean }): Promise<CourierStatus> {
+  return exec(supabase.rpc('own_courier_go_online', {
+    _phone: input.phone, _vehicle: input.vehicle, _vehicle_plate: input.plate || null, _cnh_category: input.cnh || null, _accept_terms: input.acceptTerms,
+  }), z.enum(courierStatuses))
+}
+
 // ---------- equipe ----------
 const adminSchema = z
   .object({

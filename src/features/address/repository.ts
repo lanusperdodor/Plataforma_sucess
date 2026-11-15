@@ -44,3 +44,11 @@ export const saveMyAddress = (userId: string, a: AddressParts) =>
 
 export const getCourierAddress = (userId: string) => read(supabase.from('couriers').select('address_parts').eq('user_id', userId).maybeSingle())
 export const saveCourierAddress = (a: AddressParts) => write(supabase.rpc('courier_set_address', { _parts: toStoredParts(a) }), false)
+
+/** Endereço cadastrado do entregador logado (ponto de partida da rota quando o GPS não responde). */
+export async function getMyCourierAddress(): Promise<AddressParts | null> {
+  if (!isSupabaseConfigured) return null
+  const { data } = await supabase.auth.getSession()
+  const id = data.session?.user.id
+  return id ? getCourierAddress(id) : null
+}

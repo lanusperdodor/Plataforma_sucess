@@ -4,6 +4,7 @@ import { TriangleAlert } from 'lucide-react'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { StateShell, stateButtonClass } from '../components/feedback/StateShell.tsx'
 import { Skeleton, SkeletonCard } from '../components/feedback/Skeleton.tsx'
+import { reloadForNewVersion } from './staleBuild.ts'
 
 /** Cabeçalho + grade de cards, reservando espaço para evitar salto de layout. */
 export function RouteSkeleton() {
@@ -36,6 +37,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
+    // arquivo da tela não existe mais (versão nova publicada com a aba aberta): recarrega sozinho uma vez
+    if (isChunkLoadError(error) && reloadForNewVersion()) return
     // detalhes técnicos só no desenvolvimento; em produção o usuário vê a tela de erro amigável
     if (import.meta.env.DEV) console.error('Erro na rota', error, info.componentStack)
   }

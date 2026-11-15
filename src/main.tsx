@@ -11,11 +11,14 @@ import { PasswordChangeGate } from './components/account/PasswordChangeGate.tsx'
 import { ContextAutoSwitch } from './components/account/ContextAutoSwitch.tsx'
 import { MaintenanceGate } from './components/platform/MaintenanceGate.tsx'
 import './styles/tokens.css'
+import { installStaleBuildRecovery } from './app/staleBuild.ts'
 
 // Prévia estática (página hospedada sem servidor de rotas): VITE_HASH_ROUTER=1 usa rotas por '#'.
 const Router = import.meta.env.VITE_HASH_ROUTER === '1' ? HashRouter : BrowserRouter
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } })
+
+installStaleBuildRecovery()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

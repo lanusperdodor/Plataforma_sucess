@@ -1,6 +1,7 @@
 import { ChevronDown, Menu, PanelLeftClose, PanelLeftOpen, X, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { MenuSearchInput, matches } from '../nav/menuSearch.tsx'
 
 /**
  * Navegação padrão dos painéis (Master, Gestão, entregador): barra lateral agrupada no computador, recolhível só aos
@@ -21,21 +22,34 @@ function save(next: Saved) {
 
 function NavList({ groups, scope, collapsed = false, onNavigate, label }: { groups: PanelNavGroup[]; scope: string; collapsed?: boolean; onNavigate?: () => void; label: string }) {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [closed, setClosed] = useState<string[]>(() => load().closed?.[scope] ?? [])
+  const [query, setQuery] = useState('')
   const toggle = (id: string) => setClosed((cur) => {
     const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
     const s = load()
     save({ ...s, closed: { ...(s.closed ?? {}), [scope]: next } })
     return next
   })
-  const visible = groups.filter((g) => g.items.length > 0)
+  // busca: filtra as abas pelo nome, dica ou grupo; com busca, todos os grupos ficam abertos
+  const searching = !collapsed && query.trim() !== ''
+  const visible = groups
+    .map((g) => (searching ? { ...g, items: g.items.filter((i) => matches(query, i.label, i.hint, g.label)) } : g))
+    .filter((g) => g.items.length > 0)
+  const first = visible[0]?.items[0]
   return (
     <nav aria-label={label} className="flex flex-col gap-1">
+      {!collapsed && (
+        <div className="mb-1">
+          <MenuSearchInput id={`busca-menu-${scope}`} value={query} onChange={setQuery} onEnter={() => { if (first) { navigate(first.to); setQuery(''); onNavigate?.() } }} />
+        </div>
+      )}
+      {searching && visible.length === 0 && <p role="status" className="px-3 py-2 text-sm text-ink-muted">Nenhuma aba encontrada.</p>}
       {visible.map((g, gi) => {
         // o grupo da página atual nunca fica fechado
         const hasActive = g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(`${i.to}/`)))
-        const isOpen = collapsed || hasActive || !closed.includes(g.id)
-        const single = g.items.length === 1 && visible.length > 1 && gi === 0
+        const isOpen = collapsed || searching || hasActive || !closed.includes(g.id)
+        const single = !searching && g.items.length === 1 && visible.length > 1 && gi === 0
         return (
           <div key={g.id} className={gi > 0 ? 'pt-1' : ''}>
             {collapsed ? (
@@ -58,7 +72,7 @@ function NavList({ groups, scope, collapsed = false, onNavigate, label }: { grou
                     <NavLink
                       to={i.to}
                       end={i.end}
-                      onClick={onNavigate}
+                      onClick={() => { setQuery(''); onNavigate?.() }}
                       title={collapsed ? i.label : i.hint}
                       className={({ isActive }) =>
                         `group relative flex min-h-10 items-center gap-3 rounded-lg text-sm outline-offset-[-2px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${
@@ -119,7 +133,7 @@ export function PanelDrawer({ open, onClose, groups, scope, label, title, footer
   useEffect(() => {
     if (!open) return
     const prev = document.activeElement as HTMLElement | null
-    ref.current?.querySelector<HTMLElement>('[aria-current="page"], a, button')?.focus()
+    ref.current?.querySelector<HTMLElement>('input[type="search"], [aria-current="page"], a, button')?.focus()
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     const overflow = document.body.style.overflow

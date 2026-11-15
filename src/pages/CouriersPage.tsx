@@ -24,7 +24,7 @@ import {
 
 const STEPS = [
   { icon: FileCheck2, title: 'Cadastro', text: 'Seus dados de contato, cidade e veículo.' },
-  { icon: ShieldCheck, title: 'Análise pela Tucaí', text: 'A equipe confere as informações antes de liberar o acesso.' },
+  { icon: ShieldCheck, title: 'Liberado na hora', text: 'Sem taxa: com o cadastro completo, sua área de entregador já abre. A Tucaí confere os dados depois.' },
   { icon: Wallet, title: 'Ofertas com valor antes do aceite', text: 'Você vê origem, destino e valor previsto e decide se aceita.' },
 ]
 
@@ -75,12 +75,14 @@ function ApplicationForm({ existing }: { existing: MyCourier | null }) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const m = useMutation({
     mutationFn: async () => {
-      await submitCourierApplication(v)
+      const status = await submitCourierApplication(v)
       // o cadastro já existe: grava o endereço (se o banco ainda não tiver a 0042, o cadastro segue valendo)
       try { await saveCourierAddress(addr) } catch { toast.error('Cadastro enviado, mas o endereço não foi salvo. Salve em "Meu endereço".') }
+      return status
     },
-    onSuccess: () => {
-      toast.success('Cadastro enviado para análise.')
+    onSuccess: (status) => {
+      toast.success(status === 'approved' ? 'Cadastro liberado! Sua área de entregador já está aberta.' : 'Cadastro enviado para análise.')
+      if (status === 'approved') window.setTimeout(() => window.location.assign('/entregador'), 600)
       void qc.invalidateQueries({ queryKey: ['courier'] })
       void refreshAuthz()
     },

@@ -18,6 +18,8 @@ import {
 } from '../features/auth/schemas.ts'
 import { SIGN_IN_MESSAGES, oauthReturnError, signInWithGoogle, signInWithIdentifier } from '../features/auth/signIn.ts'
 import { trackLogin, trackSignUp } from '../features/tracking/tracker.ts'
+import { ONBOARDING_PATH, saveAccountType, type AccountType } from '../features/onboarding/accountType.ts'
+import { Bike, ShoppingBag, Store } from 'lucide-react'
 
 /** Prévia sem Supabase: o formulário funciona visualmente, mas não autentica. */
 export const OFFLINE_MESSAGE = 'Entrar e criar conta não funcionam nesta prévia, que não se conecta ao banco. Use o site publicado.'
@@ -47,7 +49,7 @@ function GoogleIcon() {
 }
 
 /** Entrar ou criar conta com o Google (OAuth do Supabase). */
-export function GoogleButton({ onError }: { onError: (msg: string) => void }) {
+export function GoogleButton({ onError, onBefore }: { onError: (msg: string) => void; onBefore?: () => void }) {
   const [busy, setBusy] = useState(false)
   return (
     <>
@@ -60,6 +62,7 @@ export function GoogleButton({ onError }: { onError: (msg: string) => void }) {
         onClick={async () => {
           if (!isSupabaseConfigured) return onError(OFFLINE_MESSAGE)
           setBusy(true)
+          onBefore?.()
           const { error } = await signInWithGoogle()
           if (error) {
             setBusy(false)
@@ -135,10 +138,28 @@ export function LoginPage() {
   )
 }
 
+const ACCOUNT_TYPES: { id: AccountType; title: string; text: string; icon: typeof Store }[] = [
+  { id: 'cliente', title: 'Cliente', text: 'Pedir em restaurantes, lojas e serviços. Grátis.', icon: ShoppingBag },
+  { id: 'entregador', title: 'Entregador', text: 'Fazer entregas e ganhar por corrida. Grátis, liberado na hora.', icon: Bike },
+  { id: 'empresario', title: 'Empresário', text: 'Vender na Tucaí. Plano Padrão R$ 79,90 ou Premium (completo) R$ 99,90 por mês.', icon: Store },
+]
+
 export function SignUpPage() {
   const navigate = useNavigate()
   const [msg, setMsg] = useState<{ kind: 'error' | 'success'; text: string }>()
+  const [type, setType] = useState<AccountType>('cliente')
+  const [userTaken, setUserTaken] = useState<boolean | null>(null)
   const f = useForm<SignUpValues>({ resolver: zodResolver(signUpSchema) })
+
+  // nome de usuário único em toda a Tucaí (cliente, entregador, empresa): avisa assim que a pessoa sai do campo
+  const checkUsername = async (raw: string) => {
+    const u = raw.trim().toLowerCase()
+    if (!u || !isSupabaseConfigured) { setUserTaken(null); return }
+    const { data: free } = await supabase.rpc('username_available', { _username: u })
+    setUserTaken(free === false)
+    if (free === false) f.setError('username', { message: 'Nome de usuário já existente, tente novamente.' })
+    else f.clearErrors('username')
+  }
 
   const onSubmit = f.handleSubmit(async (v) => {
     setMsg(undefined)
@@ -146,33 +167,48 @@ export function SignUpPage() {
     const username = v.username?.trim().toLowerCase() || ''
     if (username) {
       const { data: free } = await supabase.rpc('username_available', { _username: username })
-      if (free === false) return f.setError('username', { message: 'Este nome de usuário já está em uso ou é reservado.' })
+      if (free === false) return f.setError('username', { message: 'Nome de usuário já existente, tente novamente.' })
     }
+    saveAccountType(type)
     const { data, error } = await supabase.auth.signUp({
       email: v.email,
       password: v.password,
-      options: { data: { full_name: v.fullName, ...(username ? { username } : {}) }, emailRedirectTo: `${window.location.origin}/entrar` },
+      options: { data: { full_name: v.fullName, account_type: type, ...(username ? { username } : {}) }, emailRedirectTo: `${window.location.origin}/entrar` },
     })
-    if (error) return setMsg({ kind: 'error', text: 'Não foi possível criar a conta. Verifique os dados.' })
+    if (error) return setMsg({ kind: 'error', text: /registered|already/i.test(error.message) ? 'Este e-mail já tem conta. Entre ou recupere a senha.' : 'Não foi possível criar a conta. Verifique os dados.' })
     trackSignUp('email')
-    // projeto sem confirmação de e-mail: a sessão já vem aberta
-    if (data.session) return navigate('/', { replace: true })
+    // projeto sem confirmação de e-mail: a sessão já vem aberta e cada tipo vai para a sua primeira tela
+    if (data.session) return navigate(ONBOARDING_PATH[type], { replace: true })
     setMsg({ kind: 'success', text: 'Conta criada. Confirme seu e-mail para entrar.' })
   })
 
   return (
-    <Card title="Criar conta" subtitle="Leva menos de um minuto. Você começa como cliente.">
+    <Card title="Criar conta" subtitle="Escolha como você vai usar a Tucaí.">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <fieldset>
+          <legend className="mb-2 text-sm font-semibold text-ink">Eu quero ser</legend>
+          <div className="grid grid-cols-1 gap-2">
+            {ACCOUNT_TYPES.map((t) => (
+              <label key={t.id} className={`pressable flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-3 ${type === t.id ? 'border-brand bg-muted' : 'border-line'}`}>
+                <input type="radio" name="tipo-conta" value={t.id} className="sr-only" checked={type === t.id} onChange={() => setType(t.id)} />
+                <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-xl ${type === t.id ? 'bg-brand text-surface' : 'bg-muted text-ink'}`}><t.icon className="size-5" /></span>
+                <span><span className="block font-semibold text-ink">{t.title}</span><span className="block text-sm text-ink-muted">{t.text}</span></span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <Field label="Nome completo" autoComplete="name" error={f.formState.errors.fullName?.message} {...f.register('fullName')} />
         <Field label="E-mail" type="email" autoComplete="email" error={f.formState.errors.email?.message} {...f.register('email')} />
-        <Field label="Nome de usuário (opcional, para entrar sem digitar o e-mail)" autoComplete="username" autoCapitalize="none" spellCheck={false} error={f.formState.errors.username?.message} {...f.register('username')} />
+        <Field label="Nome de usuário (opcional, para entrar sem digitar o e-mail)" autoComplete="username" autoCapitalize="none" spellCheck={false}
+          error={f.formState.errors.username?.message} {...f.register('username', { onBlur: (e) => void checkUsername((e.target as HTMLInputElement).value) })} />
+        {userTaken === false && !f.formState.errors.username && <p role="status" className="-mt-2 text-sm text-success">Nome de usuário disponível.</p>}
         <Field label="Senha" type="password" autoComplete="new-password" error={f.formState.errors.password?.message} {...f.register('password')} />
         <Button type="submit" className="w-full" disabled={f.formState.isSubmitting}>
-          {f.formState.isSubmitting ? 'Criando…' : 'Criar conta'}
+          {f.formState.isSubmitting ? 'Criando…' : type === 'empresario' ? 'Criar conta e escolher o plano' : type === 'entregador' ? 'Criar conta e cadastrar meu veículo' : 'Criar conta'}
         </Button>
       </form>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-      <GoogleButton onError={(text) => setMsg({ kind: 'error', text })} />
+      <GoogleButton onError={(text) => setMsg({ kind: 'error', text })} onBefore={() => saveAccountType(type)} />
       <ConfigWarning />
       <p className="mt-4 text-sm">
         Já sou cadastrado: <Link className="font-semibold text-brand" to="/entrar">Entrar</Link>

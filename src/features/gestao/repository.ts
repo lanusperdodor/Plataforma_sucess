@@ -44,8 +44,10 @@ export type MemberRole = 'owner' | 'manager' | 'attendant' | 'kitchen' | 'courie
 export const MEMBER_ROLE_LABEL: Record<MemberRole, string> = {
   owner: 'Empresário', manager: 'Gerente', attendant: 'Funcionário (atendimento e cozinha)', kitchen: 'Cozinha (cargo antigo)', courier_own: 'Entregador próprio',
 }
-const teamSchema = z.object({ user_id: z.string().nullable(), name: z.string().nullable(), email: z.string().nullable(), member_role: z.string(), pending: z.boolean(), invite_id: z.string().nullable(), created_at: z.string() })
-  .transform((r) => ({ userId: r.user_id, name: r.name, email: r.email, role: r.member_role as MemberRole, pending: r.pending, inviteId: r.invite_id, createdAt: r.created_at }))
+const teamSchema = z.object({ user_id: z.string().nullable(), name: z.string().nullable(), email: z.string().nullable(), member_role: z.string(), pending: z.boolean(), invite_id: z.string().nullable(), created_at: z.string(),
+  username: z.string().nullable().optional(), function_id: z.string().nullable().optional(), function_name: z.string().nullable().optional() })
+  .transform((r) => ({ userId: r.user_id, name: r.name, email: r.email, role: r.member_role as MemberRole, pending: r.pending, inviteId: r.invite_id, createdAt: r.created_at,
+    username: r.username ?? null, functionId: r.function_id ?? null, functionName: r.function_name ?? null }))
 export type TeamMember = z.output<typeof teamSchema>
 export const listTeam = (businessId: string) => rpc('merchant_team', { _business: businessId }, z.array(teamSchema))
 export const inviteMember = (businessId: string, email: string, role: Exclude<MemberRole, 'owner'>) =>
@@ -54,7 +56,38 @@ export const setMemberRole = (businessId: string, userId: string, role: Exclude<
   rpc('merchant_set_member_role', { _business: businessId, _user: userId, _role: role }, z.any()).then(() => undefined)
 export const removeMember = (businessId: string, userId: string | null, inviteId: string | null = null) =>
   rpc('merchant_remove_member', { _business: businessId, _user: userId, _invite: inviteId }, z.any()).then(() => undefined)
-export const setMemberPermission = (businessId: string, userId: string, permission: 'tabs.manage' | 'cash.manage' | 'reports.view', granted: boolean) =>
+// ---------- funções personalizadas e convite por nome de usuário (0051) ----------
+export const FUNCTION_EXTRAS = [
+  { code: 'orders.view', label: 'Ver pedidos' },
+  { code: 'orders.update_status', label: 'Atualizar pedidos' },
+  { code: 'menu.manage', label: 'Cardápio e produtos' },
+  { code: 'tabs.manage', label: 'Comandas e mesas' },
+  { code: 'cash.manage', label: 'Operar caixa' },
+  { code: 'reports.view', label: 'Relatórios' },
+  { code: 'jobs.manage', label: 'Vagas de emprego' },
+  { code: 'delivery.manage_own', label: 'Entregas da loja' },
+] as const
+export type FunctionExtra = (typeof FUNCTION_EXTRAS)[number]['code']
+const fnSchema = z.object({ id: z.string(), name: z.string(), base_role: z.string(), extras: z.array(z.string()) })
+  .transform((r) => ({ id: r.id, name: r.name, baseRole: r.base_role as Exclude<MemberRole, 'owner'>, extras: r.extras as FunctionExtra[] }))
+export type TeamFunction = z.output<typeof fnSchema>
+/** Funções da loja (vazia se o banco ainda não tiver a 0051). */
+export async function listFunctions(businessId: string): Promise<TeamFunction[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('business_functions').select('id,name,base_role,extras').eq('business_id', businessId).order('name')
+  if (error) return []
+  const p = z.array(fnSchema).safeParse(data)
+  return p.success ? p.data : []
+}
+export const saveFunction = (businessId: string, f: { id: string | null; name: string; baseRole: Exclude<MemberRole, 'owner'>; extras: FunctionExtra[] }) =>
+  rpc('merchant_save_function', { _business: businessId, _id: f.id, _name: f.name.trim(), _base_role: f.baseRole, _extras: f.extras }, z.string())
+export const deleteFunction = (businessId: string, id: string) => rpc('merchant_delete_function', { _business: businessId, _id: id }, z.any()).then(() => undefined)
+export const applyFunction = (businessId: string, userId: string, fnId: string) =>
+  rpc('merchant_apply_function', { _business: businessId, _user: userId, _fn: fnId }, z.any()).then(() => undefined)
+export const inviteByUsername = (businessId: string, username: string, role: Exclude<MemberRole, 'owner'> | null, fnId: string | null) =>
+  rpc('merchant_invite_by_username', { _business: businessId, _username: username.trim(), _role: role, _fn: fnId }, z.string())
+
+export const setMemberPermission = (businessId: string, userId: string, permission: FunctionExtra, granted: boolean) =>
   rpc('merchant_set_member_permission', { _business: businessId, _user: userId, _permission: permission, _granted: granted }, z.any()).then(() => undefined)
 export async function listMemberExtras(businessId: string): Promise<{ userId: string; permission: string }[]> {
   if (!isSupabaseConfigured) throw backendUnavailable()
@@ -269,3 +302,12 @@ export type StoreLocation = z.infer<typeof locationSchema>
 export const getStoreLocation = (businessId: string) => rpc('merchant_location', { _business: businessId }, locationSchema)
 export const setStoreLocation = (businessId: string, lat: number | null, lng: number | null) =>
   rpc('merchant_set_location', { _business: businessId, _lat: lat, _lng: lng }, z.unknown()).then(() => undefined)
+
+/** Nome de usuário existe? (único em toda a Tucaí). null quando não dá para conferir agora. */
+export async function usernameExists(username: string): Promise<boolean | null> {
+  const u = username.trim().replace(/^@/, '').toLowerCase()
+  if (!isSupabaseConfigured || u.length < 3) return null
+  const { data, error } = await supabase.rpc('username_available', { _username: u })
+  if (error || typeof data !== 'boolean') return null
+  return !data
+}

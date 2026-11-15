@@ -2,12 +2,24 @@ import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { availableContexts, setActiveContext } from '../../lib/activeContext.ts'
+import { ONBOARDING_PATH, clearAccountType, readAccountType } from '../../features/onboarding/accountType.ts'
 
 /** Entrar num painel (loja, entregador ou Master) passa a navegação para aquele perfil; voltar a comprar é pelo menu de conta. */
 export function ContextAutoSwitch() {
   const { pathname } = useLocation()
-  const { authz } = useAuth()
+  const { authz, session } = useAuth()
   const navigate = useNavigate()
+  // primeiro acesso: quem escolheu ser entregador ou empresário no cadastro vai para o cadastro correspondente
+  useEffect(() => {
+    if (!authz || !session) return
+    const t = readAccountType(session.user.user_metadata as Record<string, unknown> | undefined)
+    if (!t) return
+    const done = t === 'cliente'
+      || (t === 'entregador' && (authz.roles.includes('courier_partner') || authz.memberships.some((m) => m.role === 'courier_own')))
+      || (t === 'empresario' && authz.memberships.some((m) => m.role !== 'courier_own'))
+    if (done) { clearAccountType(); return }
+    if (pathname === '/' || pathname === '/conta') navigate(ONBOARDING_PATH[t], { replace: true })
+  }, [pathname, authz, session, navigate])
   // conta só de entregador: as telas de compra (início, explorar, pedidos, sacola…) levam às entregas
   useEffect(() => {
     if (!authz) return

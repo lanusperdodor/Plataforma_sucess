@@ -101,7 +101,7 @@ function PasswordForm() {
       }}
       noValidate
     >
-      <h2 className="text-sm font-semibold text-ink">Alterar senha</h2>
+      <h2 id="alterar-senha" className="scroll-mt-24 text-sm font-semibold text-ink">Alterar senha</h2>
       <Field label="Nova senha" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
       <Field label="Repita a nova senha" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
       <Button type="submit" variant="ghost" className="w-full" disabled={busy}>{busy ? 'Salvando…' : 'Alterar senha'}</Button>

@@ -34,7 +34,7 @@ begin
   -- dono escolhe o plano (valor vem do banco)
   perform tsas.login(e1);
   j := public.owner_start_subscription(lan, 'presencial_delivery');
-  perform tsas.ok((j->>'price_cents')::int = 9900 and j->>'plan_name' = 'Premium' and j->>'payer_email' like 'empresario1-%', 'dados para criar a assinatura: ' || j::text);
+  perform tsas.ok((j->>'price_cents')::int = 9990 and j->>'plan_name' = 'Premium' and j->>'payer_email' like 'empresario1-%', 'dados para criar a assinatura: ' || j::text);
   perform tsas.denied(format('select public.owner_start_subscription(%L, %L)', lan, 'plano_falso'), 'plano inexistente');
   perform tsas.login(e2);
   perform tsas.denied(format('select public.owner_start_subscription(%L, %L)', lan, 'delivery'), 'outro empresário assina pela loja');
@@ -42,21 +42,34 @@ begin
   perform tsas.denied(format('select public.owner_start_subscription(%L, %L)', lan, 'delivery'), 'cliente assina pela loja');
 
   -- Worker: só com a chave
+  -- loja nova (pendente) para testar a ativação automática
+  perform tsas.su();
+  update public.businesses set status = 'pending' where id = lan;
   perform tsas.anon();
   perform tsas.denied(format('select public.worker_save_preapproval(%L, %L, %L, %L, %L)', 'chave-errada', lan, 'presencial_delivery', 'pre-1', e1), 'chave errada');
   perform public.worker_save_preapproval(key, lan, 'presencial_delivery', 'pre-1', e1);
   perform tsas.ok(public.worker_preapproval_status(key, 'pre-1', 'authorized') = 'autorizada', 'assinatura autorizada');
   -- mensalidade paga: cobrança paga + plano estendido, sem duplicar
   perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-100', 5000, 'cartao') = 'valor_diferente', 'valor diferente do plano é recusado');
-  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-100', 9900, 'cartao') = 'confirmado', 'mensalidade confirmada');
-  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-100', 9900, 'cartao') = 'ja_confirmado', 'mesmo pagamento não duplica');
+  perform tsas.ok(public.worker_preapproval_status(key, 'pre-1', 'authorized') = 'autorizada', 'autorizar o cartão ainda não libera a loja');
+  perform tsas.su();
+  perform tsas.ok((select status = 'pending' from public.businesses where id = lan), 'sem pagamento a loja segue pendente');
+  perform tsas.anon();
+  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-100', 9990, 'cartao') = 'confirmado', 'mensalidade confirmada');
+  perform tsas.su();
+  perform tsas.ok((select status = 'active' and auto_activated_at is not null from public.businesses where id = lan), 'primeiro pagamento ativa a loja automaticamente');
+  perform tsas.ok(exists (select 1 from public.user_roles where user_id = e1 and role = 'business_owner'), 'dono recebe o papel de empresário');
+  perform tsas.ok(exists (select 1 from public.audit_logs where action = 'business.auto_activated'), 'ativação registrada na auditoria');
+  perform tsas.anon();
+  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-100', 9990, 'cartao') = 'ja_confirmado', 'mesmo pagamento não duplica');
   perform tsas.su();
   select * into s from public.business_subscriptions where business_id = lan and status = 'active';
+  perform tsas.ok((select price_cents from public.plans where code = 'delivery') = 7990 and (select price_cents from public.plans where code = 'presencial_delivery') = 9990, 'planos R$ 79,90 e R$ 99,90');
   perform tsas.ok(s.plan_code = 'presencial_delivery' and s.current_period_end >= (current_date + interval '28 days')::date, 'plano Premium ativo por ~1 mês');
   select count(*) into n from public.platform_charges where business_id = lan and kind = 'plano' and status = 'paga' and provider_payment_id = 'pg-100';
   perform tsas.ok(n = 1, 'uma cobrança paga registrada');
   perform tsas.anon();
-  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-101', 9900, 'cartao') = 'confirmado', 'mês seguinte');
+  perform tsas.ok(public.worker_preapproval_payment(key, 'pre-1', 'pg-101', 9990, 'cartao') = 'confirmado', 'mês seguinte');
   perform tsas.su();
   perform tsas.ok((select current_period_end from public.business_subscriptions where id = s.id) >= (s.current_period_end + interval '27 days')::date, 'segundo mês estende o plano');
 

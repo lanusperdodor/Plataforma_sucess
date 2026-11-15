@@ -144,7 +144,7 @@ function ApplicationForm() {
   return (
     <section aria-labelledby="nova-solicitacao" className="rounded-card border border-line bg-surface p-4 md:p-6">
       <h2 id="nova-solicitacao" className="text-lg font-semibold text-ink">Nova solicitação</h2>
-      <p className="mb-4 text-sm text-ink-muted">Seu negócio só aparece para os clientes depois da aprovação da equipe Tucaí.</p>
+      <p className="mb-4 text-sm text-ink-muted">Escolha o plano e pague a 1ª mensalidade: com o pagamento confirmado, seu negócio é liberado na hora.</p>
       {cities.isError ? (
         <ErrorState error={cities.error} onRetry={() => void cities.refetch()} />
       ) : (
@@ -206,7 +206,7 @@ function ApplicationForm() {
                 </label>
               ))}
             </div>
-            <p className="mt-2 text-xs text-ink-muted">Ao enviar, você vai para o Mercado Pago autorizar o cartão. A mensalidade é cobrada todo mês automaticamente e pode ser cancelada quando quiser. A loja aparece na Tucaí depois da aprovação da equipe.</p>
+            <p className="mt-2 text-xs text-ink-muted">Ao enviar, você vai para o Mercado Pago autorizar o cartão e pagar a 1ª mensalidade. Com o pagamento confirmado, a loja é liberada na hora. A mensalidade é cobrada todo mês automaticamente e pode ser cancelada quando quiser.</p>
           </fieldset>
           {payInfo && <p role="status" className="rounded-xl bg-muted p-3 text-sm text-ink md:col-span-2">Cadastro enviado. {payInfo}</p>}
           {serverError && <p role="alert" className="text-sm text-danger md:col-span-2">{serverError}</p>}

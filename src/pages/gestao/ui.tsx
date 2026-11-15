@@ -62,8 +62,8 @@ export function PremiumUpsell({ businessId, feature }: { businessId: string; fea
       <span className="grid size-11 place-items-center rounded-2xl bg-muted text-ink"><Lock aria-hidden="true" className="size-5" /></span>
       <h2 className="text-lg font-bold text-ink">{feature} faz parte do plano Premium</h2>
       <p className="max-w-prose text-sm text-ink-muted">
-        O Premium (R$ 99/mês) inclui comandas e mesas, caixa presencial, QR das mesas, controle de gastos, Meu Lucro, calculadora de custos e relatórios avançados.
-        O plano Padrão (R$ 79/mês) continua com loja, cardápio, pedidos de delivery e vendas.
+        O Premium (R$ 99,90/mês) inclui comandas e mesas, caixa presencial, QR das mesas, controle de gastos, Meu Lucro, calculadora de custos e relatórios avançados.
+        O plano Padrão (R$ 79,90/mês) continua com loja, cardápio, pedidos de delivery e vendas.
       </p>
       <Link to={`/painel/${businessId}/configuracoes`} className={primary}>Conhecer o Premium</Link>
     </section>

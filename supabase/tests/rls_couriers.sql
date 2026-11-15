@@ -57,12 +57,20 @@ begin
   perform tste.denied(format($q$select public.submit_courier_application('Ana Moto', '(35) 99999-0000', %L, 'moto', 'ABC1D23', 'A', false)$q$, city), 'sem aceitar termos', array['P0001']);
   perform tste.denied(format($q$select public.submit_courier_application('Ana Moto', '(35) 99999-0000', %L, 'moto')$q$, city), 'moto sem placa/CNH', array['P0001']);
   perform tste.denied(format($q$select public.submit_courier_application('Ana Moto', '(35) 99999-0000', %L, 'moto', 'XX-1', 'A', true)$q$, city), 'placa inválida', array['23514']);
-  perform tste.ok(public.submit_courier_application('Ana Moto', '(35) 99999-0000', city, 'moto', 'abc-1d23', 'a', true) = 'pending', 'cadastro pendente');
+  perform tste.ok(public.submit_courier_application('Ana Moto', '(35) 99999-0000', city, 'moto', 'abc-1d23', 'a', true) = 'approved', 'primeiro cadastro liberado automaticamente (0050)');
   perform tste.ok(tste.val('select vehicle_plate || cnh_category from public.couriers') = 'ABC1D23A', 'placa e CNH normalizadas');
   perform tste.denied($q$update public.couriers set status = 'approved'$q$, 'entregador se aprova');
-  perform tste.denied('select public.set_courier_online(true)', 'ficar online antes da aprovação', array['P0001']);
+  perform tste.su();
+  perform tste.ok(exists (select 1 from public.user_roles where user_id = a and role = 'courier_partner'), 'liberado já recebe o papel de entregador');
+  -- para testar a análise da equipe, a Ana volta a pendente (como um reenvio)
+  update public.couriers set status = 'pending' where user_id = a;
+  perform tste.login(a);
+  perform tste.denied('select public.set_courier_online(true)', 'ficar online pendente', array['P0001']);
   perform tste.login(b);
   perform public.submit_courier_application('Bruno Bike', '(35) 98888-0000', city, 'bicicleta', 'ABC1D23', 'A', true);
+  perform tste.su();
+  update public.couriers set status = 'pending' where user_id = b;
+  perform tste.login(b);
   perform tste.ok(tste.val('select coalesce(vehicle_plate, ''-'') || coalesce(cnh_category, ''-'') from public.couriers') = '--', 'bicicleta não guarda placa nem CNH');
   perform tste.ok(tste.count('select 1 from public.couriers') = 1, 'entregador vê só o próprio cadastro');
 

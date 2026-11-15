@@ -62,11 +62,11 @@ begin
   perform tstp.anon();
   perform tstp.denied($q$select * from public.worker_payment_config('chave-falsa-chave-falsa-chave-falsa-1234')$q$, 'Worker sem chave lê o token');
   perform tstp.ok((select access_token = 'TEST-1234567890123456789012345678' from public.worker_payment_config(k)), 'Worker com a chave lê a configuração');
-  perform tstp.denied(format($q$select public.worker_confirm_payment('x', %L, '1', 7900, 'pix')$q$, cid), 'confirmação sem chave');
+  perform tstp.denied(format($q$select public.worker_confirm_payment('x', %L, '1', 7990, 'pix')$q$, cid), 'confirmação sem chave');
   perform tstp.denied('select * from public.payable_charge(gen_random_uuid())', 'anon consulta cobrança');
   perform tstp.ok(public.worker_confirm_payment(k, cid, 'mp-1', 100, 'pix') = 'valor_diferente', 'valor diferente não dá baixa');
-  perform tstp.ok(public.worker_confirm_payment(k, cid, 'mp-1', 7900, 'pix') = 'confirmado', 'pagamento confirmado');
-  perform tstp.ok(public.worker_confirm_payment(k, cid, 'mp-1', 7900, 'pix') = 'ja_confirmado', 'aviso repetido não duplica');
+  perform tstp.ok(public.worker_confirm_payment(k, cid, 'mp-1', 7990, 'pix') = 'confirmado', 'pagamento confirmado');
+  perform tstp.ok(public.worker_confirm_payment(k, cid, 'mp-1', 7990, 'pix') = 'ja_confirmado', 'aviso repetido não duplica');
   perform tstp.su();
   perform tstp.ok((select status = 'paga' and paid_method = 'pix' and provider_payment_id = 'mp-1' from public.platform_charges where id = cid), 'cobrança paga com o id do Mercado Pago');
   perform tstp.ok((select current_period_end = (current_date + 5 + interval '1 month')::date from public.business_subscriptions where id = sid), 'plano renovado');

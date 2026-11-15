@@ -47,6 +47,14 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     clearable: true,
   },
   {
+    key: 'tucai:tipo-conta',
+    where: 'localStorage',
+    category: 'necessario',
+    purpose: 'Lembrar o tipo de conta escolhido no cadastro (cliente, entregador ou empresário) para abrir a tela certa no primeiro acesso. Não dá acesso a nada.',
+    lifetime: 'Até concluir o primeiro cadastro.',
+    clearable: true,
+  },
+  {
     key: 'tucai:perfil',
     where: 'localStorage',
     category: 'preferencias',

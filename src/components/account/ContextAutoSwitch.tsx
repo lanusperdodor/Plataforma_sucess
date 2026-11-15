@@ -20,12 +20,12 @@ export function ContextAutoSwitch() {
     if (done) { clearAccountType(); return }
     if (pathname === '/' || pathname === '/conta') navigate(ONBOARDING_PATH[t], { replace: true })
   }, [pathname, authz, session, navigate])
-  // conta só de entregador: as telas de compra (início, explorar, pedidos, sacola…) levam às entregas
+  // conta só de entregador: as telas de compra (o cadastro de entregador parceiro continua aberto ao entregador próprio) (início, explorar, pedidos, sacola…) levam às entregas
   useEffect(() => {
     if (!authz) return
     const ctxs = availableContexts(authz)
     if (ctxs.length !== 1 || ctxs[0]!.kind !== 'entregador') return
-    const shop = pathname === '/' || /^\/(explorar|pedidos|sacola|restaurantes|lojas|servicos|vagas|busca|cadastrar-negocio|entregadores)(\/|$)/.test(pathname)
+    const shop = pathname === '/' || /^\/(explorar|pedidos|sacola|restaurantes|lojas|servicos|vagas|busca|cadastrar-negocio)(\/|$)/.test(pathname)
     if (shop) navigate('/entregador', { replace: true })
   }, [pathname, authz, navigate])
   useEffect(() => {

@@ -282,6 +282,7 @@ export function CourierArea() {
       <Page>
         <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
         <CourierTabs mode="proprio" available={0} />
+        <JoinNetworkCard pending={!!c && c.status !== 'approved'} />
         <Routes>
           <Route index element={<OwnDeliveriesPanel view="ativas" />} />
           <Route path="entregas" element={<OwnDeliveriesPanel view="ativas" />} />
@@ -366,6 +367,21 @@ export function CourierArea() {
         <Route path="*" element={<Navigate to="/entregador" replace />} />
       </Routes>
     </Page>
+  )
+}
+
+/** Entregador próprio sem cadastro de parceiro: convite para receber também os pedidos de todas as lojas da cidade. */
+function JoinNetworkCard({ pending }: { pending: boolean }) {
+  return (
+    <section aria-labelledby="rede" className={`${box} flex flex-col gap-3 border-2 border-orange`}>
+      <h2 id="rede" className="text-lg font-semibold text-ink">Receber pedidos de todas as lojas</h2>
+      <p className="text-base text-ink-muted">
+        {pending
+          ? 'Seu cadastro de entregador parceiro ainda não está liberado. Confira o andamento na página de cadastro.'
+          : 'Hoje você recebe só as entregas da sua loja. Faça o cadastro de entregador parceiro (gratuito e liberado na hora) para ficar Online e ver os pedidos de todas as lojas da sua cidade. Quem aceitar primeiro leva a entrega.'}
+      </p>
+      <Link to="/entregadores" className={`${primary} w-full`}>{pending ? 'Ver meu cadastro' : 'Quero receber pedidos de todas as lojas'}</Link>
+    </section>
   )
 }
 

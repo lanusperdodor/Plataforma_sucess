@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/feedback/EmptyState.tsx'
 import { AddressFields } from '../components/forms/AddressFields.tsx'
-import { emptyAddress, formatAddress, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
+import { emptyAddress, formatAddress, isAddressValid, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
 import { getMyAddress, saveMyAddress } from '../features/address/repository.ts'
 import { geocodeAddress, setDeliveryPoint } from '../features/rastreamento/repository.ts'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
@@ -73,6 +73,32 @@ export function CheckoutPage() {
     onSuccess: (q) => { setQuote(q); setQuoteMsg(null) },
     onError: (e) => { setQuote(null); setQuoteMsg(e instanceof Error ? e.message : 'Não foi possível calcular o frete agora.') },
   })
+  // endereço digitado → ponto no mapa (sem botão): serve de destino para o entregador e, na entrega parceira, já calcula o frete
+  const [addrPoint, setAddrPoint] = useState<{ key: string; lat: number; lng: number } | null>(null)
+  const [locating, setLocating] = useState(false)
+  const bizData = business.data
+  const deliveryMode = v.fulfillment
+  const addrKey = isAddressValid(addr) ? formatAddress(addr) : ''
+  useEffect(() => {
+    if (!addrKey || !bizData || deliveryMode === 'pickup') return
+    let alive = true
+    const near = bizData.lat != null && bizData.lng != null ? { lat: bizData.lat, lng: bizData.lng } : null
+    const t = window.setTimeout(() => {
+      setLocating(true)
+      geocodeAddress(addrKey, near)
+        .then(async (p) => {
+          if (!alive) return
+          setAddrPoint({ key: addrKey, ...p })
+          if (deliveryMode === 'delivery_partner') {
+            try { const q = await requestFreightQuote(bizData.id, p.lat, p.lng); if (alive) { setQuote(q); setQuoteMsg(null) } }
+            catch (e) { if (alive) { setQuote(null); setQuoteMsg(e instanceof Error ? e.message : null) } }
+          }
+        })
+        .catch(() => { if (alive) setAddrPoint(null) })
+        .finally(() => { if (alive) setLocating(false) })
+    }, 900)
+    return () => { alive = false; window.clearTimeout(t) }
+  }, [addrKey, bizData, deliveryMode])
   const set = <K extends keyof CheckoutForm>(k: K, val: CheckoutForm[K]) => setV((p) => ({ ...p, [k]: val }))
   const startedFor = useRef('')
   useEffect(() => {
@@ -92,7 +118,8 @@ export function CheckoutPage() {
       // ponto no mapa para a rota e o acompanhamento: com a cotação pelo GPS o banco já gravou o ponto (0040);
       // sem ela, localiza pelo endereço digitado (o cliente pode corrigir depois pela página do pedido)
       if (input.fulfillment !== 'pickup' && !quote) {
-        void geocodeAddress(input.address).then((p) => setDeliveryPoint(id, p.lat, p.lng)).catch(() => undefined)
+        const known = addrPoint && addrPoint.key === input.address ? Promise.resolve(addrPoint) : geocodeAddress(input.address)
+        void known.then((p) => setDeliveryPoint(id, p.lat, p.lng)).catch(() => undefined)
       }
       clearCart()
       toast.success('Pedido enviado ao estabelecimento.')
@@ -156,13 +183,15 @@ export function CheckoutPage() {
             {mode === 'delivery_partner' && (
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-ink-muted">Um entregador parceiro da Tucaí coleta no estabelecimento quando o pedido ficar pronto. O frete depende da distância pelas ruas.</p>
+                {locating && <p role="status" className="text-sm text-ink-muted">Localizando o endereço e calculando o frete…</p>}
+                {!locating && !quote && !addrKey && <p className="text-sm text-ink-muted">Preencha o endereço abaixo: o frete é calculado sozinho pela distância.</p>}
                 <button type="button" disabled={calc.isPending} onClick={() => calc.mutate()}
-                  className="pressable inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-brand px-5 text-base font-semibold text-ink sm:w-fit">
-                  <LocateFixed aria-hidden="true" className="size-5" />{calc.isPending ? 'Calculando…' : quote ? 'Recalcular pelo meu local' : 'Calcular frete pelo meu local'}
+                  className="pressable inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-2 text-sm font-medium text-ink-muted underline">
+                  <LocateFixed aria-hidden="true" className="size-4" />{calc.isPending ? 'Calculando…' : 'Usar minha localização atual (opcional)'}
                 </button>
                 {quote && !quote.outOfArea && (
                   <p role="status" className="rounded-xl bg-muted p-3 text-sm text-ink">
-                    Frete: <strong>{quote.customerCents ? formatBRL(quote.customerCents) : 'Grátis'}</strong> · {(quote.distanceM / 1000).toFixed(1).replace('.', ',')} km pelas ruas{quote.freeDelivery ? ' · frete grátis oferecido pela loja' : ''}. Use este local como ponto de entrega.
+                    Frete: <strong>{quote.customerCents ? formatBRL(quote.customerCents) : 'Grátis'}</strong> · {(quote.distanceM / 1000).toFixed(1).replace('.', ',')} km pelas ruas{quote.freeDelivery ? ' · frete grátis oferecido pela loja' : ''}. 
                   </p>
                 )}
                 {outOfArea && <p role="alert" className="rounded-xl bg-muted p-3 text-sm font-semibold text-danger">Seu local fica a {(quote!.distanceM / 1000).toFixed(1).replace('.', ',')} km da loja, acima do limite da entrega parceira. Escolha retirada ou outra loja.</p>}

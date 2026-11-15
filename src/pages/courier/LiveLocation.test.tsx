@@ -74,7 +74,10 @@ describe('entregador: navegação dentro da Tucaí', () => {
     show()
     fireEvent.click(await screen.findByRole('button', { name: 'Navegar até o cliente' }))
     await act(async () => { h.gps!(fixAt(-20.0813)) })
-    expect(await screen.findByText('O cliente não marcou o ponto de entrega.')).toBeInTheDocument()
+    expect(await screen.findByText(/Cálculo da rota: O cliente não marcou o ponto de entrega\./)).toBeInTheDocument()
+    expect(screen.getByText('Por que a rota ainda não aparece')).toBeInTheDocument()
+    expect(screen.getByText(/Sua localização: ok/)).toBeInTheDocument()
+    expect(screen.getByText('Loja marcada no mapa: ok.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Abrir a rota no OpenStreetMap' })).toHaveAttribute('href', expect.stringContaining('openstreetmap.org/directions'))
     expect(screen.getByText('aproximado')).toBeInTheDocument()
   })
@@ -85,6 +88,15 @@ describe('entregador: navegação dentro da Tucaí', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Navegar até o cliente' }))
     await vi.waitFor(() => expect(h.geo).toHaveBeenCalledWith('Rua das Flores, 120', { lat: -20.084, lng: -44.578 }))
     await vi.waitFor(() => expect(h.setPoint).toHaveBeenCalledWith('o1', -20.072, -44.578))
+  })
+
+  it('localização do computador (imprecisa): explica que no celular fica precisa', async () => {
+    h.tracking = { ...base, route: null, business: { ...base.business, lat: null, lng: null } }
+    show()
+    fireEvent.click(await screen.findByRole('button', { name: 'Navegar até o cliente' }))
+    await act(async () => { h.gps!({ coords: { latitude: -20.0813, longitude: -44.578, accuracy: 3500, heading: null, speed: null, altitude: null, altitudeAccuracy: null }, timestamp: Date.now() } as unknown as GeolocationPosition) })
+    expect(await screen.findByText(/aproximada \(cerca de 3.5 km de erro\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Loja sem local no mapa/)).toBeInTheDocument()
   })
 
   it('sem internet e sem GPS: avisos claros', async () => {

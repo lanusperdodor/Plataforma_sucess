@@ -1,6 +1,7 @@
 import { Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { MenuSearchInput, matches } from '../nav/menuSearch.tsx'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import { useActiveContext } from '../../lib/activeContext.ts'
 import {
@@ -27,15 +28,30 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
   const [open, setOpen] = useState(false)
   const { session, authz } = useAuth()
   const ctx = useActiveContext(authz)
-  const items = destinationsFor(ctx, { wallet: !!authz?.roles.includes('courier_partner') })
-  const active = resolveActiveDestination(pathname, items)
+  const navigate = useNavigate()
+  const [query, setQuery] = useState('')
+  const allItems = destinationsFor(ctx, { wallet: !!authz?.roles.includes('courier_partner') })
+  const active = resolveActiveDestination(pathname, allItems)
   // entregador: painel simplificado, só os destinos dele (sem grupos extras)
-  const groups = ctx.kind === 'entregador' ? [] : visibleGroups(audienceOf(!!session, authz), ctx)
+  const allGroups = ctx.kind === 'entregador' ? [] : visibleGroups(audienceOf(!!session, authz), ctx)
+  // busca no menu: filtra as abas pelo nome (e pelo grupo)
+  const items = allItems.filter((i) => matches(query, i.label))
+  const groups = allGroups.map((g) => ({ ...g, items: g.items.filter((i) => matches(query, i.label, g.title)) })).filter((g) => g.items.length > 0)
+  const firstTo = items[0]?.to ?? groups[0]?.items[0]?.to
+  const nothing = query.trim() !== '' && items.length === 0 && groups.length === 0
+  const search = (
+    <div className="mb-3">
+      <MenuSearchInput id={mode === 'rail' ? 'busca-menu-gaveta' : 'busca-menu-lateral'} value={query} onChange={setQuery}
+        onEnter={() => { if (firstTo) { navigate(firstTo); setQuery('') } }} />
+      {nothing && <p role="status" className="mt-2 px-1 text-sm text-ink-muted">Nenhuma aba encontrada.</p>}
+    </div>
+  )
   const rail = mode === 'rail'
   const drawerOpen = rail && open
 
   useEffect(() => {
     setOpen(false)
+    setQuery('')
   }, [pathname])
 
   useEffect(() => {
@@ -52,8 +68,8 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
       showLabel ? '' : 'justify-center'
     } ${isActive ? 'bg-muted font-bold text-ink ring-1 ring-line' : 'font-medium text-ink-muted hover:bg-muted/60'}`
 
-  const primary = (showLabel: boolean) =>
-    items.map((item) => {
+  const primary = (showLabel: boolean, list: readonly typeof items[number][] = items) =>
+    list.map((item) => {
       const isActive = item.id === active
       const Icon = item.icon
       return (
@@ -101,6 +117,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         className="sticky shrink-0 overflow-y-auto border-r border-line bg-surface p-3"
         style={{ ...stickyStyle, width: 'var(--sidenav-w)', zIndex: 'var(--z-nav)' }}
       >
+        {search}
         {groups.filter((g) => g.id === 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title} className="mb-4">
             <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>
@@ -134,7 +151,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         >
           <Menu aria-hidden="true" size={20} />
         </button>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(false)}</ul>
+        <ul className="m-0 flex list-none flex-col gap-1 p-0">{primary(false, allItems)}</ul>
       </nav>
 
       <div
@@ -168,6 +185,7 @@ export function SideNav({ mode, onPrefetch }: SideNavProps) {
         >
           <X aria-hidden="true" size={20} />
         </button>
+        {search}
         {groups.filter((g) => g.id === 'trabalho').map((g) => (
           <section key={g.id} aria-label={g.title} className="mb-4">
             <h2 className="mx-3 mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">{g.title}</h2>

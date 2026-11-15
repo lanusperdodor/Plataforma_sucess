@@ -1,4 +1,5 @@
 import { Bell, MapPin, Search, ShoppingBag } from "lucide-react";
+import { MenuSearchButton } from "./MenuSearchSheet.tsx";
 import { AccountMenu } from "../account/AccountMenu.tsx";
 import { ThemeToggleButton } from "../account/ThemeToggle.tsx";
 import type { ReactNode } from "react";
@@ -115,10 +116,11 @@ export function TopBar({ layout, location, search, simple = false }: TopBarProps
     return (
       <header className="sticky top-0 z-30 h-[var(--header-h-compact)] border-b border-line bg-surface/90 backdrop-blur-md">
         <div className="flex h-full items-center justify-between gap-2 px-3">
+          <MenuSearchButton />
           <Link to="/entregador" aria-label={`${BRAND.name} — entregas`} className="pressable inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center">
             <img src={BRAND.assets.icon} alt="" width={32} height={32} className="size-8 rounded-lg" />
           </Link>
-          <div className="flex shrink-0 items-center">{theme}{bell}{profile}</div>
+          <div className="ml-auto flex shrink-0 items-center">{theme}{bell}{profile}</div>
         </div>
       </header>
     );
@@ -129,9 +131,10 @@ export function TopBar({ layout, location, search, simple = false }: TopBarProps
       <header data-compact={compact} className={shell}>
         <div className="flex h-full flex-col justify-between px-3 py-2">
           <div
-            className={`flex items-center justify-between gap-2 ${fade}`}
+            className={`flex items-center justify-between gap-1 ${fade}`}
             {...inertIf(compact)}
           >
+            <MenuSearchButton />
             <Link
               to={simple ? '/entregador' : '/'}
               aria-label={`${BRAND.name} — início`}

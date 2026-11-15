@@ -66,20 +66,20 @@ begin
   sid := public.admin_set_subscription(a, 'presencial_delivery', current_date - 25, current_date + 5);
   perform public.admin_set_subscription(b, 'delivery', current_date, current_date + 30);
   s := public.admin_finance_summary();
-  perform tstf.ok((s->>'active_subscriptions')::int = 2 and (s->>'mrr_cents')::int = 17800 and (s->>'due_soon')::int = 1, 'resumo: assinaturas, receita mensal e vencendo');
+  perform tstf.ok((s->>'active_subscriptions')::int = 2 and (s->>'mrr_cents')::int = 17980 and (s->>'due_soon')::int = 1, 'resumo: assinaturas, receita mensal e vencendo');
   select * into r from public.admin_finance_businesses() x where x.business_id = a;
-  perform tstf.ok(r.plan_name = 'Premium' and r.price_cents = 9900 and r.owner_name = 'Dona Ana' and r.whatsapp = '(35) 97777-0000' and r.current_period_end = current_date + 5, 'empresa: plano, valor, dono, WhatsApp e vencimento');
+  perform tstf.ok(r.plan_name = 'Premium' and r.price_cents = 9990 and r.owner_name = 'Dona Ana' and r.whatsapp = '(35) 97777-0000' and r.current_period_end = current_date + 5, 'empresa: plano, valor, dono, WhatsApp e vencimento');
 
   -- mensalidade: cobra, não duplica, paga renova 1 mês
   cid := public.admin_charge_subscription(a);
   perform tstf.denied(format('select public.admin_charge_subscription(%L)', a), 'mensalidade duplicada', array['P0001']);
-  perform tstf.ok((public.admin_finance_summary()->>'open_cents')::int = 9900, 'a receber');
+  perform tstf.ok((public.admin_finance_summary()->>'open_cents')::int = 9990, 'a receber');
   perform public.admin_mark_charge_paid(cid, 'pix');
   perform tstf.su();
   perform tstf.ok((select current_period_end = (current_date + 5 + interval '1 month')::date from public.business_subscriptions where id = sid), 'pagamento renova o plano');
   perform tstf.login(m);
   s := public.admin_finance_summary();
-  perform tstf.ok((s->>'received_month_cents')::int = 9900 and (s->>'open_cents')::int = 0, 'recebido no mês');
+  perform tstf.ok((s->>'received_month_cents')::int = 9990 and (s->>'open_cents')::int = 0, 'recebido no mês');
   perform tstf.denied(format($q$select public.admin_mark_charge_paid(%L, 'pix')$q$, cid), 'paga duas vezes', array['P0001']);
 
   -- comissão do mês fechado a partir dos pedidos
@@ -94,9 +94,9 @@ begin
   perform tstf.ok(tstf.count(format('select 1 from public.audit_logs where action like %L', 'finance.%')) >= 5, 'auditoria');
   -- séries dos gráficos: 12 meses; recebido no mês atual; taxas no mês passado; por plano
   perform tstf.ok(tstf.count('select * from public.admin_finance_series(12)') = 12, 'série de 12 meses');
-  perform tstf.ok((select received_cents = 9900 and new_subscriptions = 1 from public.admin_finance_series(12) order by month desc limit 1), 'recebido e novas assinaturas no mês atual');
+  perform tstf.ok((select received_cents = 9990 and new_subscriptions = 1 from public.admin_finance_series(12) order by month desc limit 1), 'recebido e novas assinaturas no mês atual');
   perform tstf.ok((select fees_cents = 340 from public.admin_finance_series(12) where month = last_month), 'comissão e taxas no mês dos pedidos');
-  perform tstf.ok((select businesses = 1 and mrr_cents = 9900 from public.admin_finance_by_plan() where plan_code = 'presencial_delivery'), 'empresas e receita por plano');
+  perform tstf.ok((select businesses = 1 and mrr_cents = 9990 from public.admin_finance_by_plan() where plan_code = 'presencial_delivery'), 'empresas e receita por plano');
   perform tstf.login(op);
   perform tstf.denied('select * from public.admin_finance_series(12)', 'operador sem permissão vê séries');
   perform tstf.login(m);

@@ -122,6 +122,7 @@ async function main() {
       ...one('supabase/tests/rls_midia.sql'),
       ...one('supabase/tests/rls_navegacao.sql'),
       ...one('supabase/tests/rls_assinatura.sql'),
+      ...one('supabase/tests/rls_equipe_funcoes.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

@@ -75,7 +75,7 @@ export function ProfileSetup({ existing, onDone }: { existing: SocialProfile | n
       refresh()
       onDone?.()
     },
-    onError: (e) => toast.error(errMsg(e).includes('já existe') ? 'Este nome de usuário já está em uso.' : errMsg(e)),
+    onError: (e) => toast.error(errMsg(e).includes('já existe') ? 'Nome de usuário já existente, tente novamente.' : errMsg(e)),
   })
   const submit = (e: FormEvent) => {
     e.preventDefault()

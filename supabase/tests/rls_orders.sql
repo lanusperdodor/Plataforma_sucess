@@ -81,6 +81,9 @@ insert into public.couriers(user_id, full_name, phone, city_id, vehicle, status,
   ('44440000-0000-0000-0000-0000000000e2', 'Eva Dois', '35999990002', '44449000-0000-0000-0000-000000000001', 'bicicleta', 'approved', false, 't1', now()),
   ('44440000-0000-0000-0000-0000000000e3', 'Enzo Tres', '35999990003', '44449000-0000-0000-0000-000000000002', 'bicicleta', 'approved', true, 't1', now()),
   ('44440000-0000-0000-0000-0000000000e4', 'Eli Quatro', '35999990004', '44449000-0000-0000-0000-000000000001', 'bicicleta', 'pending', false, 't1', now());
+-- 0050: o primeiro cadastro de entregador é liberado na hora; este caso testa um cadastro pendente (reenvio)
+update public.couriers set status = 'pending' where user_id = '44440000-0000-0000-0000-0000000000e4';
+delete from public.user_roles where user_id = '44440000-0000-0000-0000-0000000000e4' and role = 'courier_partner';
 
 do $$
 declare

@@ -2,11 +2,12 @@
 
 Fluxo:
 1. **Cliente cadastra a empresa** (Cadastrar negócio): preenche os dados, o endereço (vira ponto no mapa sozinho) e escolhe o plano
-   — Padrão R$ 79/mês ou Premium R$ 99/mês (valor sempre da tabela `plans` no banco).
+   — Padrão R$ 79,90/mês ou Premium R$ 99,90/mês (valor sempre da tabela `plans` no banco).
 2. Ao enviar, vai para o **Mercado Pago autorizar o cartão** (Assinaturas / preapproval). O Mercado Pago cobra todo mês sozinho.
 3. Cada mensalidade aprovada chega pelo aviso (webhook), é conferida na API do Mercado Pago e vira uma **cobrança paga** no
    Financeiro, estendendo o plano por 1 mês. O mesmo pagamento nunca é registrado duas vezes.
-4. A equipe Tucaí aprova o cadastro normalmente. **Se recusar, a assinatura é cancelada** no Mercado Pago.
+4. **Com a 1ª mensalidade paga, a loja é liberada na hora** (0050). O Master vê no painel (aviso "Ativado automaticamente") e pode
+   suspender. Se o Master recusar uma loja ainda pendente, a assinatura é cancelada no Mercado Pago.
 5. O dono vê a situação e pode **cancelar** em Gestão → Configurações → Débito automático do plano (ou assinar depois, se pulou).
 
 ## Para ativar (manual)

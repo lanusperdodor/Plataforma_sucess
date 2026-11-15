@@ -47,6 +47,14 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     clearable: true,
   },
   {
+    key: 'tucai:recarga-versao',
+    where: 'sessionStorage',
+    category: 'necessario',
+    purpose: 'Recarregar a página uma única vez quando uma versão nova da Tucaí é publicada com a aba aberta (evita a tela "não foi possível carregar").',
+    lifetime: 'Até fechar a aba.',
+    clearable: true,
+  },
+  {
     key: 'tucai:tipo-conta',
     where: 'localStorage',
     category: 'necessario',

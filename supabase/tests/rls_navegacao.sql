@@ -142,6 +142,30 @@ begin
   perform public.customer_set_delivery_point(o1, -20.0761, -44.5761);
   perform tsnv.su();
   perform tsnv.ok((select delivery_point_source = 'cliente' from public.orders where id = o1), 'cliente corrige: origem vira cliente');
+  -- 0054: rota por etapa pelo botão (coleta sai do aparelho; entrega sai da loja)
+  perform tsnv.su();
+  delete from private.route_requests where order_id = o1;
+  perform tsnv.login(k1);
+  perform tsnv.denied(format('select public.route_request_from(%L, %L, -22.9, -43.2)', o1, 'coleta'), 'ponto de partida a mais de 100 km da loja', array['P0001']);
+  perform tsnv.denied(format('select public.route_request_from(%L, %L, 40.7, -74.0)', o1, 'coleta'), 'ponto de partida fora do Brasil', array['22023']);
+  perform tsnv.denied(format('select public.route_request_from(%L, %L, -20.08, -44.58)', o1, 'entrega'), 'rota da etapa errada', array['42501']);
+  rq := public.route_request_from(o1, 'coleta', -20.0812345, -44.5812345);
+  perform tsnv.ok((rq->'origin'->>'lat')::numeric = -20.081235 and (rq->'destination'->>'lat')::numeric = -20.07, 'coleta: do aparelho até a loja: ' || rq::text);
+  perform tsnv.login(kp);
+  perform tsnv.denied(format('select public.route_request_from(%L, %L, -20.08, -44.58)', o1, 'coleta'), 'outro entregador pede rota', array['42501']);
+  perform tsnv.su();
+  perform set_config('tucai.internal', 'on', true);
+  update public.deliveries set status = 'picked_up', picked_up_at = now() where order_id = o1;
+  perform set_config('tucai.internal', 'off', true);
+  perform tsnv.login(k1);
+  rq := public.route_request_from(o1, 'entrega', -20.0812345, -44.5812345);
+  perform tsnv.ok((rq->'origin'->>'lat')::numeric = -20.07 and (rq->'origin'->>'lng')::numeric = -44.57
+                  and (rq->'destination'->>'lat')::numeric = (select delivery_lat from public.orders where id = o1)::numeric,
+                  'entrega: da loja até o cliente (ignora onde o aparelho está): ' || rq::text);
+  perform tsnv.su();
+  perform set_config('tucai.internal', 'on', true);
+  update public.deliveries set status = 'accepted', picked_up_at = null where order_id = o1;
+  perform set_config('tucai.internal', 'off', true);
   -- 0048: meus dados do entregador (sem voltar para análise)
   perform tsnv.login(k1);
   perform tsnv.denied($q$select public.courier_update_profile('123', 'moto', 'ABC1D23', 'A')$q$, 'celular inválido');

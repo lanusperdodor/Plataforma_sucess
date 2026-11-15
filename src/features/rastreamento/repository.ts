@@ -52,12 +52,13 @@ export const sendLocation = (orderId: string, f: Fix) =>
 export const stopSharing = (orderId: string) => exec(supabase.rpc('courier_stop_tracking', { _order: orderId }), z.unknown()).then(() => undefined)
 
 /** Pede ao Worker a rota da etapa atual (limites e permissão conferidos no banco). */
-export async function requestRoute(orderId: string, leg: 'coleta' | 'entrega'): Promise<{ distanceM: number; durationS: number }> {
+/** Traça a rota da etapa. from = ponto de partida do aparelho (GPS agora ou endereço cadastrado); a entrega sai da loja. */
+export async function requestRoute(orderId: string, leg: 'coleta' | 'entrega', from?: { lat: number; lng: number } | null): Promise<{ distanceM: number; durationS: number }> {
   if (!isSupabaseConfigured) throw backendUnavailable()
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new RepositoryError('forbidden', 'Entre na sua conta.')
-  const res = await fetch('/api/rota', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ order: orderId, leg }) })
+  const res = await fetch('/api/rota', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ order: orderId, leg, from: from ?? undefined }) })
   const body = (await res.json().catch(() => ({}))) as { erro?: string; distance_m?: number; duration_s?: number }
   if (!res.ok) throw new RepositoryError('unknown', body.erro ?? 'Não foi possível calcular a rota.')
   return { distanceM: body.distance_m ?? 0, durationS: body.duration_s ?? 0 }

@@ -58,12 +58,12 @@ export function OfferCard({ o, vehicle, me, status, deadline, onAccept, onReject
           <span><strong className="text-ink">Entrega: {o.neighborhood ?? 'bairro informado após aceitar'}</strong><span className="block text-ink-muted">{o.itemsCount} {o.itemsCount === 1 ? 'item' : 'itens'} · endereço completo após aceitar</span></span>
         </li>
       </ol>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" disabled={busy} onClick={onReject} className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-line font-semibold text-ink disabled:opacity-60">
+      <div className="grid grid-cols-[1fr_2fr] gap-2">
+        <button type="button" disabled={busy} onClick={onReject} className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full border-2 border-line text-base font-semibold text-ink disabled:opacity-60">
           <X aria-hidden="true" className="size-5" />Rejeitar
         </button>
-        <button type="button" disabled={busy} onClick={onAccept} className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand font-semibold text-surface disabled:opacity-60">
-          <Check aria-hidden="true" className="size-5" />Aceitar
+        <button type="button" disabled={busy} onClick={onAccept} className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-brand text-lg font-bold text-surface disabled:opacity-60">
+          <Check aria-hidden="true" className="size-6" />Aceitar corrida
         </button>
       </div>
     </li>

@@ -130,11 +130,18 @@ export async function handleRoutes(req: Request, env: RoutesEnv, fetcher: typeof
   if (!token || token.split('.').length !== 3) return json({ erro: 'Entre na sua conta.' }, 401)
   const text = await req.text()
   if (text.length > 512) return json({ erro: 'Pedido inválido.' }, 400)
-  let body: { order?: unknown; leg?: unknown }
+  let body: { order?: unknown; leg?: unknown; from?: { lat?: unknown; lng?: unknown } | null }
   try { body = JSON.parse(text) as typeof body } catch { return json({ erro: 'Pedido inválido.' }, 400) }
   if (typeof body.order !== 'string' || !UUID.test(body.order) || (body.leg !== 'coleta' && body.leg !== 'entrega')) return json({ erro: 'Pedido inválido.' }, 400)
+  // ponto de partida do aparelho (GPS agora ou endereço cadastrado do entregador); o banco valida
+  const from = body.from && typeof body.from.lat === 'number' && typeof body.from.lng === 'number' && Number.isFinite(body.from.lat) && Number.isFinite(body.from.lng)
+    ? { lat: body.from.lat, lng: body.from.lng } : null
 
-  const auth = await rpc(env, 'route_request', { _order: body.order, _leg: body.leg }, token, fetcher)
+  let auth = from
+    ? await rpc(env, 'route_request_from', { _order: body.order, _leg: body.leg, _lat: from.lat, _lng: from.lng }, token, fetcher)
+    : await rpc(env, 'route_request', { _order: body.order, _leg: body.leg }, token, fetcher)
+  // banco ainda sem a 0054: usa a função antiga (localização compartilhada)
+  if (from && !auth.ok && auth.status === 404) auth = await rpc(env, 'route_request', { _order: body.order, _leg: body.leg }, token, fetcher)
   if (!auth.ok || !auth.data) {
     const status = auth.status === 401 || auth.status === 403 ? 403 : auth.status >= 500 ? 503 : 409
     return json({ erro: auth.message ?? 'Não foi possível calcular a rota agora.' }, status)

@@ -22,5 +22,7 @@
     "GA4_ID": "",
     "META_PIXEL_ID": ""
   },
+  // a cada minuto: aviso de corrida nova por Web Push (src/worker/push.ts). Gratuito no plano Free.
+  "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true }
 }

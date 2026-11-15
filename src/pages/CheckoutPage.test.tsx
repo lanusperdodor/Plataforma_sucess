@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ quote: vi.fn(), place: vi.fn(), toastError: vi.fn(), saveAddr: vi.fn() }))
+const h = vi.hoisted(() => ({ quote: vi.fn(), place: vi.fn(), toastError: vi.fn(), saveAddr: vi.fn(), geo: vi.fn(), point: vi.fn() }))
 vi.mock('../features/cart/cartStore.ts', () => ({
   useCart: () => ({ business: { id: 'b1', slug: 'lanchonete', name: 'Lanchonete' }, lines: [{ key: 'l1', productId: 'p1', name: 'X-Tuca', unitCents: 3000, quantity: 1 }] }),
   cartSubtotal: () => 3000,
@@ -21,6 +21,10 @@ vi.mock('../features/orders/repository.ts', async (orig) => ({
 }))
 vi.mock('../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: h.toastError }) }))
 vi.mock('../features/tracking/tracker.ts', () => ({ trackBeginCheckout: vi.fn() }))
+vi.mock('../features/rastreamento/repository.ts', () => ({
+  geocodeAddress: (...a: unknown[]) => h.geo(...a),
+  setDeliveryPoint: (...a: unknown[]) => { h.point(...a); return Promise.resolve() },
+}))
 vi.mock('../features/auth/AuthProvider.tsx', () => ({ useAuth: () => ({ session: { user: { id: 'u1' } } }) }))
 vi.mock('../features/address/repository.ts', () => ({
   getMyAddress: () => Promise.resolve({ cep: '37975000', street: 'Rua das Flores', number: '120', complement: '', district: 'Centro', city: 'Itaú de Minas', uf: 'MG' }),
@@ -29,16 +33,27 @@ vi.mock('../features/address/repository.ts', () => ({
 
 import { CheckoutPage } from './CheckoutPage.tsx'
 
-afterEach(() => { cleanup(); h.quote.mockReset(); h.place.mockReset(); h.toastError.mockReset(); h.saveAddr.mockReset() })
+afterEach(() => { cleanup(); h.quote.mockReset(); h.place.mockReset(); h.toastError.mockReset(); h.saveAddr.mockReset(); h.geo.mockReset(); h.point.mockReset() })
 const renderIt = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><CheckoutPage /></MemoryRouter></QueryClientProvider>)
 
 describe('checkout: frete por distância', () => {
+  it('endereço digitado vira ponto no mapa sozinho e já calcula o frete (sem botão)', async () => {
+    h.geo.mockResolvedValue({ lat: -20.075, lng: -44.575 })
+    h.quote.mockResolvedValue({ quoteId: 'q9', outOfArea: false, distanceM: 1200, customerCents: 400, band: 1, freeDelivery: false })
+    h.place.mockResolvedValue('o9')
+    renderIt()
+    fireEvent.click(await screen.findByRole('radio', { name: /parceiro/i }))
+    // endereço salvo no perfil já vem completo → localiza e cota
+    await vi.waitFor(() => expect(h.geo).toHaveBeenCalledWith('Rua das Flores, 120 - Centro - Itaú de Minas/MG, CEP 37975-000', null), { timeout: 3000 })
+    await vi.waitFor(() => expect(h.quote).toHaveBeenCalledWith('b1', -20.075, -44.575))
+    expect(await screen.findByText(/1,2 km pelas ruas/)).toBeInTheDocument()
+  })
+
   it('calcula pelo GPS e mostra o frete antes de confirmar (2,4 km → R$ 5)', async () => {
     h.quote.mockResolvedValue({ quoteId: 'q1', outOfArea: false, distanceM: 2412, customerCents: 500, band: 2, freeDelivery: false })
     renderIt()
     fireEvent.click(await screen.findByRole('radio', { name: /parceiro/i }))
-    expect(screen.getByText(/Sem o cálculo, vale o frete da menor faixa/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Calcular frete pelo meu local' }))
+    fireEvent.click(screen.getByRole('button', { name: /Usar minha localização atual/ }))
     expect(await screen.findByText(/2,4 km pelas ruas/)).toBeInTheDocument()
     expect(h.quote).toHaveBeenCalledWith('b1', -20.08, -44.58)
     expect(screen.getByText('R$ 35,00')).toBeInTheDocument() // total 30 + 5
@@ -48,7 +63,7 @@ describe('checkout: frete por distância', () => {
     h.quote.mockResolvedValue({ quoteId: 'q2', outOfArea: true, distanceM: 7300, customerCents: null, band: null, freeDelivery: false })
     renderIt()
     fireEvent.click(await screen.findByRole('radio', { name: /parceiro/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Calcular frete pelo meu local' }))
+    fireEvent.click(screen.getByRole('button', { name: /Usar minha localização atual/ }))
     expect(await screen.findByText(/7,3 km da loja, acima do limite/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Cliente 1' } })
     fireEvent.change(screen.getByLabelText('Telefone / WhatsApp'), { target: { value: '(35) 99999-0001' } })

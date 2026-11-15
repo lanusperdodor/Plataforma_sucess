@@ -6,21 +6,9 @@ import { requestPlanChange } from '../../features/gestao/repository.ts'
 import { PlanTab } from '../merchant/OperationsTabs.tsx'
 import { useGestao } from './context.ts'
 import { box, msg, primary, secondary, SectionTitle } from './ui.tsx'
+import { PLANS } from './plans.ts'
+import { SubscriptionCard } from './SubscriptionCard.tsx'
 
-const PLANS = [
-  {
-    code: 'delivery' as const,
-    name: 'Padrão',
-    price: 'R$ 79/mês',
-    items: ['Loja e cardápio na Tucaí', 'Pedidos de delivery e retirada', 'Cozinha/separação dos pedidos', 'Vendas e visão geral', 'Equipe com cargos'],
-  },
-  {
-    code: 'presencial_delivery' as const,
-    name: 'Premium',
-    price: 'R$ 99/mês',
-    items: ['Tudo do Padrão', 'Comandas e mesas', 'Caixa presencial com fechamento', 'QR das mesas', 'Controle de gastos e Meu Lucro', 'Calculadora de custos e preço sugerido', 'Relatórios avançados'],
-  },
-]
 
 /** Configurações: plano (comparativo, solicitação de troca e cobranças) e atalhos de cadastro. */
 export function SettingsTab() {
@@ -63,6 +51,7 @@ export function SettingsTab() {
           )
         })}
       </div>
+      {can('settings.manage') && <SubscriptionCard businessId={b.id} currentPlan={plan?.code ?? null} />}
       <PlanTab businessId={b.id} />
       {can('store.customize') && (
         <p className="text-sm text-ink">Dados, endereço, entrega e fotos ficam em <Link to={`/painel/${b.id}/loja`} className="font-semibold underline">Minha loja</Link>.</p>

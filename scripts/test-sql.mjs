@@ -121,6 +121,7 @@ async function main() {
       ...one('supabase/tests/rls_taxa_tucai.sql'),
       ...one('supabase/tests/rls_midia.sql'),
       ...one('supabase/tests/rls_navegacao.sql'),
+      ...one('supabase/tests/rls_assinatura.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

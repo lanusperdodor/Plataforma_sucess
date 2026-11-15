@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AddressFields } from '../../components/forms/AddressFields.tsx'
-import { emptyAddress, validateAddress, type AddressErrors, type AddressParts } from '../../features/address/address.ts'
+import { emptyAddress, formatAddress, validateAddress, type AddressErrors, type AddressParts } from '../../features/address/address.ts'
+import { setStoreLocation } from '../../features/gestao/repository.ts'
+import { geocodeAddress } from '../../features/rastreamento/repository.ts'
 import { getBusinessAddress, saveBusinessAddress } from '../../features/address/repository.ts'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
@@ -80,7 +82,17 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
   const save = useMutation({
     mutationFn: async () => {
       await updateStore(b.id, v)
-      if (addrTouched) await saveBusinessAddress(b.id, addr)
+      if (addrTouched) {
+        await saveBusinessAddress(b.id, addr)
+        // endereço → local da loja no mapa (base da rota até a loja e do frete por distância); se não achar, avisa
+        try {
+          const p = await geocodeAddress(formatAddress(addr))
+          await setStoreLocation(b.id, p.lat, p.lng)
+          void qc.invalidateQueries({ queryKey: ['gestao', 'location', b.id] })
+        } catch {
+          toast.error('Endereço salvo, mas não achamos o local exato no mapa. Marque em Entregas → Local da loja no mapa.')
+        }
+      }
     },
     onSuccess: () => {
       toast.success('Loja atualizada.')

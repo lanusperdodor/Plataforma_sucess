@@ -4,7 +4,12 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorState } from '../components/feedback/ErrorState.tsx'
 import { AddressFields } from '../components/forms/AddressFields.tsx'
-import { emptyAddress, formatAddressShort, onlyDigits, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
+import { emptyAddress, formatAddress, formatAddressShort, onlyDigits, validateAddress, type AddressErrors, type AddressParts } from '../features/address/address.ts'
+import { saveBusinessAddress } from '../features/address/repository.ts'
+import { setStoreLocation } from '../features/gestao/repository.ts'
+import { geocodeAddress } from '../features/rastreamento/repository.ts'
+import { startSubscription } from '../features/payments/repository.ts'
+import { PLANS, type PlanCode } from './gestao/plans.ts'
 import { useToast } from '../components/feedback/toast-context.ts'
 import { Page, PageHeader } from '../components/nav/PageHeader.tsx'
 import { useAuth } from '../features/auth/AuthProvider.tsx'
@@ -88,10 +93,25 @@ function ApplicationForm() {
   const [serverError, setServerError] = useState<string>()
   const [addr, setAddr] = useState<AddressParts>(emptyAddress())
   const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
+  // plano escolhido no cadastro: depois de enviar, vai direto autorizar o débito automático no Mercado Pago
+  const [plan, setPlan] = useState<PlanCode>('delivery')
+  const [payInfo, setPayInfo] = useState<string | null>(null)
   const set = <K extends keyof ApplicationInput>(k: K, v: ApplicationInput[K]) => setValues((p) => ({ ...p, [k]: v }))
   const m = useMutation({
-    mutationFn: submitApplication,
-    onSuccess: () => {
+    mutationFn: async (input: ApplicationInput) => {
+      const id = await submitApplication(input)
+      // endereço em campos e local no mapa já no cadastro (o Master vê; a rota e o frete usam)
+      if (input.addressLine) {
+        await saveBusinessAddress(id, addr).catch(() => undefined)
+        await geocodeAddress(formatAddress(addr)).then((p) => setStoreLocation(id, p.lat, p.lng)).catch(() => undefined)
+      }
+      // assinatura com débito automático: se o pagamento online ainda não estiver ativo, o cadastro segue e avisamos
+      let url: string | null = null
+      try { url = await startSubscription(id, plan) } catch (e) { setPayInfo(e instanceof Error ? e.message : 'Não foi possível abrir o pagamento agora.') }
+      return { id, url }
+    },
+    onSuccess: (r) => {
+      if (r.url) { window.location.assign(r.url); return }
       toast.success('Solicitação enviada! Você será avisado do resultado nesta página.')
       setValues((p) => ({ ...p, name: '', phone: '', addressLine: '', description: '', categoryId: '' }))
       setAddr(emptyAddress())
@@ -175,10 +195,24 @@ function ApplicationForm() {
             <textarea id="ap-desc" value={values.description} onChange={(e) => set('description', e.target.value)} maxLength={1000} className={`${field} min-h-24 py-2`} />
             {err('description')}
           </div>
+          <fieldset className="md:col-span-2">
+            <legend className="mb-2 block text-sm font-medium text-ink">Plano (mensalidade com débito automático)</legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {PLANS.map((p) => (
+                <label key={p.code} className={`pressable flex cursor-pointer flex-col gap-1 rounded-2xl border-2 p-4 ${plan === p.code ? 'border-brand bg-muted' : 'border-line'}`}>
+                  <input type="radio" name="ap-plano" className="sr-only" checked={plan === p.code} onChange={() => setPlan(p.code)} />
+                  <span className="flex items-center justify-between gap-2"><strong className="text-ink">{p.name}</strong><span className="text-sm font-semibold text-ink">{p.price}</span></span>
+                  <span className="text-xs text-ink-muted">{p.items.slice(0, 3).join(' · ')}{p.items.length > 3 ? '…' : ''}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-ink-muted">Ao enviar, você vai para o Mercado Pago autorizar o cartão. A mensalidade é cobrada todo mês automaticamente e pode ser cancelada quando quiser. A loja aparece na Tucaí depois da aprovação da equipe.</p>
+          </fieldset>
+          {payInfo && <p role="status" className="rounded-xl bg-muted p-3 text-sm text-ink md:col-span-2">Cadastro enviado. {payInfo}</p>}
           {serverError && <p role="alert" className="text-sm text-danger md:col-span-2">{serverError}</p>}
           <div className="md:col-span-2">
             <button type="submit" disabled={m.isPending} className="pressable inline-flex min-h-11 items-center rounded-full bg-orange px-6 text-sm font-semibold text-ink disabled:opacity-50">
-              {m.isPending ? 'Enviando…' : 'Enviar solicitação'}
+              {m.isPending ? 'Enviando…' : 'Enviar e ir para o pagamento'}
             </button>
           </div>
         </form>

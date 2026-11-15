@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { cancelSubscription } from '../../features/payments/repository.ts'
 import { Building2, Search } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -46,7 +47,12 @@ function BusinessActions({ b, onDone }: { b: BusinessCard; onDone: () => void })
   const [note, setNote] = useState('')
   const [pending, setPending] = useState<ReviewDecision | null>(null)
   const m = useMutation({
-    mutationFn: ({ decision }: { decision: ReviewDecision }) => reviewBusiness(b.id, decision, note),
+    mutationFn: async ({ decision }: { decision: ReviewDecision }) => {
+      const status = await reviewBusiness(b.id, decision, note)
+      // cadastro recusado: cancela o débito automático do plano (se houver), para ninguém pagar por loja não aprovada
+      if (decision === 'reject') await cancelSubscription(b.id).catch(() => undefined)
+      return status
+    },
     onSuccess: (status) => {
       toast.success(`${b.name}: ${STATUS_LABEL[status].toLowerCase()}.`)
       setNote('')

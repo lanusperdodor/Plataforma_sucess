@@ -54,6 +54,33 @@ function useDark() {
   return dark
 }
 
+/** Sem rota: mostra item por item o que falta (localização, loja no mapa, destino do cliente, cálculo). */
+function RouteChecklist({ p, target }: { p: CourierNavigationProps; target: LngLat | null }) {
+  const acc = p.fix?.accuracy ?? null
+  const rough = acc !== null && acc > 500
+  const rows: { ok: boolean | null; text: string }[] = [
+    { ok: !!p.fix && !rough ? true : p.fix ? null : false,
+      text: !p.fix ? 'Sua localização: aguardando o GPS (permita a localização no navegador).'
+        : rough ? `Sua localização: aproximada (cerca de ${Math.round(acc! / 100) / 10} km de erro). Computador não tem GPS; no celular fica precisa.`
+        : `Sua localização: ok (precisão de ${Math.round(acc ?? 0)} m).` },
+    { ok: !!p.store, text: p.store ? 'Loja marcada no mapa: ok.' : 'Loja sem local no mapa: o lojista precisa salvar o endereço (Gestão → Minha loja) ou marcar em Entregas → Local da loja.' },
+  ]
+  if (p.leg === 'entrega') rows.push({ ok: !!p.destination, text: p.destination ? 'Destino do cliente: ok.' : 'Destino do cliente: localizando pelo endereço do pedido…' })
+  rows.push({ ok: p.routeError ? false : null, text: p.routeError ? `Cálculo da rota: ${p.routeError}` : target ? 'Cálculo da rota: aguardando a primeira posição enviada ao servidor (até 20 s).' : 'Cálculo da rota: falta o ponto de destino.' })
+  return (
+    <div role="status" className="rounded-xl border border-line p-3 text-sm">
+      <p className="mb-1 font-semibold text-ink">Por que a rota ainda não aparece</p>
+      <ul className="flex flex-col gap-1">
+        {rows.map((r) => (
+          <li key={r.text} className="flex items-start gap-2 text-ink">
+            <span aria-hidden="true" className={`mt-1 size-2.5 shrink-0 rounded-full ${r.ok === true ? 'bg-success' : r.ok === false ? 'bg-danger' : 'bg-orange'}`} />{r.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** Navegação do entregador: mapa com a rota real pelas ruas, próxima conversão, distância e tempo restantes. */
 export function CourierNavigation(p: CourierNavigationProps) {
   const online = useOnline()
@@ -137,12 +164,10 @@ export function CourierNavigation(p: CourierNavigationProps) {
         {(p.gpsError || !p.sharing) && (
           <p role="alert" className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm text-ink"><SignalLow aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{p.gpsError ?? 'Ative "Compartilhar localização" para navegar e o cliente acompanhar.'}</p>
         )}
-        {p.routeError && (
-          <div role="status" className="flex flex-col gap-2 rounded-xl bg-muted p-3 text-sm text-ink">
-            <p>{p.routeError}</p>
-            {fallback && <a href={fallback} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand underline">Abrir a rota no OpenStreetMap</a>}
-          </div>
-        )}
+        {p.routeError && p.route && <p role="status" className="rounded-xl bg-muted p-3 text-sm text-ink">{p.routeError}</p>}
+        {p.routeError && fallback && <a href={fallback} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-brand underline">Abrir a rota no OpenStreetMap</a>}
+
+        {!p.route && <RouteChecklist p={p} target={target} />}
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line p-3 text-sm text-ink">
           <span className="inline-flex items-center gap-1.5 font-semibold"><Route aria-hidden="true" className="size-4" />Rota da etapa</span>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Banknote, CalendarClock, CheckCircle2, Clock, Hourglass, MapPin, Navigation, Package, Phone, PiggyBank, Power, Truck, Wallet } from 'lucide-react'
+import { Banknote, BellRing, CalendarClock, CheckCircle2, Clock, Hourglass, MapPin, Navigation, Package, Phone, PiggyBank, Power, Truck, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
@@ -35,6 +35,8 @@ import { phoneDigits } from '../BusinessPage.tsx'
 import { LiveLocation } from './LiveLocation.tsx'
 import { OfferCard, useApproxPosition } from './OfferCard.tsx'
 import { CourierProfilePanel } from './CourierProfilePanel.tsx'
+import { OfferAlertsCard } from './OfferAlertsCard.tsx'
+import { alertNewOffers, unlockSound, useNewOffers } from '../../features/courier/offerAlert.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -238,7 +240,12 @@ export function CourierArea() {
   const q = useQuery({ queryKey: ['courier', 'me', userId ?? ''], queryFn: () => getMyCourier(userId!), enabled: !!userId })
   const approved = q.data?.status === 'approved'
   const active = useQuery({ queryKey: ['courier', 'active'], queryFn: () => myDeliveries(true), enabled: approved, refetchInterval: 20_000 })
-  const offers = useQuery({ queryKey: ['courier', 'offers'], queryFn: listOffers, enabled: approved && !!q.data?.isOnline && (active.data ?? []).length === 0, refetchInterval: 15_000 })
+  const offersOn = approved && !!q.data?.isOnline && (active.data ?? []).length === 0
+  const offers = useQuery({ queryKey: ['courier', 'offers'], queryFn: listOffers, enabled: offersOn, refetchInterval: 10_000, refetchIntervalInBackground: true })
+  // corrida nova: bip + vibração (+ notificação com a tela em segundo plano) e aviso fixo no topo
+  const [fresh, setFresh] = useState(0)
+  useNewOffers(offers.data?.map((o) => o.orderId), offersOn, (ids) => { alertNewOffers(ids.length); setFresh((n) => n + ids.length) })
+  useEffect(() => { if (!offersOn || (offers.data ?? []).length === 0) setFresh(0) }, [offersOn, offers.data])
   const approx = useApproxPosition((offers.data ?? []).length > 0)
   const earnings = useQuery({ queryKey: ['courier', 'earnings'], queryFn: getEarnings, enabled: approved })
   const history = useQuery({ queryKey: ['courier', 'history'], queryFn: () => myDeliveries(false), enabled: approved })
@@ -305,6 +312,12 @@ export function CourierArea() {
   const deliveriesView = (
     <>
       {ownCourier && <OwnDeliveriesPanel view="ativas" />}
+      {fresh > 0 && current.length === 0 && (
+        <div role="alert" className="sticky top-20 z-30 flex items-center justify-between gap-3 rounded-card bg-brand p-4 text-surface shadow-lg">
+          <span className="flex items-center gap-2 text-lg font-bold"><BellRing aria-hidden="true" className="size-6 animate-pulse" />{fresh > 1 ? `${fresh} corridas novas!` : 'Nova corrida!'}</span>
+          <button type="button" onClick={() => { setFresh(0); document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} className="pressable inline-flex min-h-12 items-center rounded-full bg-surface px-5 text-base font-bold text-ink">Ver corridas</button>
+        </div>
+      )}
       {/* 1. disponibilidade: grande e fácil de ver */}
       <section aria-labelledby="disp" className={`${box} flex flex-col gap-3`}>
         <div className="flex items-center justify-between gap-3">
@@ -314,7 +327,7 @@ export function CourierArea() {
             {c.isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
-        <button type="button" disabled={toggle.isPending} onClick={() => toggle.mutate(!c.isOnline)} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
+        <button type="button" disabled={toggle.isPending} onClick={() => { unlockSound(); toggle.mutate(!c.isOnline) }} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
           <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar offline' : 'Ficar online e receber entregas'}
         </button>
         {c.isOnline && (
@@ -324,20 +337,17 @@ export function CourierArea() {
         )}
       </section>
 
-      {/* 2. números do dia, ganhos e saque */}
-      <CourierSummary e={e} />
-
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : current.map((d) => <ActiveDelivery key={d.orderId} d={d} />)}
 
       {current.length === 0 && (
-        <section aria-labelledby="ofertas" className="flex flex-col gap-2">
-          <h2 id="ofertas" className="text-lg font-semibold text-ink">Ofertas na sua cidade</h2>
+        <section aria-labelledby="ofertas" className="flex scroll-mt-24 flex-col gap-2">
+          <h2 id="ofertas" className="text-xl font-bold text-ink">Corridas disponíveis{(offers.data ?? []).length > 0 ? ` (${(offers.data ?? []).length})` : ''}</h2>
           {!c.isOnline ? (
-            <EmptyState icon={Navigation} title="Você está indisponível" description="Fique disponível para receber ofertas de entrega." />
+            <EmptyState icon={Navigation} title="Você está indisponível" description="Toque em “Ficar online” para ver e aceitar as corridas." />
           ) : offers.isError ? (
             <ErrorState error={offers.error} onRetry={() => void offers.refetch()} />
           ) : (offers.data ?? []).length === 0 ? (
-            <EmptyState icon={Navigation} title={offers.isLoading ? 'Buscando ofertas…' : 'Nenhuma oferta agora'} description="A lista atualiza sozinha. Pedidos aparecem assim que são feitos; a coleta é liberada quando a loja marca como pronto." />
+            <EmptyState icon={Navigation} title={offers.isLoading ? 'Buscando corridas…' : 'Nenhuma corrida agora'} description="A lista atualiza sozinha e o celular toca um bip quando chegar uma corrida nova. Pedidos aparecem assim que são feitos; a coleta é liberada quando a loja marca como pronto." />
           ) : (
             <ul className="flex flex-col gap-3">
               {(offers.data ?? []).map((o) => (
@@ -350,6 +360,11 @@ export function CourierArea() {
           <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, já no momento do pedido (a coleta só é liberada quando a loja marca como pronto). Retiradas e entregas feitas pela própria loja não geram oferta. A distância da entrega é calculada pelas ruas no servidor; o trecho até a loja e o tempo são estimativas. Endereço completo e contato do cliente aparecem após aceitar.</p>
         </section>
       )}
+
+      <OfferAlertsCard online={c.isOnline} />
+
+      {/* 2. números do dia, ganhos e saque */}
+      <CourierSummary e={e} />
 
     </>
   )

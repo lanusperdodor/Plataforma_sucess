@@ -170,7 +170,7 @@ begin
                            -- frete por distância (0040): tabela da plataforma (sem loja); a cotação tem business_id
                            'delivery_pricing',
                            -- mídia (0045): pertence à publicação (que pode ou não ser de um estabelecimento)
-                           'post_media')
+                           'post_media', 'push_subscriptions')
      and not exists (select 1 from pg_attribute a
                       where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);
   perform tstx.ok(bad is null, 'tabela sem business_id: ' || coalesce(bad, ''));

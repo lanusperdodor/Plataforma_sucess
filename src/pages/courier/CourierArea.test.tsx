@@ -43,7 +43,7 @@ describe('Área do entregador', () => {
     expect(screen.getByText(/Entrega 2,3 km pelas ruas/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Rejeitar' }))
     await vi.waitFor(() => expect(h.decline).toHaveBeenCalledWith('o1'))
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar corrida' }))
     await vi.waitFor(() => expect(h.accept).toHaveBeenCalledWith('o1'))
   })
 

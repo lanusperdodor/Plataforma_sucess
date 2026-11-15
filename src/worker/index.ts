@@ -20,8 +20,9 @@ import { handleFreight } from './freight'
 import { handleCep } from './cep'
 import { handleGeocode } from './geocode'
 import { handleDiagnostics } from './diagnostics'
+import { handlePush, sendOfferPushes, type PushEnv } from './push'
 
-export interface Env extends PaymentsEnv, RoutesEnv {
+export interface Env extends PaymentsEnv, RoutesEnv, PushEnv {
   ASSETS: { fetch(input: Request | string): Promise<Response> }
   /** Domínio canônico, sem barra final. Ex.: https://www.tucai.com.br */
   SITE_URL?: string
@@ -150,6 +151,10 @@ function withHeaders(res: Response, extra: Record<string, string>): Response {
 }
 
 export default {
+  /** Cron Trigger (a cada minuto): avisa os entregadores de corridas novas por Web Push. */
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
+    ctx.waitUntil(sendOfferPushes(env).then((r) => { if (r.enviados || r.falhas || r.removidos) console.log('push corridas', JSON.stringify(r)) }))
+  },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     const siteUrl = (env.SITE_URL || DEFAULT_SITE_URL).replace(/\/$/, '')
@@ -171,6 +176,8 @@ export default {
     if (diag) return withHeaders(diag, {})
     const cep = await handleCep(request)
     if (cep) return withHeaders(cep, {})
+    const push = await handlePush(request, env)
+    if (push) return withHeaders(push, {})
     if (path === '/robots.txt') {
       return withHeaders(new Response(robotsTxt(siteUrl, indexingAllowed), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }), {
         'Cache-Control': 'public, max-age=3600',

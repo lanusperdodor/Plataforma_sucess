@@ -11,3 +11,4 @@ supabase/.branches
 coverage
 e2e-evidence/
 release-audit/
+tsconfig.tsbuildinfo

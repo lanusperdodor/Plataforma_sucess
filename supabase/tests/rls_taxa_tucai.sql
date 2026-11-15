@@ -75,18 +75,22 @@ begin
   -- taxa nunca abaixo de R$ 1
   perform tstx.denied($q$select public.admin_set_delivery_pricing('[{"ate_m":1500,"entregador_cents":500}]'::jsonb, 50, 500, 200, false)$q$, 'taxa da Tucaí abaixo de R$ 1');
 
-  -- entregador próprio fora das ofertas da rede (mesmo se também tiver cadastro aprovado de independente)
+  -- entregador próprio COM cadastro aprovado de parceiro também vê e aceita ofertas da rede (0052)
   perform tstx.su();
   perform tstx.ok(private.is_any_own_courier(kp), 'Entregador 2 é entregador próprio do supermercado');
   insert into public.couriers(user_id, full_name, phone, city_id, vehicle, status, is_online, terms_version, terms_accepted_at)
   values (kp, 'Entregador Teste Dois', '35999990003', city, 'bicicleta', 'approved', true, 'v1', now())
   on conflict (user_id) do update set status = 'approved', is_online = true, city_id = city;
   perform tstx.login(kp);
-  perform tstx.ok(not exists (select 1 from public.courier_list_offers()), 'entregador próprio não vê ofertas da rede');
-  perform tstx.denied(format('select public.courier_accept_delivery(%L)', op), 'entregador próprio aceita oferta da rede');
+  perform tstx.ok(exists (select 1 from public.courier_list_offers() where order_id = op), 'entregador próprio com cadastro de parceiro vê a oferta da rede');
   perform tstx.login(k1);
   perform public.set_courier_online(true);
-  perform tstx.ok(exists (select 1 from public.courier_list_offers() where order_id = op), 'independente habilitado vê a oferta');
+  perform tstx.ok(exists (select 1 from public.courier_list_offers() where order_id = op), 'independente vê a mesma oferta');
+  perform tstx.login(kp);
+  perform public.courier_accept_delivery(op);
+  perform tstx.login(k1);
+  perform tstx.ok(not exists (select 1 from public.courier_list_offers() where order_id = op), 'aceita pelo primeiro: some para os outros');
+  perform tstx.denied(format('select public.courier_accept_delivery(%L)', op), 'segundo entregador aceita a mesma entrega');
   raise notice 'RLS_TAXA_TUCAI_OK';
 end $$;
 rollback;

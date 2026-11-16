@@ -8,7 +8,7 @@ import { useToast } from '../../components/feedback/toast-context.ts'
 import { Page, PageHeader } from '../../components/nav/PageHeader.tsx'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
 import {
-  VEHICLE_LABEL,
+  vehicleLabel,
   acceptDelivery,
   declineOffer,
   shareLocation,
@@ -353,7 +353,7 @@ export function CourierArea() {
           ) : (
             <ul className="flex flex-col gap-3">
               {(offers.data ?? []).map((o) => (
-                <OfferCard key={o.orderId} o={o} vehicle={c.vehicle} me={approx} status={o.orderStatus ? PREP_LABEL[o.orderStatus] ?? o.orderStatus : null}
+                <OfferCard key={o.orderId} o={o} vehicle={c.vehicle ?? 'moto'} me={approx} status={o.orderStatus ? PREP_LABEL[o.orderStatus] ?? o.orderStatus : null}
                   deadline={<OfferDeadline expiresAt={o.expiresAt} round={o.round} />}
                   busy={accept.isPending || decline.isPending} onAccept={() => accept.mutate(o.orderId)} onReject={() => decline.mutate(o.orderId)} />
               ))}
@@ -372,7 +372,7 @@ export function CourierArea() {
   )
   return (
     <Page>
-      <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${VEHICLE_LABEL[c.vehicle]}${c.plate ? ` · ${c.plate}` : ''}`} />
+      <PageHeader icon={Truck} title="Área do entregador" subtitle={`${c.fullName} · ${vehicleLabel(c.vehicle)}${c.plate ? ` · ${c.plate}` : ''}`} />
       <CourierTabs mode="parceiro" available={e?.availableCents ?? 0} />
       <Routes>
         <Route index element={deliveriesView} />

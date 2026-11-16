@@ -7,6 +7,8 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 export const vehicles = ['moto', 'bicicleta', 'carro', 'a_pe'] as const
 export type Vehicle = (typeof vehicles)[number]
 export const VEHICLE_LABEL: Record<Vehicle, string> = { moto: 'Moto', bicicleta: 'Bicicleta', carro: 'Carro', a_pe: 'A pé' }
+/** Veículo pode estar "não informado" (entregador próprio que ficou online com um clique, 0056). */
+export const vehicleLabel = (v: Vehicle | null | undefined) => (v ? VEHICLE_LABEL[v] : 'Veículo não informado')
 export const courierStatuses = ['pending', 'approved', 'rejected', 'suspended'] as const
 export type CourierStatus = (typeof courierStatuses)[number]
 
@@ -67,7 +69,7 @@ export async function submitCourierApplication(input: CourierForm): Promise<Cour
 
 const mySchema = z
   .object({
-    full_name: z.string(), phone: z.string(), city_id: z.string(), vehicle: z.enum(vehicles), vehicle_plate: z.string().nullable(),
+    full_name: z.string(), phone: z.string().nullable(), city_id: z.string(), vehicle: z.enum(vehicles).nullable(), vehicle_plate: z.string().nullable(),
     cnh_category: z.string().nullable(), status: z.enum(courierStatuses), is_online: z.boolean(), review_note: z.string().nullable(), submitted_at: z.string(),
   })
   .transform((r) => ({
@@ -87,18 +89,16 @@ export async function setOnline(online: boolean): Promise<boolean> {
   return exec(supabase.rpc('set_courier_online', { _online: online }), z.boolean())
 }
 
-/** Entregador próprio já logado: fica Online direto (1ª vez cria o cadastro de parceiro com a cidade da loja). 0055. */
-export async function ownCourierGoOnline(input: { phone: string; vehicle: Vehicle; plate?: string; cnh?: string; acceptTerms: boolean }): Promise<CourierStatus> {
-  return exec(supabase.rpc('own_courier_go_online', {
-    _phone: input.phone, _vehicle: input.vehicle, _vehicle_plate: input.plate || null, _cnh_category: input.cnh || null, _accept_terms: input.acceptTerms,
-  }), z.enum(courierStatuses))
+/** Entregador próprio já logado: fica Online com um clique (dados vêm da conta; cidade da loja). 0055/0056. */
+export async function ownCourierGoOnline(): Promise<CourierStatus> {
+  return exec(supabase.rpc('own_courier_go_online'), z.enum(courierStatuses))
 }
 
 // ---------- equipe ----------
 const adminSchema = z
   .object({
-    user_id: z.string(), email: z.string().nullable(), full_name: z.string(), phone: z.string(), city_name: z.string().nullable(),
-    vehicle: z.enum(vehicles), vehicle_plate: z.string().nullable(), cnh_category: z.string().nullable(), status: z.enum(courierStatuses),
+    user_id: z.string(), email: z.string().nullable(), full_name: z.string(), phone: z.string().nullable(), city_name: z.string().nullable(),
+    vehicle: z.enum(vehicles).nullable(), vehicle_plate: z.string().nullable(), cnh_category: z.string().nullable(), status: z.enum(courierStatuses),
     is_online: z.boolean(), review_note: z.string().nullable(), submitted_at: z.string(), reviewed_at: z.string().nullable(),
   })
   .transform((r) => ({

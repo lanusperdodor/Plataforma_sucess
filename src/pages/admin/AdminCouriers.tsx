@@ -6,7 +6,7 @@ import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
 import { FilterChips } from '../../components/nav/FilterChips.tsx'
 import { courierHistory, couriersPage, type CourierFilter, type CourierRow } from '../../features/admin/repository.ts'
-import { VEHICLE_LABEL, adminReviewCourier, type CourierStatus } from '../../features/courier/repository.ts'
+import { vehicleLabel, adminReviewCourier, type CourierStatus } from '../../features/courier/repository.ts'
 import { formatBRL } from '../../lib/money.ts'
 import { AdminHeader, dangerButton, errorMessage, formatDateTime, inputClass, Pager, Panel, primaryButton, secondaryButton } from './ui.tsx'
 
@@ -65,7 +65,7 @@ function Row({ c }: { c: CourierRow }) {
         {c.status === 'approved' && <span className={`text-xs font-semibold ${c.isOnline ? 'text-success' : 'text-ink-muted'}`}>{c.isOnline ? 'Online agora' : 'Offline'}</span>}
       </div>
       <p className="text-ink-muted">{c.email} · {c.phone} · {c.city ?? '—'}</p>
-      <p className="text-ink">{VEHICLE_LABEL[c.vehicle]}{c.plate ? ` · placa ${c.plate}` : ''}{c.cnh ? ` · CNH ${c.cnh}` : ''} · enviado em {formatDateTime(c.submittedAt)}</p>
+      <p className="text-ink">{vehicleLabel(c.vehicle)}{c.plate ? ` · placa ${c.plate}` : ''}{c.cnh ? ` · CNH ${c.cnh}` : ''} · enviado em {formatDateTime(c.submittedAt)}</p>
       <p className="text-ink">Entregas concluídas: <strong>{c.deliveriesDone}</strong>{c.deliveriesActive ? ` · ${c.deliveriesActive} em andamento` : ''}{c.lastDeliveryAt ? ` · última em ${formatDateTime(c.lastDeliveryAt)}` : ''}</p>
       {c.reviewNote && <p className="text-ink">Motivo registrado: {c.reviewNote}</p>}
       {actions.some((a) => a.note) && (

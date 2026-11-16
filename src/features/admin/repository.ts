@@ -567,7 +567,7 @@ const detailSchema = z.object({
     status: z.enum(DELIVERY_STATUS), offer_round: z.number(), offer_expires_at: z.string().nullable(), offered_at: z.string(),
     accepted_at: z.string().nullable(), picked_up_at: z.string().nullable(), delivered_at: z.string().nullable(),
     attention_reason: z.string().nullable(), failed_code_attempts: z.number(), declines: z.number(),
-    courier: z.object({ name: z.string(), phone: z.string().nullable(), vehicle: z.string(), last_lat: z.number().nullable(),
+    courier: z.object({ name: z.string(), phone: z.string().nullable(), vehicle: z.string().nullable(), last_lat: z.number().nullable(),
       last_lng: z.number().nullable(), last_location_at: z.string().nullable() }).nullable(),
   }).nullable(),
 })
@@ -602,8 +602,8 @@ export function auditActions(): Promise<string[]> {
 
 const courierRowSchema = z
   .object({
-    user_id: z.string(), email: z.string().nullable(), full_name: z.string(), phone: z.string(), city_name: z.string().nullable(),
-    vehicle: z.enum(['moto', 'bicicleta', 'carro', 'a_pe']), vehicle_plate: z.string().nullable(), cnh_category: z.string().nullable(),
+    user_id: z.string(), email: z.string().nullable(), full_name: z.string(), phone: z.string().nullable(), city_name: z.string().nullable(),
+    vehicle: z.enum(['moto', 'bicicleta', 'carro', 'a_pe']).nullable(), vehicle_plate: z.string().nullable(), cnh_category: z.string().nullable(),
     status: z.enum(['pending', 'approved', 'rejected', 'suspended']), is_online: z.boolean(), review_note: z.string().nullable(),
     submitted_at: z.string(), reviewed_at: z.string().nullable(), deliveries_done: z.number(), deliveries_active: z.number(),
     last_delivery_at: z.string().nullable(), is_test: z.boolean(), total: z.number(),
@@ -654,7 +654,7 @@ const accountDetailSchema = z.object({
   created_at: z.string(), last_sign_in_at: z.string().nullable(), email_confirmed: z.boolean(), blocked: z.boolean(), is_test: z.boolean(),
   must_change_password: z.boolean(), roles: z.array(z.string()), permissions: z.array(z.string()),
   memberships: z.array(z.object({ business_id: z.string(), business: z.string(), role: z.string(), status: z.string() })),
-  courier: z.object({ status: z.string(), city: z.string().nullable(), vehicle: z.string(), is_online: z.boolean() }).nullable(),
+  courier: z.object({ status: z.string(), city: z.string().nullable(), vehicle: z.string().nullable(), is_online: z.boolean() }).nullable(),
   orders: z.number(),
   audit: z.array(z.object({ action: z.string(), created_at: z.string(), actor: z.string().nullable() }).passthrough()),
 })

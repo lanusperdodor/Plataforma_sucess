@@ -14,6 +14,7 @@ import { useAuth } from '../features/auth/AuthProvider.tsx'
 import { useCities } from '../features/catalog/hooks.ts'
 import {
   VEHICLE_LABEL,
+  vehicleLabel,
   courierFormSchema,
   getMyCourier,
   submitCourierApplication,
@@ -43,7 +44,7 @@ function StatusCard({ c }: { c: MyCourier }) {
     <section aria-labelledby="ent-status" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4 md:p-6">
       <h2 id="ent-status" className={`inline-flex items-center gap-2 text-lg font-semibold ${s.tone}`}><s.icon aria-hidden="true" className="size-5" />{s.title}</h2>
       <p className="text-sm text-ink-muted">{s.text}</p>
-      <p className="text-sm text-ink">{c.fullName} · {VEHICLE_LABEL[c.vehicle]}{c.plate ? ` · ${c.plate}` : ''}</p>
+      <p className="text-sm text-ink">{c.fullName} · {vehicleLabel(c.vehicle)}{c.plate ? ` · ${c.plate}` : ''}</p>
       {c.reviewNote && c.status !== 'approved' && <p className="text-sm text-ink">Motivo informado: {c.reviewNote}</p>}
       {c.status === 'approved' && (
         <Link to="/entregador" className="pressable inline-flex min-h-11 w-fit items-center rounded-full bg-orange px-5 text-sm font-semibold text-ink">Abrir área do entregador</Link>

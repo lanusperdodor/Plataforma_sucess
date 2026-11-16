@@ -24,6 +24,6 @@
 - **Validação do ponto de partida:** Brasil e até 100 km da loja.
 
 ## Entregador próprio já logado (0052, 0055)
-- Vê o botão **Ficar online** direto, sem a página de cadastro.
-- Na 1ª vez, confirma celular, veículo e termos na mesma tela. A cidade vem da loja.
+- Vê o botão **Ficar online** direto: um clique, sem digitar nada (0056).
+- Nome e telefone vêm da conta e a cidade vem da loja. O veículo fica "não informado" até ele completar em Meus dados.
 - Online, recebe as corridas de todas as lojas da cidade, além das entregas da própria loja.

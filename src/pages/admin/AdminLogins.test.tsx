@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ recovery: vi.fn(), created: vi.fn(), list: vi.fn(), password: vi.fn(), access: { isMaster: true, mfaOk: true, permissions: [] as string[] } }))
+const h = vi.hoisted(() => ({ recovery: vi.fn(), created: vi.fn(), del: vi.fn(), list: vi.fn(), password: vi.fn(), access: { isMaster: true, mfaOk: true, permissions: [] as string[] } }))
 const account = (o: Record<string, unknown>) => ({ id: 'a1', email: 'ana@exemplo.com', fullName: 'Ana Real', username: 'ana', phone: null, roles: ['customer'], isTest: false, blocked: false, createdAt: '2026-11-01T10:00:00Z', lastSignInAt: null, total: 2, ...o })
 vi.mock('../../features/admin/repository.ts', () => ({
   listCities: () => Promise.resolve([{ id: 'c1', name: 'Itaú de Minas', state: 'MG', slug: 'x', centerLat: null, centerLng: null, isActive: true }]),
@@ -27,6 +27,7 @@ vi.mock('../../features/admin/repository.ts', () => ({
     return Promise.resolve()
   },
   setAccountBlocked: () => Promise.resolve(),
+  deleteAccount: (id: string, c: string) => { h.del(id, c); return Promise.resolve('apagada') },
   startPasswordRecovery: () => Promise.resolve('ana@exemplo.com'),
   accountDetail: () => Promise.resolve({ id: 'a1', email: 'ana@exemplo.com', full_name: 'Ana Real', username: 'ana', phone: null, created_at: '2026-11-01T10:00:00Z',
     last_sign_in_at: null, email_confirmed: true, blocked: false, is_test: false, must_change_password: false, roles: ['customer'], permissions: [],
@@ -47,6 +48,20 @@ const show = () =>
   )
 
 describe('Aba Logins', () => {
+  it('Master exclui login (teste ou real) digitando EXCLUIR; a lista é recarregada', async () => {
+    show()
+    expect(await screen.findByText('Loja Teste')).toBeInTheDocument()
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('excluir')
+    const listed = h.list.mock.calls.length
+    fireEvent.click(screen.getAllByRole('button', { name: 'Excluir login' })[1]!)
+    await vi.waitFor(() => expect(h.del).toHaveBeenCalledWith('a2', 'EXCLUIR'))
+    await vi.waitFor(() => expect(h.list.mock.calls.length).toBeGreaterThan(listed))
+    prompt.mockReturnValue(null)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Excluir login' })[0]!)
+    expect(h.del).toHaveBeenCalledTimes(1)
+    prompt.mockRestore()
+  })
+
   it('lista contas reais e de teste e filtra por tipo', async () => {
     show()
     expect(await screen.findByText('Ana Real')).toBeInTheDocument()

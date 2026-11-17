@@ -124,6 +124,7 @@ async function main() {
       ...one('supabase/tests/rls_assinatura.sql'),
       ...one('supabase/tests/rls_equipe_funcoes.sql'),
       ...one('supabase/tests/rls_push.sql'),
+      ...one('supabase/tests/rls_excluir_login.sql'),
       ...sqlFiles('supabase/tests/props'),
     ];
 

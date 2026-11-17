@@ -292,6 +292,7 @@ describe('Fluentia — fluxo completo', () => {
     const file = await download.path();
     expect(download.suggestedFilename()).toMatch(/^fluentia-backup-\d{4}-\d{2}-\d{2}\.json$/);
     await tid('apagar-tudo').click();
+    await tid('confirmar').click();
     await page.getByText('Dados apagados.', { exact: false }).waitFor({ state: 'attached' });
     await tid('voltar').click();
     await tid('link-dados').waitFor();
@@ -309,6 +310,7 @@ describe('Fluentia — fluxo completo', () => {
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), tid('importar').click()]);
     await chooser.setFiles(file!);
     await tid('confirmar-restauracao').click();
+    await tid('confirmar').click();
     await page.getByText('Backup restaurado.').waitFor({ state: 'attached' });
     await tid('voltar').click();
     await tid('link-dados').waitFor();

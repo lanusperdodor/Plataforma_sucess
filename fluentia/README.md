@@ -9,6 +9,12 @@ Professor particular de idiomas com IA, para uso pessoal no Android: **inglês, 
 - Revisão espaçada com **FSRS**, plano diário adaptativo para os quatro idiomas, metas, XP, sequência, conquistas e estatísticas.
 - Tudo salvo localmente (SQLite), com backup/restauração em arquivo. Funciona offline, exceto a IA.
 
+## Usar sem instalar nada (claude.ai)
+
+Versão web, privada, no domínio do Claude: **https://claude.ai/artifact/VVpmN4gSA3CYuUUZJMM8Qe**
+
+Abra o link no navegador (celular ou computador) conectado à sua conta do Claude. O professor de IA usa o Claude da sua própria conta — sem chave, sem servidor e sem custo além do seu plano. O microfone usa o ditado do claude.ai (Chrome no computador ou app do Claude para desktop). O progresso fica salvo no navegador; faça backups em Perfil → Dados e backup. Para atualizar a página depois de mudar o código: `npm run build:claude` e republicar `artifact-build/index.html` com os arquivos de `artifact-files.json`.
+
 ## Começo rápido
 
 ```bash

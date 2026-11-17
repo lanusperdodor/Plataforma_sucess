@@ -124,7 +124,7 @@ export default function ConversationScreen() {
     }
     setError(null);
     stopSpeaking();
-    if (!(await ensureMicPermission())) {
+    if (Platform.OS !== 'web' && !(await ensureMicPermission())) {
       setError('Permissão de microfone negada. Libere o microfone para o Fluentia nas configurações do Android.');
       return;
     }

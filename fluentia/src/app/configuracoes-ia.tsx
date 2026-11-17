@@ -5,6 +5,7 @@ import { Button, Card, Header, Loading, Notice, Row, Screen, Section, T } from '
 import { aiUsageMonth, aiUsageOn, getSetting, setSetting } from '@/db/repo';
 import { AiError, GEMINI_BASE_URL, isValidBackendUrl, type HealthResult } from '@/services/ai/client';
 import { clearAiConfig, DEFAULT_BACKEND_URL, DEFAULT_DAILY_AI_LIMIT, loadAiConfig, saveAiConfig } from '@/services/aiRuntime';
+import { inClaudePage } from '@/services/claudePage';
 import { useApp, useData } from '@/state/app';
 import { colors, radius, space } from '@/theme';
 
@@ -34,6 +35,34 @@ export default function AiSettings() {
     });
   }, []);
   if (!data) return <Loading />;
+
+  if (inClaudePage()) {
+    const test = async () => {
+      setTesting(true);
+      setStatus(null);
+      try {
+        const h = await ai.health();
+        setStatus({ tone: 'success', text: `Pronto. Provedor: ${h.provider}.` });
+      } catch (e) {
+        setStatus({ tone: 'danger', text: e instanceof AiError ? e.message : 'Falha ao testar.' });
+      } finally {
+        setTesting(false);
+      }
+    };
+    return (
+      <Screen>
+        <Header title="Inteligência artificial" onBack={() => router.back()} />
+        <Notice tone="success" icon="sparkles" text="Nesta versão no claude.ai, o professor usa o Claude da sua própria conta: sem chave, sem servidor e sem custo além do seu plano. Na primeira pergunta, o claude.ai pede sua permissão." />
+        <Button testID="testar-claude" title="Testar o professor" icon="flash" loading={testing} onPress={test} />
+        {status ? <Notice tone={status.tone} text={status.text} /> : null}
+        <Card>
+          <T v="small" color={colors.text}>• As conversas e redações são respondidas pelo Claude da sua conta, dentro do claude.ai.</T>
+          <T v="small" color={colors.text}>• O microfone usa o ditado do claude.ai (Chrome no computador ou app do Claude para desktop).</T>
+          <T v="small" color={colors.text}>• Seu progresso fica salvo neste navegador. Faça backups em Perfil → Dados e backup.</T>
+        </Card>
+      </Screen>
+    );
+  }
 
   const save = async () => {
     setStatus(null);

@@ -5,12 +5,20 @@ import { Platform } from 'react-native';
 import { exportBackup, parseBackup, type BackupFile } from '@/db/backup';
 import type { Db } from '@/db/types';
 import { todayKey } from '@/domain/text';
+import { claudeCap, inClaudePage, type DownloadsNs } from './claudePage';
 
 /** Gera o arquivo de backup e abre o compartilhamento do Android (salvar no Drive, enviar a si mesmo etc.). */
 export async function shareBackup(db: Db): Promise<string> {
   const json = JSON.stringify(await exportBackup(db));
   const name = `fluentia-backup-${todayKey()}.json`;
   if (Platform.OS === 'web') {
+    // No claude.ai a página não pode baixar arquivos sozinha: usa o download confirmado pelo próprio claude.ai.
+    const downloads = await claudeCap<DownloadsNs>('downloads');
+    if (downloads) {
+      await downloads.save({ filename: name, data: json });
+      return name;
+    }
+    if (inClaudePage()) throw new Error('O download não está disponível nesta página do claude.ai.');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     a.download = name;

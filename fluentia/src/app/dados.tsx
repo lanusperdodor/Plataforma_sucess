@@ -1,29 +1,25 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import { Button, Card, Header, Notice, Screen, Section, T } from '@/components/ui';
 import { restoreBackup, summarizeBackup, wipeUserData, type BackupFile } from '@/db/backup';
 import { bootstrap, deleteAllConversations, deleteAllWriting } from '@/db/repo';
 import { pickBackup, shareBackup } from '@/services/backupFiles';
 import { useApp } from '@/state/app';
-import { colors } from '@/theme';
-
-/** Confirmação antes de qualquer operação destrutiva. */
-function confirm(title: string, message: string): Promise<boolean> {
-  if (Platform.OS === 'web') return Promise.resolve(globalThis.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Confirmar', style: 'destructive', onPress: () => resolve(true) },
-    ])
-  );
-}
+import { colors, radius, space } from '@/theme';
 
 export default function DataScreen() {
   const router = useRouter();
   const { db, refresh } = useApp();
   const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [pending, setPending] = useState<BackupFile | null>(null);
+  // Confirmação dentro do app antes de qualquer operação destrutiva (o claude.ai bloqueia o confirm() do navegador).
+  const [ask, setAsk] = useState<{ title: string; message: string; resolve: (ok: boolean) => void } | null>(null);
+  const confirm = (title: string, message: string) => new Promise<boolean>((resolve) => setAsk({ title, message, resolve }));
+  const answer = (ok: boolean) => {
+    ask?.resolve(ok);
+    setAsk(null);
+  };
 
   const run = async (fn: () => Promise<string>) => {
     setMsg(null);
@@ -39,6 +35,16 @@ export default function DataScreen() {
   return (
     <Screen>
       <Header title="Dados e backup" onBack={() => router.back()} />
+      <Modal visible={!!ask} transparent animationType="fade" onRequestClose={() => answer(false)}>
+        <View style={s.backdrop}>
+          <View style={s.dialog} accessibilityRole="alert">
+            <T v="h2">{ask?.title ?? ''}</T>
+            <T color={colors.text}>{ask?.message ?? ''}</T>
+            <Button testID="confirmar" variant="danger" title="Confirmar" onPress={() => answer(true)} />
+            <Button testID="cancelar" variant="secondary" title="Cancelar" onPress={() => answer(false)} />
+          </View>
+        </View>
+      </Modal>
       <Notice icon="phone-portrait" text="Todo o seu progresso fica neste aparelho (SQLite). Faça backups de vez em quando: se o app for desinstalado, os dados locais são apagados." />
       {msg ? <Notice tone={msg.tone} text={msg.text} /> : null}
 
@@ -106,3 +112,8 @@ export default function DataScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: space.lg },
+  dialog: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: space.lg, gap: space.md, width: '100%', maxWidth: 480, alignSelf: 'center' },
+});

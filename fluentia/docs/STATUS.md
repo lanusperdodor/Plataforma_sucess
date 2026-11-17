@@ -19,6 +19,14 @@ Legenda: ✅ implementado e testado automaticamente · 🔌 implementado, depend
 - ✅ Backend: autenticação por token, validação, limites por minuto/dia, logs sem conteúdo, Anthropic com fallback de recusa, alternativa compatível com "chat completions".
 - ✅ APK de release compilado nesta sessão (`./gradlew assembleRelease`, arm64-v8a e armeabi-v7a, 58 MB): pacote `com.fluentia.pessoal`, versão 1.0.0, minSdk 24 / targetSdk 36, assinatura v2 verificada com `apksigner`. Assinado com a chave de depuração do template (serve para instalar no seu aparelho; não é para a Play Store).
 
+## Versão web no claude.ai
+
+- ✅ Publicada como página privada em https://claude.ai/artifact/VVpmN4gSA3CYuUUZJMM8Qe (o mesmo app, compilado para a web).
+- ✅ Verificado no visualizador do claude.ai (emulado nesta sessão): cadastro, abrir lição de coreano, responder exercício com correção, professor respondendo com "Claude (sua conta)", progresso preservado ao recarregar, sem erros no console.
+- Banco na web: SQLite (sql.js, WebAssembly) salvo no IndexedDB do navegador. Os dados ficam só naquele navegador; use o backup para levar a outro aparelho.
+- Professor: capacidade `sample` do claude.ai (o Claude de quem abre a página). Microfone: ditado do claude.ai (só Chrome no computador e app desktop; nos apps de celular do Claude o ditado não é oferecido e os exercícios de fala podem ser pulados). Backup: download confirmado pelo claude.ai.
+- ⚠️ Não testado com uma conta real abrindo o link: a primeira abertura é a sua. O claude.ai pede permissão na primeira pergunta ao Claude e no primeiro uso do microfone.
+
 ## Implementado, depende de configuração externa
 
 - 🔌 Professor virtual (texto e voz), correção de redações, geração de lições com IA: precisam de uma chave de IA. Modo **grátis**: chave do Google Gemini colada no app, sem servidor. Modo avançado: backend próprio com Claude. **Testado só com respostas simuladas** (unitários e interface) — nenhuma chamada real a um provedor foi feita nesta sessão (não havia chave).

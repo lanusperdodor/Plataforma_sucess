@@ -1,6 +1,7 @@
 import type { Db } from '@/db/types';
 import { aiUsageOn, getSetting, logAiUsage } from '@/db/repo';
-import { createAiClient, type AiClient, type AiConfig } from './ai/client';
+import { createAiClient, type AiClient, type AiConfig, type SampleLike } from './ai/client';
+import { claudeCap, inClaudePage } from './claudePage';
 import { secureDelete, secureGet, secureSet } from './secure';
 
 const KEY_URL = 'fluentia.ai.url';
@@ -11,7 +12,11 @@ export const DEFAULT_DAILY_AI_LIMIT = 150;
 /** Endereço do backend pessoal na conta Cloudflare do dono do app (nome do Worker em backend/wrangler.jsonc). */
 export const DEFAULT_BACKEND_URL = 'https://fluentia-backend.marcossonopi.workers.dev';
 
+/** No claude.ai o professor usa sempre o Claude da conta de quem abriu: nada a configurar. */
+export const CLAUDE_PAGE_CONFIG: AiConfig = { mode: 'claude', baseUrl: 'claude.ai', token: 'conta-do-viewer' };
+
 export async function loadAiConfig(): Promise<AiConfig | null> {
+  if (inClaudePage()) return CLAUDE_PAGE_CONFIG;
   const [baseUrl, token, mode, model] = await Promise.all([secureGet(KEY_URL), secureGet(KEY_TOKEN), secureGet(KEY_MODE), secureGet(KEY_MODEL)]);
   if (!baseUrl || !token) return null;
   return { baseUrl, token, mode: mode === 'direct' ? 'direct' : 'backend', model: model || undefined };
@@ -36,5 +41,6 @@ export function createRuntimeAi(db: Db): AiClient {
     requestsToday: async () => (await aiUsageOn(db)).requests,
     dailyLimit: async () => Number(await getSetting(db, 'ai_daily_limit')) || DEFAULT_DAILY_AI_LIMIT,
     logUsage: (kind, input, output) => logAiUsage(db, kind, input, output),
+    sample: () => claudeCap<SampleLike>('sample'),
   });
 }

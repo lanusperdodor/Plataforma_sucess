@@ -10,7 +10,7 @@
  * - 'backend': o app fala com o seu backend (Cloudflare Worker), que guarda a chave.
  */
 export interface AiConfig {
-  mode?: 'direct' | 'backend';
+  mode?: 'direct' | 'backend' | 'claude';
   baseUrl: string;
   /** Token pessoal do backend, ou a chave da API no modo direto. */
   token: string;
@@ -91,6 +91,8 @@ export interface AiDeps {
   dailyLimit(): Promise<number>;
   logUsage(kind: string, input: number, output: number): Promise<void>;
   timeoutMs?: number;
+  /** Modo 'claude' (página no claude.ai): função que pergunta ao Claude com a conta de quem abriu a página. */
+  sample?: () => Promise<SampleLike | null>;
   /** Espera entre tentativas; injetável para testes. */
   sleep?(ms: number): Promise<void>;
 }
@@ -107,13 +109,18 @@ export function isValidBackendUrl(url: string): boolean {
   return /^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(url.trim()) || /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?(\/[^\s]*)?$/.test(url.trim());
 }
 
+export type SampleLike = (
+  input: { role: 'user' | 'assistant'; content: string }[],
+  opts?: { cache?: boolean; modelTier?: 'quick' | 'default' | 'complex' }
+) => Promise<{ text: string; truncated: boolean; modelApplied?: string }>;
+
 export function createAiClient(deps: AiDeps) {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
   async function config(): Promise<AiConfig> {
     const c = await deps.getConfig();
     if (!c || !c.baseUrl || !c.token) throw new AiError('not_configured', 'O professor de IA ainda não foi configurado. Abra Perfil → Inteligência artificial.');
-    return { mode: c.mode ?? 'backend', baseUrl: normalizeBaseUrl(c.baseUrl), token: c.token, model: c.model };
+    return { mode: c.mode ?? 'backend', baseUrl: c.mode === 'claude' ? c.baseUrl : normalizeBaseUrl(c.baseUrl), token: c.token, model: c.model };
   }
 
   async function request(path: string, init: RequestInit, attempts: number): Promise<Response> {
@@ -185,6 +192,11 @@ export function createAiClient(deps: AiDeps) {
 
     async health(): Promise<HealthResult> {
       const c = await config();
+      if (c.mode === 'claude') {
+        const sample = await deps.sample?.();
+        if (!sample) throw new AiError('unavailable', 'O Claude não está disponível nesta página. Abra o Fluentia pelo link do claude.ai, conectado à sua conta.');
+        return { ok: true, provider: 'Claude (sua conta)', model: null, llm: true, pronunciation: false };
+      }
       if (c.mode === 'direct') {
         const res = await request('/models', { method: 'GET' }, 1);
         let ids: string[] = [];
@@ -208,6 +220,27 @@ export function createAiClient(deps: AiDeps) {
       const [used, limit] = await Promise.all([deps.requestsToday(), deps.dailyLimit()]);
       if (used >= limit) {
         throw new AiError('local_daily_limit', `Você atingiu o seu limite de ${limit} requisições de IA por dia. Aumente em Perfil → Inteligência artificial ou continue amanhã.`);
+      }
+      if (c.mode === 'claude') {
+        const sample = await deps.sample?.();
+        if (!sample) throw new AiError('unavailable', 'O Claude não está disponível nesta página. Abra o Fluentia pelo link do claude.ai, conectado à sua conta.');
+        const instr = req.schema
+          ? `${req.system}\n\nResponda SOMENTE com um objeto JSON válido (sem texto antes ou depois, sem cercas de código) que siga este esquema JSON:\n${JSON.stringify(req.schema)}`
+          : req.system;
+        // A página não tem campo de sistema: as instruções vão no início da primeira mensagem do aluno.
+        const msgs = req.messages.map((m, i) => (i === 0 ? { role: m.role, content: `[INSTRUÇÕES DO APLICATIVO — siga-as]\n${instr}\n\n[MENSAGEM]\n${m.content}` } : m));
+        try {
+          const out = await sample(msgs, { cache: false, modelTier: req.kind === 'lesson' ? 'complex' : 'default' });
+          if (!out.text) throw new AiError('bad_response', 'O Claude devolveu uma resposta vazia. Tente de novo.');
+          await deps.logUsage(req.kind, 0, 0);
+          return { text: out.text, model: out.modelApplied ?? 'claude', usage: { input: 0, output: 0 } };
+        } catch (e) {
+          if (e instanceof AiError) throw e;
+          const code = (e as { code?: string })?.code;
+          if (code === 'not_granted') throw new AiError('unauthorized', 'O uso do Claude nesta página não foi permitido. Libere em Permissões da página e tente de novo.');
+          if (code === 'rate_limited') throw new AiError('rate_limited', 'Muitas perguntas seguidas ao Claude. Espere um pouco e tente de novo.');
+          throw new AiError('server', (e as { message?: string })?.message || 'O Claude não conseguiu responder agora.');
+        }
       }
       if (c.mode === 'direct') {
         if (!c.model) throw new AiError('not_configured', 'Toque em "Salvar e testar" em Perfil → Inteligência artificial para escolher o modelo.');
@@ -257,7 +290,7 @@ export function createAiClient(deps: AiDeps) {
 
     /** Avaliação fonética real (quando o backend tem o serviço configurado). */
     async pronunciation(audio: Blob | ArrayBuffer, locale: string, text: string): Promise<PronunciationScores> {
-      if ((await config()).mode === 'direct') throw new AiError('unavailable', 'A avaliação fonética só existe no modo "meu backend".');
+      if ((await config()).mode !== 'backend') throw new AiError('unavailable', 'A avaliação fonética só existe no modo "meu backend".');
       const res = await request(
         `/v1/pronunciation?lang=${encodeURIComponent(locale)}&text=${encodeURIComponent(text)}`,
         { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: audio as BodyInit },

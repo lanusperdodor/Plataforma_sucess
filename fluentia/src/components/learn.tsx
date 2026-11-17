@@ -174,7 +174,8 @@ export function SpeakPanel({ lang, accepted, onChange }: { lang: LangCode; accep
     setError(null);
     setPhonetic(null);
     stopSpeaking();
-    if (!(await ensureMicPermission())) {
+    // Na web (claude.ai) o ditado precisa começar direto do toque, sem nenhuma espera antes.
+    if (Platform.OS !== 'web' && !(await ensureMicPermission())) {
       setError('Permissão de microfone negada. Libere o microfone para o Fluentia nas configurações do Android.');
       onChange({ matched: null, transcript: '', attempts });
       return;

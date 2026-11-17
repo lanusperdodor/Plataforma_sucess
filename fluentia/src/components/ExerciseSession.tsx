@@ -130,7 +130,7 @@ export function ExerciseSession({ exercises, context, title, onFinish, onExit }:
             {ex.audio && hidePrompt ? <AudioButtons text={ex.audio} lang={ex.lang} big autoPlay /> : null}
 
             {ex.prompt && !hidePrompt ? (
-              <View style={s.prompt}>
+              <View style={s.prompt} testID="enunciado">
                 {ex.answerLang === 'pt' || ex.type === 'speak' || ex.type === 'fill' ? (
                   <TargetText text={ex.prompt} reading={ex.promptReading} readingHidden={ex.readingHidden} lang={ex.lang} />
                 ) : (

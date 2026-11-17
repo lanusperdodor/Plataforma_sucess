@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LangSwitcher } from '@/components/LangSwitcher';
+import { Welcome } from '@/components/Welcome';
 import { Button, Card, Loading, Pill, ProgressBar, Row, Screen, Section, Stat, T } from '@/components/ui';
 import { LANGS, LEVEL_NAMES, type LangCode, type Level } from '@/content';
 import { getTotals } from '@/db/repo';
@@ -25,10 +25,7 @@ export default function Home() {
   const { profile, lang, setLang } = useApp();
   const { data } = useData(async (db) => ({ plan: await loadPlan(db), totals: await getTotals(db) }));
 
-  useEffect(() => {
-    if (!profile.name) router.replace('/boas-vindas');
-  }, [profile.name, router]);
-
+  if (!profile.name) return <Welcome />;
   if (!data) return <Loading />;
   const { plan, totals } = data;
   const sum = plan.summaries[lang];

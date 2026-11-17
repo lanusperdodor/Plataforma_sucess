@@ -5,8 +5,8 @@ import { colors } from '@/theme';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
 const icon = (on: Icon, off: Icon) =>
-  function TabIcon({ color, focused, size }: { color: ComponentProps<typeof Ionicons>["color"]; focused: boolean; size: number }) {
-    return <Ionicons name={focused ? on : off} size={size} color={color} />;
+  function TabIcon({ color, focused, size }: { color: unknown; focused: boolean; size: number }) {
+    return <Ionicons name={focused ? on : off} size={size} color={typeof color === 'string' ? color : colors.faint} />;
   };
 
 export default function TabsLayout() {

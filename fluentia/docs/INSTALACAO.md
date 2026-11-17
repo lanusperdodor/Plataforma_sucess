@@ -24,7 +24,7 @@ O perfil `production` gera um `.aab` (formato da Play Store), para uma eventual 
 
 ## Opção B — build local
 
-Requer JDK 17+ e o Android SDK (plataforma 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1).
+Requer o **JDK 17** (o plugin Gradle do React Native exige exatamente essa versão como toolchain; se houver outro JDK padrão, aponte com `org.gradle.java.installations.paths=/caminho/do/jdk-17` em `android/gradle.properties`) e o Android SDK (plataforma 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1).
 
 ```bash
 cd fluentia

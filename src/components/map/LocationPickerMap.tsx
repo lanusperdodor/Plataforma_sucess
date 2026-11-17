@@ -11,7 +11,7 @@ maplibregl.setWorkerUrl(workerUrl)
 const MAP_STYLE_URL = (import.meta.env.VITE_MAP_STYLE_URL as string | undefined) || 'https://tiles.openfreemap.org/styles/positron'
 
 /** Mapa para marcar um ponto: toque no mapa ou arraste o alfinete. */
-export default function LocationPickerMap({ value, onChange, label }: { value: LngLat | null; onChange: (p: LngLat) => void; label: string }) {
+export default function LocationPickerMap({ value, onChange, label, center = null }: { value: LngLat | null; onChange: (p: LngLat) => void; label: string; center?: LngLat | null }) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<MlMap | null>(null)
   const pin = useRef<Marker | null>(null)
@@ -20,7 +20,7 @@ export default function LocationPickerMap({ value, onChange, label }: { value: L
 
   useEffect(() => {
     if (!box.current) return
-    const m = new maplibregl.Map({ container: box.current, style: MAP_STYLE_URL, center: value ?? [-44.57, -20.07], zoom: value ? 16 : 13, attributionControl: { compact: true }, cooperativeGestures: true })
+    const m = new maplibregl.Map({ container: box.current, style: MAP_STYLE_URL, center: value ?? center ?? [-44.57, -20.07], zoom: value ? 16 : center ? 14 : 13, attributionControl: { compact: true }, cooperativeGestures: true })
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     m.on('click', (e) => cb.current([Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))]))
     map.current = m

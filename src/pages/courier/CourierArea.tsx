@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Banknote, BellRing, CalendarClock, CheckCircle2, Clock, Hourglass, MapPin, Navigation, Package, Phone, PiggyBank, Power, Truck, Wallet } from 'lucide-react'
+import { Banknote, BellRing, CalendarClock, Settings2, CheckCircle2, Clock, Hourglass, MapPin, Navigation, Package, Phone, PiggyBank, Power, Truck, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { EmptyState } from '../../components/feedback/EmptyState.tsx'
@@ -35,10 +35,11 @@ import { phoneDigits } from '../BusinessPage.tsx'
 import { LiveLocation } from './LiveLocation.tsx'
 import { OfferCard, useApproxPosition } from './OfferCard.tsx'
 import { CourierProfilePanel } from './CourierProfilePanel.tsx'
-import { OfferAlertsCard } from './OfferAlertsCard.tsx'
+import { CourierSetupDialog } from './CourierSetupDialog.tsx'
+import { readCourierPrefs, type CourierPrefs } from '../../features/courier/setupPrefs.ts'
 import { OwnGoOnlineCard } from './OwnGoOnlineCard.tsx'
 import { OfferSoundBanner } from './OfferSoundBanner.tsx'
-import { alertNewOffers, enableOfferSound, unlockSound, useNewOffers } from '../../features/courier/offerAlert.ts'
+import { alertNewOffers, unlockSound, useNewOffers, useWakeLock } from '../../features/courier/offerAlert.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -270,23 +271,21 @@ export function CourierArea() {
     },
     onError: (e) => toast.error(msg(e)),
   })
+  // pop-up único: marca o que aceita e fica online de uma vez
+  const [setup, setSetup] = useState<null | 'online' | 'ajustes'>(null)
+  const [prefs, setPrefs] = useState(() => readCourierPrefs())
+  useWakeLock(!!q.data?.isOnline && !!prefs?.awake)
+  const onSetupAccept = ({ prefs: p, position }: { prefs: CourierPrefs; position: { lat: number; lng: number } | null }) => {
+    setPrefs(p)
+    if (setup === 'online') {
+      toggle.mutate(true, { onSuccess: () => { if (position) void shareLocation(position.lat, position.lng).catch(() => undefined) } })
+    } else toast.success('Preferências salvas.')
+    setSetup(null)
+  }
   const decline = useMutation({
     mutationFn: declineOffer,
     onSuccess: () => { toast.success('Oferta recusada.'); void qc.invalidateQueries({ queryKey: ['courier', 'offers'] }) },
     onError: (e) => { toast.error(msg(e)); void qc.invalidateQueries({ queryKey: ['courier', 'offers'] }) },
-  })
-  const locate = useMutation({
-    mutationFn: () =>
-      new Promise<void>((resolve, reject) => {
-        if (!('geolocation' in navigator)) return reject(new Error('Este aparelho não informa a localização.'))
-        navigator.geolocation.getCurrentPosition(
-          (p) => void shareLocation(p.coords.latitude, p.coords.longitude).then(resolve, reject),
-          () => reject(new Error('Permissão de localização negada.')),
-          { enableHighAccuracy: true, timeout: 15_000 },
-        )
-      }),
-    onSuccess: () => toast.success('Localização compartilhada com a Tucaí.'),
-    onError: (e) => toast.error(msg(e)),
   })
   const accept = useMutation({
     mutationFn: acceptDelivery,
@@ -302,7 +301,6 @@ export function CourierArea() {
       <Page>
         <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
         <CourierTabs mode="proprio" available={0} />
-        <OfferSoundBanner />
         <OwnGoOnlineCard pending={!!c && c.status === 'pending'} />
         <Routes>
           <Route index element={<OwnDeliveriesPanel view="ativas" />} />
@@ -332,7 +330,7 @@ export function CourierArea() {
           <button type="button" onClick={() => { setFresh(0); document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} className="pressable inline-flex min-h-12 items-center rounded-full bg-surface px-5 text-base font-bold text-ink">Ver corridas</button>
         </div>
       )}
-      <OfferSoundBanner />
+      {c.isOnline && prefs?.sound !== false && <OfferSoundBanner />}
       {/* 1. disponibilidade: grande e fácil de ver */}
       <section aria-labelledby="disp" className={`${box} flex flex-col gap-3`}>
         <div className="flex items-center justify-between gap-3">
@@ -342,15 +340,14 @@ export function CourierArea() {
             {c.isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
-        <button type="button" disabled={toggle.isPending} onClick={() => { if (!c.isOnline) void enableOfferSound(); else unlockSound(); toggle.mutate(!c.isOnline) }} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
+        <button type="button" disabled={toggle.isPending} onClick={() => { unlockSound(); if (c.isOnline) toggle.mutate(false); else setSetup('online') }} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
           <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar offline' : 'Ficar online e receber entregas'}
         </button>
-        {c.isOnline && (
-          <button type="button" disabled={locate.isPending} onClick={() => locate.mutate()} className="pressable inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-2 text-left text-sm font-medium text-ink-muted hover:text-ink">
-            <MapPin aria-hidden="true" className="size-4" />{locate.isPending ? 'Obtendo localização…' : 'Informar minha localização (opcional)'}
-          </button>
-        )}
+        <button type="button" onClick={() => setSetup('ajustes')} className="pressable inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-2 text-sm font-medium text-ink-muted hover:text-ink">
+          <Settings2 aria-hidden="true" className="size-4" />Avisos e permissões
+        </button>
       </section>
+      <CourierSetupDialog open={setup !== null} mode={setup ?? 'online'} onClose={() => setSetup(null)} onAccept={onSetupAccept} busy={toggle.isPending} />
 
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : current.map((d) => <ActiveDelivery key={d.orderId} d={d} />)}
 
@@ -375,8 +372,6 @@ export function CourierArea() {
           <p className="text-xs text-ink-muted">Aparecem aqui os pedidos com “entregador parceiro Tucaí” da sua cidade, já no momento do pedido (a coleta só é liberada quando a loja marca como pronto). Retiradas e entregas feitas pela própria loja não geram oferta. A distância da entrega é calculada pelas ruas no servidor; o trecho até a loja e o tempo são estimativas. Endereço completo e contato do cliente aparecem após aceitar.</p>
         </section>
       )}
-
-      <OfferAlertsCard online={c.isOnline} />
 
       {/* 2. números do dia, ganhos e saque */}
       <CourierSummary e={e} />

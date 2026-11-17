@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Power } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useToast } from '../../components/feedback/toast-context.ts'
-import { enableOfferSound } from '../../features/courier/offerAlert.ts'
-import { ownCourierGoOnline } from '../../features/courier/repository.ts'
+import { unlockSound } from '../../features/courier/offerAlert.ts'
+import { CourierSetupDialog } from './CourierSetupDialog.tsx'
+import { ownCourierGoOnline, shareLocation } from '../../features/courier/repository.ts'
 
 /**
  * Entregador próprio já logado: UM clique em "Ficar online" (sem digitar nada). Os dados vêm da conta e a cidade
@@ -12,8 +13,13 @@ import { ownCourierGoOnline } from '../../features/courier/repository.ts'
 export function OwnGoOnlineCard({ pending }: { pending: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const [open, setOpen] = useState(false)
   const go = useMutation({
-    mutationFn: ownCourierGoOnline,
+    mutationFn: async (pos: { lat: number; lng: number } | null) => {
+      const st = await ownCourierGoOnline()
+      if (pos) void shareLocation(pos.lat, pos.lng).catch(() => undefined)
+      return st
+    },
     onSuccess: () => { toast.success('Você está online. As corridas de todas as lojas aparecem aqui.'); void qc.invalidateQueries({ queryKey: ['courier'] }) },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Não foi possível ficar online.'),
   })
@@ -32,14 +38,13 @@ export function OwnGoOnlineCard({ pending }: { pending: boolean }) {
           <span aria-hidden="true" className="size-3 rounded-full bg-line" />Offline
         </span>
       </div>
-      <button type="button" disabled={go.isPending} onClick={() => { void enableOfferSound(); go.mutate() }}
+      <button type="button" disabled={go.isPending} onClick={() => { unlockSound(); setOpen(true) }}
         className="pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-orange px-6 text-lg font-semibold text-ink disabled:opacity-60">
         <Power aria-hidden="true" className="size-5" />{go.isPending ? 'Ficando online…' : 'Ficar online e receber entregas'}
       </button>
-      <p className="text-xs text-ink-muted">
-        Online, você recebe as corridas de todas as lojas da sua cidade, além das entregas da sua loja. Ao ficar online você aceita os{' '}
-        <Link to="/termos" className="font-semibold text-brand underline">termos de parceria</Link>.
-      </p>
+      <p className="text-xs text-ink-muted">Online, você recebe as corridas de todas as lojas da sua cidade, além das entregas da sua loja.</p>
+      <CourierSetupDialog open={open} mode="online" onClose={() => setOpen(false)} busy={go.isPending}
+        onAccept={({ position }) => { setOpen(false); go.mutate(position) }} />
     </section>
   )
 }

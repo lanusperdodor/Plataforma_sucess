@@ -280,6 +280,10 @@ export default {
     const started = Date.now();
     let status = 200;
     try {
+      // Página pública mínima: confirma que o backend está no ar, sem expor configuração.
+      if (req.method === 'GET' && url.pathname === '/') {
+        return new Response('Fluentia backend online. Use o app para se conectar.', { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+      }
       if (!url.pathname.startsWith('/v1/')) throw new HttpError(404, 'not_found', 'Rota inexistente.');
       authorize(req, env);
 

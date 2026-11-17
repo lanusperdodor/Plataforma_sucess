@@ -31,6 +31,16 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe('página inicial', () => {
+  it('responde sem token e sem revelar configuração', async () => {
+    const res = await call('/', {}, env, null);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('Fluentia backend online');
+    expect(text).not.toContain('sk-test');
+  });
+});
+
 describe('autenticação', () => {
   it('recusa sem token, com token errado e quando o backend não tem token configurado', async () => {
     expect((await call('/v1/health', {}, env, null)).status).toBe(401);

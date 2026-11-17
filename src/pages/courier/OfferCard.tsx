@@ -23,9 +23,11 @@ export function useApproxPosition(active: boolean): LngLat | null {
 }
 
 /** Card de oferta: ganho em destaque, distância e tempo, coleta → entrega e Aceitar / Rejeitar. */
-export function OfferCard({ o, vehicle, me, status, deadline, onAccept, onReject, busy }: {
+export function OfferCard({ o, vehicle, me, status, deadline, onAccept, onReject, busy, blocked = null }: {
   o: DeliveryOffer; vehicle: string; me: LngLat | null; status: string | null; deadline: ReactNode
   onAccept: () => void; onReject: () => void; busy: boolean
+  /** motivo para não poder aceitar agora (ex.: entrega em andamento); a oferta continua visível */
+  blocked?: string | null
 }) {
   const toStore = me && o.store ? haversine(me, o.store) * 1.3 : null   // linha reta × 1,3 ≈ ruas (estimativa)
   const total = o.deliveryDistanceM !== null ? o.deliveryDistanceM + (toStore ?? 0) : null
@@ -58,11 +60,12 @@ export function OfferCard({ o, vehicle, me, status, deadline, onAccept, onReject
           <span><strong className="text-ink">Entrega: {o.neighborhood ?? 'bairro informado após aceitar'}</strong><span className="block text-ink-muted">{o.itemsCount} {o.itemsCount === 1 ? 'item' : 'itens'} · endereço completo após aceitar</span></span>
         </li>
       </ol>
+      {blocked && <p role="note" className="text-sm font-semibold text-ink-muted">{blocked}</p>}
       <div className="grid grid-cols-[1fr_2fr] gap-2">
         <button type="button" disabled={busy} onClick={onReject} className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full border-2 border-line text-base font-semibold text-ink disabled:opacity-60">
           <X aria-hidden="true" className="size-5" />Rejeitar
         </button>
-        <button type="button" disabled={busy} onClick={onAccept} className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-brand text-lg font-bold text-surface disabled:opacity-60">
+        <button type="button" disabled={busy || !!blocked} onClick={onAccept} className="pressable inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-brand text-lg font-bold text-surface disabled:opacity-60">
           <Check aria-hidden="true" className="size-6" />Aceitar corrida
         </button>
       </div>

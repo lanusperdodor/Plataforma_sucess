@@ -242,10 +242,20 @@ export function CourierArea() {
   const q = useQuery({ queryKey: ['courier', 'me', userId ?? ''], queryFn: () => getMyCourier(userId!), enabled: !!userId })
   const approved = q.data?.status === 'approved'
   const active = useQuery({ queryKey: ['courier', 'active'], queryFn: () => myDeliveries(true), enabled: approved, refetchInterval: 20_000 })
-  const offersOn = approved && !!q.data?.isOnline && (active.data ?? []).length === 0
+  // as corridas aparecem para todos os entregadores Online, inclusive para quem está com uma entrega em andamento
+  // (esse só consegue aceitar depois de concluir a atual; o servidor também confere)
+  const offersOn = approved && !!q.data?.isOnline
+  const busyNow = (active.data ?? []).length > 0
   const offers = useQuery({ queryKey: ['courier', 'offers'], queryFn: listOffers, enabled: offersOn, refetchInterval: 10_000, refetchIntervalInBackground: true })
   // corrida nova: bip + vibração (+ notificação com a tela em segundo plano) e aviso fixo no topo
   const [fresh, setFresh] = useState(0)
+  // o navegador só libera som depois de um toque: qualquer toque na Área do entregador libera o bip
+  useEffect(() => {
+    const on = () => unlockSound()
+    document.addEventListener('pointerdown', on, { passive: true })
+    document.addEventListener('keydown', on)
+    return () => { document.removeEventListener('pointerdown', on); document.removeEventListener('keydown', on) }
+  }, [])
   useNewOffers(offers.data?.map((o) => o.orderId), offersOn, (ids) => { alertNewOffers(ids.length); setFresh((n) => n + ids.length) })
   useEffect(() => { if (!offersOn || (offers.data ?? []).length === 0) setFresh(0) }, [offersOn, offers.data])
   const approx = useApproxPosition((offers.data ?? []).length > 0)
@@ -314,7 +324,7 @@ export function CourierArea() {
   const deliveriesView = (
     <>
       {ownCourier && <OwnDeliveriesPanel view="ativas" />}
-      {fresh > 0 && current.length === 0 && (
+      {fresh > 0 && (
         <div role="alert" className="sticky top-20 z-30 flex items-center justify-between gap-3 rounded-card bg-brand p-4 text-surface shadow-lg">
           <span className="flex items-center gap-2 text-lg font-bold"><BellRing aria-hidden="true" className="size-6 animate-pulse" />{fresh > 1 ? `${fresh} corridas novas!` : 'Nova corrida!'}</span>
           <button type="button" onClick={() => { setFresh(0); document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} className="pressable inline-flex min-h-12 items-center rounded-full bg-surface px-5 text-base font-bold text-ink">Ver corridas</button>
@@ -341,7 +351,7 @@ export function CourierArea() {
 
       {active.isError ? <ErrorState error={active.error} onRetry={() => void active.refetch()} /> : current.map((d) => <ActiveDelivery key={d.orderId} d={d} />)}
 
-      {current.length === 0 && (
+      {(
         <section aria-labelledby="ofertas" className="flex scroll-mt-24 flex-col gap-2">
           <h2 id="ofertas" className="text-xl font-bold text-ink">Corridas disponíveis{(offers.data ?? []).length > 0 ? ` (${(offers.data ?? []).length})` : ''}</h2>
           {!c.isOnline ? (
@@ -355,7 +365,7 @@ export function CourierArea() {
               {(offers.data ?? []).map((o) => (
                 <OfferCard key={o.orderId} o={o} vehicle={c.vehicle ?? 'moto'} me={approx} status={o.orderStatus ? PREP_LABEL[o.orderStatus] ?? o.orderStatus : null}
                   deadline={<OfferDeadline expiresAt={o.expiresAt} round={o.round} />}
-                  busy={accept.isPending || decline.isPending} onAccept={() => accept.mutate(o.orderId)} onReject={() => decline.mutate(o.orderId)} />
+                  busy={accept.isPending || decline.isPending} blocked={busyNow ? 'Conclua a entrega atual para aceitar esta corrida.' : null} onAccept={() => accept.mutate(o.orderId)} onReject={() => decline.mutate(o.orderId)} />
               ))}
             </ul>
           )}

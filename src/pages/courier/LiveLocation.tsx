@@ -134,16 +134,31 @@ export function LiveLocation({ orderId, pickupAddress, dropoffAddress, pickupNam
     setRouting(true)
     setRouteUi({ recalculating: false, error: null })
     try {
+      const cur = trackingRef.current
+      if (leg === 'coleta' && cur && (cur.business.lat == null || cur.business.lng == null)) {
+        throw new Error('O restaurante ainda não marcou o endereço no mapa. Use o link “Abrir a rota no OpenStreetMap” abaixo ou ligue para a loja.')
+      }
+      // cliente ainda sem ponto no mapa: localiza pelo endereço digitado ANTES de traçar (senão a rota falha)
+      if (leg === 'entrega' && cur && !cur.destination && dropoffAddress) {
+        geoTried.current = true
+        const near = cur.business.lat != null && cur.business.lng != null ? { lat: cur.business.lat, lng: cur.business.lng } : null
+        const p = await geocodeAddress(dropoffAddress, near).catch(() => null)
+        if (!p) throw new Error('Não achamos o endereço do cliente no mapa. Ligue para o cliente ou use o link abaixo.')
+        await courierSetPointFromAddress(orderId, p.lat, p.lng)
+      }
       const from = leg === 'coleta' ? await startPoint() : null
       if (leg === 'coleta' && !from) throw new Error('Não conseguimos sua localização. Ligue o GPS ou cadastre seu endereço em Meus dados.')
       await requestRoute(orderId, leg, from)
       await qc.invalidateQueries({ queryKey: ['rastreio', orderId] })
     } catch (e) {
-      setRouteUi({ recalculating: false, error: e instanceof Error ? e.message : 'Rota não encontrada.' })
+      const m = e instanceof Error ? e.message : 'Rota não encontrada.'
+      // tocou duas vezes seguidas: a rota já traçada continua valendo
+      if (/acabou de ser traçada|acabou de ser calculada/i.test(m)) { void qc.invalidateQueries({ queryKey: ['rastreio', orderId] }); setRouteUi({ recalculating: false, error: null }) }
+      else setRouteUi({ recalculating: false, error: m })
     } finally {
       setRouting(false)
     }
-  }, [leg, routing, on, start, startPoint, orderId, qc])
+  }, [leg, routing, on, start, startPoint, orderId, qc, dropoffAddress])
 
   const steps = useQuery({
     queryKey: ['rastreio', 'passos', orderId, tracking?.route?.computed_at ?? ''],

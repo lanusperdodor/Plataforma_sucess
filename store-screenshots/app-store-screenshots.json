@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 3,
+  "appName": "Tucaí",
+  "themeId": "tucai",
+  "fontId": "template-default",
+  "connectedCanvas": false,
+  "locales": [
+    "pt"
+  ],
+  "locale": "pt",
+  "device": "android",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "s_tucai_i1",
+        "layout": "hero",
+        "label": {
+          "pt": "TUCAÍ"
+        },
+        "headline": {
+          "pt": "Tudo da sua cidade\nnum app só."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/01.png"
+      },
+      {
+        "id": "s_tucai_i2",
+        "layout": "two-devices",
+        "label": {
+          "pt": "DELIVERY"
+        },
+        "headline": {
+          "pt": "Peça do restaurante\nda esquina."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/02.png",
+        "screenshotSecondary": "/screenshots/apple/iphone/{locale}/03.png"
+      },
+      {
+        "id": "s_tucai_i3",
+        "layout": "device-top",
+        "label": {
+          "pt": "ACOMPANHE"
+        },
+        "headline": {
+          "pt": "Veja seu pedido\nchegando."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/04.png",
+        "inverted": true
+      },
+      {
+        "id": "s_tucai_i4",
+        "layout": "device-bottom",
+        "label": {
+          "pt": "ENTREGADORES"
+        },
+        "headline": {
+          "pt": "Corrida nova?\nO celular apita."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/05.png"
+      },
+      {
+        "id": "s_tucai_i5",
+        "layout": "hero",
+        "label": {
+          "pt": "EXPLORE"
+        },
+        "headline": {
+          "pt": "Lojas, serviços\ne vagas perto."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/06.png"
+      },
+      {
+        "id": "s_tucai_i6",
+        "layout": "no-device",
+        "label": {
+          "pt": "FEITO AQUI"
+        },
+        "headline": {
+          "pt": "Do comércio\nda sua cidade.\nPara você."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "android": [
+      {
+        "id": "s_tucai_a1",
+        "layout": "hero",
+        "label": {
+          "pt": "TUCAÍ"
+        },
+        "headline": {
+          "pt": "Tudo da sua cidade\nnum app só."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/01.png"
+      },
+      {
+        "id": "s_tucai_a2",
+        "layout": "device-bottom",
+        "label": {
+          "pt": "DELIVERY"
+        },
+        "headline": {
+          "pt": "Peça do\nrestaurante perto."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/02.png"
+      },
+      {
+        "id": "s_tucai_a3",
+        "layout": "device-top",
+        "label": {
+          "pt": "ACOMPANHE"
+        },
+        "headline": {
+          "pt": "Veja seu pedido\nchegando."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/04.png",
+        "inverted": true
+      },
+      {
+        "id": "s_tucai_a4",
+        "layout": "device-bottom",
+        "label": {
+          "pt": "ENTREGADORES"
+        },
+        "headline": {
+          "pt": "Corrida nova?\nO celular apita."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/05.png"
+      },
+      {
+        "id": "s_tucai_a5",
+        "layout": "hero",
+        "label": {
+          "pt": "EXPLORE"
+        },
+        "headline": {
+          "pt": "Lojas, serviços\ne vagas perto."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/06.png"
+      },
+      {
+        "id": "s_tucai_a6",
+        "layout": "no-device",
+        "label": {
+          "pt": "FEITO AQUI"
+        },
+        "headline": {
+          "pt": "Do comércio\nda sua cidade.\nPara você."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "ipad": [],
+    "tvos": [],
+    "watchos": [],
+    "carplay": [],
+    "mac": [],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": [
+      {
+        "id": "s_tucai_fg",
+        "layout": "feature-graphic",
+        "label": {},
+        "headline": {
+          "pt": "Tudo da sua cidade num app só."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/01.png"
+      }
+    ],
+    "duo-outer": [],
+    "duo-outer-landscape": [],
+    "duo-inner": [],
+    "duo-inner-landscape": [],
+    "creative-universal": [],
+    "creative-header": [],
+    "creative-search": []
+  },
+  "crossScreenMockupsByDevice": {
+    "iphone": [],
+    "ipad": [],
+    "android": [],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": []
+  }
+}

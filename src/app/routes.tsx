@@ -27,6 +27,7 @@ const CouriersPage = lazyNamed(pageLoaders['/entregadores'], 'CouriersPage')
 const BusinessApplicationPage = lazyNamed(pageLoaders['/cadastrar-negocio'], 'BusinessApplicationPage')
 const PrivacyPolicyPage = lazyNamed(pageLoaders['/privacidade'], 'PrivacyPolicyPage')
 const TermsPage = lazyNamed(pageLoaders['/privacidade'], 'TermsPage')
+const InstallAppPage = lazyNamed(pageLoaders['/app'], 'InstallAppPage')
 const StoragePolicyPage = lazyNamed(pageLoaders['/privacidade'], 'StoragePolicyPage')
 const PrivacyCenterPage = lazyNamed(pageLoaders['/perfil/privacidade'], 'PrivacyCenterPage')
 const SearchPage = lazyNamed(pageLoaders['/busca'], 'SearchPage')
@@ -121,6 +122,7 @@ export function AppRoutes() {
         <Route path="entregadores" element={<CouriersPage />} />
         <Route path="privacidade" element={<PrivacyPolicyPage />} />
         <Route path="termos" element={<TermsPage />} />
+        <Route path="app" element={<InstallAppPage />} />
         <Route path="armazenamento" element={<StoragePolicyPage />} />
         <Route path="busca" element={<SearchPage />} />
         <Route path="sacola" element={<CartPage />} />

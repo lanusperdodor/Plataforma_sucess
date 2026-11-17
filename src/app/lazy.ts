@@ -36,6 +36,7 @@ export const pageLoaders = {
   '/entregadores': () => import('../pages/CouriersPage.tsx'),
   '/entregador': () => import('../pages/courier/CourierArea.tsx'),
   '/privacidade': () => import('../pages/legal/LegalPages.tsx'),
+  '/app': () => import('../pages/InstallAppPage.tsx'),
   '/perfil/privacidade': () => import('../pages/PrivacyCenterPage.tsx'),
   '/cadastrar-negocio': () => import('../pages/BusinessApplicationPage.tsx'),
   '/busca': () => import('../pages/SearchPage.tsx'),

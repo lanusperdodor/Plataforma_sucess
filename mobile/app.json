@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Tucaí",
+    "slug": "tucai",
+    "scheme": "tucai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#17191B",
+    "primaryColor": "#FF5500",
+    "description": "Tucaí: comida, lojas, serviços, vagas e comunidade da sua cidade.",
+    "ios": {
+      "bundleIdentifier": "br.com.tucai.app",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "config": { "usesNonExemptEncryption": false },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "A Tucaí usa sua localização para traçar a rota do entregador até a loja e o cliente e para mostrar ao cliente onde está a entrega.",
+        "NSCameraUsageDescription": "A Tucaí usa a câmera para você tirar fotos de produtos, do perfil e de publicações.",
+        "NSPhotoLibraryUsageDescription": "A Tucaí acessa suas fotos só quando você escolhe uma imagem para enviar.",
+        "NSMicrophoneUsageDescription": "A Tucaí usa o microfone só quando você grava um vídeo para publicar."
+      }
+    },
+    "android": {
+      "package": "br.com.tucai.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#17191B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA", "VIBRATE"],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 200, "backgroundColor": "#17191B" }],
+      ["expo-location", { "locationWhenInUsePermission": "A Tucaí usa sua localização para traçar a rota do entregador até a loja e o cliente e para mostrar ao cliente onde está a entrega." }]
+    ],
+    "extra": {
+      "siteUrl": "https://plataforma-sucess.marcossonopi.workers.dev"
+    }
+  }
+}

@@ -87,6 +87,10 @@ const STATIC: Record<string, Omit<PageMeta, 'canonicalPath' | 'index'>> = {
     title: 'Política de Privacidade | Tucaí',
     description: 'Como a Tucaí trata seus dados pessoais, seus direitos e como exercê-los.',
   },
+  '/app': {
+    title: 'Baixe o App da Tucaí | Android e iPhone',
+    description: 'Instale a Tucaí no seu celular: pedidos, lojas, serviços, vagas e entregas da sua cidade, com aviso de pedido novo.',
+  },
   '/termos': {
     title: 'Termos de Uso | Tucaí',
     description: 'Regras de uso da Tucaí para consumidores, estabelecimentos, entregadores e prestadores de serviço.',
@@ -284,7 +288,7 @@ export interface SitemapEntry {
 const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 
 /** Páginas institucionais sempre presentes (têm conteúdo próprio, independente de cadastros). */
-export const ALWAYS_IN_SITEMAP = ['/', '/entregadores', '/cadastrar-negocio', '/privacidade', '/termos']
+export const ALWAYS_IN_SITEMAP = ['/', '/app', '/entregadores', '/cadastrar-negocio', '/privacidade', '/termos']
 
 export function sitemapXml(siteUrl: string, entries: SitemapEntry[]): string {
   const seen = new Set<string>()

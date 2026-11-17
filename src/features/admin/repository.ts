@@ -526,6 +526,11 @@ export function setAccountBlocked(userId: string, blocked: boolean): Promise<voi
   return rpc('admin_set_account_blocked', { _user: userId, _blocked: blocked }, z.any()).then(() => undefined)
 }
 
+/** Excluir login (0057): teste é apagado; real é anonimizado e trancado. Some da lista nos dois casos. Só Master. */
+export function deleteAccount(userId: string, confirm: string): Promise<'apagada' | 'anonimizada'> {
+  return rpc('admin_delete_account', { _user: userId, _confirm: confirm }, z.enum(['apagada', 'anonimizada']))
+}
+
 // ---------- pedidos (0022): acompanhamento e ocorrências ----------
 const ORDER_STATUS = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'picked_up', 'rejected', 'cancelled'] as const
 const DELIVERY_STATUS = ['offered', 'accepted', 'picked_up', 'delivered', 'cancelled'] as const

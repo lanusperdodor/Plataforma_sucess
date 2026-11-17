@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, Info, KeyRound, Mail, Pencil, Search, ShieldCheck, UserRound } from 'lucide-react'
+import { Ban, Info, KeyRound, Mail, Pencil, Search, ShieldCheck, Trash2, UserRound } from 'lucide-react'
 import { Fragment, useState, type FormEvent } from 'react'
 import { ErrorState } from '../../components/feedback/ErrorState.tsx'
 import { useToast } from '../../components/feedback/toast-context.ts'
@@ -10,6 +10,7 @@ import {
   startPasswordRecovery,
   listAccounts,
   setAccountBlocked,
+  deleteAccount,
   setAccountName,
   setAccountPassword,
   setAccountUsername,
@@ -76,7 +77,7 @@ function AccountDetails({ id }: { id: string }) {
   )
 }
 
-function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
+function AccountRow({ a, canEdit, canDelete }: { a: Account; canEdit: boolean; canDelete: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [open, setOpen] = useState<Panel>(null)
@@ -111,6 +112,19 @@ function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
       done(
         action === 'name' ? 'Nome alterado.' : action === 'username' ? 'Usuário alterado.' : action === 'password' ? 'Senha alterada.' : action === 'block' ? 'Conta bloqueada.' : 'Conta desbloqueada.',
       )
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+  const del = useMutation({
+    mutationFn: () => {
+      const typed = window.prompt(`Excluir o login ${a.fullName || a.username || shownEmail(a.email) || ''}? ${a.isTest ? 'Login de teste: será apagado.' : 'Login real: a pessoa não entra mais, os dados pessoais são apagados e os pedidos ficam guardados.'} Digite EXCLUIR para confirmar.`)
+      if (typed === null) return Promise.resolve(null)
+      return deleteAccount(a.id, typed.trim().toUpperCase())
+    },
+    onSuccess: (r) => {
+      if (!r) return
+      toast.success('Login excluído. Ele não aparece mais na lista.')
+      void qc.invalidateQueries({ queryKey: ['admin', 'accounts'] })
     },
     onError: (e) => toast.error(errorMessage(e)),
   })
@@ -165,6 +179,9 @@ function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
           ) : (
             <button type="button" disabled={run.isPending} onClick={() => { if (window.confirm('Bloquear esta conta? A pessoa não conseguirá entrar até ser desbloqueada.')) run.mutate('block') }} className={dangerButton}><Ban aria-hidden="true" className="size-4" />Bloquear</button>
           )}
+          {canDelete && (
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className={dangerButton}><Trash2 aria-hidden="true" className="size-4" />{del.isPending ? 'Excluindo…' : 'Excluir login'}</button>
+          )}
         </div>
       )}
       {open && (
@@ -196,6 +213,7 @@ function AccountRow({ a, canEdit }: { a: Account; canEdit: boolean }) {
 export function AdminLogins() {
   const access = useAdminAccess()
   const canEdit = (access.isMaster && access.mfaOk) || access.permissions.includes('support.manage')
+  const canDelete = access.isMaster && access.mfaOk
   const [search, setSearch] = useState('')
   const [term, setTerm] = useState('')
   const [kind, setKind] = useState<AccountKind>('todos')
@@ -236,7 +254,7 @@ export function AdminLogins() {
       ) : (
         <>
           <p className="text-sm text-ink-muted" aria-live="polite">{total} {total === 1 ? 'conta' : 'contas'}</p>
-          <ul className="flex flex-col gap-2">{(q.data ?? []).map((a) => <li key={a.id}><AccountRow a={a} canEdit={canEdit} /></li>)}</ul>
+          <ul className="flex flex-col gap-2">{(q.data ?? []).map((a) => <li key={a.id}><AccountRow a={a} canEdit={canEdit} canDelete={canDelete} /></li>)}</ul>
           {total > size && (
             <div className="flex items-center gap-2">
               <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className={secondaryButton}>Anterior</button>

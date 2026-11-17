@@ -17,7 +17,21 @@ O app guarda a URL do backend e o token no armazenamento seguro do Android (Keys
 
 Cloudflare Workers tem plano gratuito (na data desta documentação, 100 mil requisições por dia), muito acima do uso pessoal. Confira em developers.cloudflare.com/workers/platform/pricing.
 
-### Publicar o backend
+### Publicar o backend — opção 1: pelo navegador (sem instalar nada)
+
+1. Gere o arquivo único do backend (no computador com o projeto): `cd fluentia/backend && npx wrangler deploy --dry-run --minify --outdir para-colar` — ou use o `fluentia-backend.js` já gerado e enviado junto com esta entrega.
+2. Em **dash.cloudflare.com → Workers & Pages → Create → Create Worker**, dê o nome exato **`fluentia-backend`** e clique em **Deploy** (publica um "Hello World" provisório).
+3. Clique em **Edit code**, apague todo o conteúdo do editor, cole o conteúdo inteiro de `fluentia-backend.js` e clique em **Deploy**.
+4. **Settings → Runtime → Compatibility flags**: adicione `nodejs_compat` (e use compatibility date `2026-11-01` ou mais recente).
+5. **Settings → Variables and Secrets → Add**, tipo **Secret**:
+   - `APP_TOKEN` — uma senha longa que você inventa (32+ caracteres). É ela que você digita no app.
+   - `ANTHROPIC_API_KEY` — sua chave em console.anthropic.com → API Keys (a conta precisa de créditos; defina um limite de gastos em Billing → Limits).
+   Opcionais (tipo Text; sem eles valem os padrões): `ANTHROPIC_MODEL` (padrão `claude-opus-5-5`), `ANTHROPIC_EFFORT` (`low`), `DAILY_REQUEST_LIMIT` (`300`), `PROVIDER` (`anthropic`).
+6. Abra https://fluentia-backend.marcossonopi.workers.dev — deve aparecer **"Fluentia backend online"**. (A página "There is nothing here yet" significa que o Worker ainda não foi publicado com esse nome.)
+
+Sempre que o código do backend mudar, repita os passos 1 e 3.
+
+### Publicar o backend — opção 2: pelo terminal
 
 ```bash
 cd fluentia/backend

@@ -51,7 +51,8 @@ export function vibrateOffer(): void {
 async function systemNotice(count: number): Promise<void> {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
   const body = count > 1 ? `${count} corridas novas. Toque para ver e aceitar.` : 'Toque para ver e aceitar. Quem aceitar primeiro leva.'
-  const opts = { body, icon: '/brand/icone-1024.png', tag: 'tucai-corrida', renotify: true, data: { url: '/entregador' } } as NotificationOptions
+  const opts = { body, icon: '/brand/icone-1024.png', badge: '/favicon.svg', tag: 'tucai-corrida', renotify: true, silent: false, requireInteraction: true,
+    vibrate: [400, 150, 400, 150, 400], data: { url: '/entregador' } } as NotificationOptions
   try {
     const reg = await navigator.serviceWorker?.getRegistration('/')
     if (reg) await reg.showNotification('Nova corrida disponível', opts)
@@ -59,10 +60,33 @@ async function systemNotice(count: number): Promise<void> {
   } catch { /* sem notificação */ }
 }
 
+/**
+ * Aviso de corrida nova. O navegador só deixa o SITE tocar som depois de um toque na tela; a NOTIFICAÇÃO do celular
+ * não tem essa limitação. Por isso, com a notificação permitida (uma vez só), cada corrida nova dispara a
+ * notificação com o som e a vibração do próprio celular, mesmo sem ninguém tocar na tela, e o bip do site
+ * toca junto quando já foi liberado.
+ */
 export function alertNewOffers(count: number): void {
-  playOfferBeep()
+  const beeped = audioReady() && playOfferBeep()
   vibrateOffer()
-  if (typeof document !== 'undefined' && document.hidden) void systemNotice(count)
+  if (!beeped || (typeof document !== 'undefined' && document.hidden)) void systemNotice(count)
+}
+
+/** O bip do site já pode tocar (houve um toque na tela desde que o app abriu)? */
+export function audioReady(): boolean {
+  return !!ctx && ctx.state === 'running'
+}
+
+export const noticePermission = (): NotificationPermission | 'sem_suporte' =>
+  typeof Notification === 'undefined' ? 'sem_suporte' : Notification.permission
+
+/** Pede a permissão de notificação (precisa de um toque) e registra o service worker que mostra o aviso. */
+export async function enableOfferSound(): Promise<NotificationPermission | 'sem_suporte'> {
+  unlockSound()
+  if (typeof Notification === 'undefined') return 'sem_suporte'
+  try { await navigator.serviceWorker?.register('/sw.js', { scope: '/' }) } catch { /* segue sem service worker */ }
+  const p = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+  return p
 }
 
 /**

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Power } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '../../components/feedback/toast-context.ts'
-import { unlockSound } from '../../features/courier/offerAlert.ts'
+import { enableOfferSound } from '../../features/courier/offerAlert.ts'
 import { ownCourierGoOnline } from '../../features/courier/repository.ts'
 
 /**
@@ -32,7 +32,7 @@ export function OwnGoOnlineCard({ pending }: { pending: boolean }) {
           <span aria-hidden="true" className="size-3 rounded-full bg-line" />Offline
         </span>
       </div>
-      <button type="button" disabled={go.isPending} onClick={() => { unlockSound(); go.mutate() }}
+      <button type="button" disabled={go.isPending} onClick={() => { void enableOfferSound(); go.mutate() }}
         className="pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-orange px-6 text-lg font-semibold text-ink disabled:opacity-60">
         <Power aria-hidden="true" className="size-5" />{go.isPending ? 'Ficando online…' : 'Ficar online e receber entregas'}
       </button>

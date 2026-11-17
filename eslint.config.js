@@ -13,7 +13,7 @@ const PRICING_PATTERN = {
 }
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'coverage'] },
+  { ignores: ['dist', 'node_modules', 'coverage', 'mobile', 'store-screenshots', '.claude/skills/app-store-screenshots'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

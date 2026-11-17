@@ -142,7 +142,8 @@ describe("HomePage com repositório simulado", () => {
       screen.getByRole("link", { name: "Cadastrar meu negócio" }),
     ).toHaveAttribute("href", "/cadastrar-negocio");
     expect(screen.queryByText(/demonstração/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/comunidade|conecta/i)).not.toBeInTheDocument();
+    // o único caminho para a comunidade na página inicial é o botão Comunidade (sem seções de demonstração)
+    expect(screen.getAllByText(/comunidade|conecta/i).map((e) => e.textContent?.trim())).toEqual(['Comunidade']);
   });
 
   it("lista restaurantes reais da cidade sem selo de demonstração", async () => {

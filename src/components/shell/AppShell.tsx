@@ -72,6 +72,7 @@ export function AppShell({ children }: AppShellProps) {
               <Link to="/privacidade" className="underline">Privacidade</Link>
               <Link to="/termos" className="underline">Termos de uso</Link>
               <Link to="/armazenamento" className="underline">Armazenamento local</Link>
+              <Link to="/app" className="font-semibold underline">Baixe o app</Link>
             </footer>
           </main>
         </div>

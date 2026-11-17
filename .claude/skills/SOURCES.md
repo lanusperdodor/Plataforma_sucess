@@ -13,6 +13,7 @@ Atualizar = copiar de novo da mesma origem, revisar o diff e registrar o commit 
 | `differential-review` | trailofbits/skills `plugins/differential-review` (149d7b2) | CC-BY-SA-4.0 | markdown | revisão de segurança do diff antes do merge |
 | `sharp-edges` | trailofbits/skills `plugins/sharp-edges` (149d7b2) | CC-BY-SA-4.0 | markdown (agents/openai.yaml removido) | APIs e configurações perigosas (auth, JS, config) |
 | `ui-ux-pro-max` | nextlevelbuilder/ui-ux-pro-max-skill `.claude/skills/ui-ux-pro-max` (6ae86f6, v2.15.0) | MIT | SKILL.md + dados CSV + 4 scripts Python (só biblioteca padrão, sem rede; testes do autor não copiados) | acessibilidade, toque, formulários e navegação dos painéis; identidade da Tucaí preservada (nota no SKILL.md) |
+| `app-store-screenshots` | ParthJadhav/app-store-screenshots `skills/app-store-screenshots` (e889033) | MIT | SKILL.md + template Next.js do editor de prints (sem `scripts/`, `e2e-army/`, `tests/` e `.github/` do autor) | prints da App Store e da Google Play (projeto em `store-screenshots/`) |
 | `tucai-release-audit` | própria | — | SKILL.md + 2 scripts próprios | auditoria de lançamento (12 áreas) |
 
 Avaliadas e NÃO instaladas (ver motivo):

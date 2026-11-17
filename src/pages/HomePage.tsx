@@ -26,6 +26,7 @@ const CTAS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/lojas', label: 'Lojas', icon: Store },
   { to: '/servicos', label: 'Serviços', icon: Wrench },
   { to: '/vagas', label: 'Vagas', icon: Briefcase },
+  { to: '/conectuai/c', label: 'Comunidade', icon: Users },
 ]
 
 export function categoryHref(c: Pick<Category, 'kind' | 'slug'>): string {
@@ -84,7 +85,8 @@ function PurposeCard() {
           <p className="mt-2 max-w-prose text-sm text-ink-muted md:text-base">{PURPOSE_SUBTITLE}</p>
           <ul className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:mt-5">
             {CTAS.map(({ to, label, icon: Icon }, i) => (
-              <li key={to}>
+              // número ímpar de botões: o último ocupa a linha inteira no celular
+              <li key={to} className={CTAS.length % 2 === 1 && i === CTAS.length - 1 ? 'col-span-2 sm:col-span-1' : undefined}>
                 <Link
                   to={to}
                   className={`pressable flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold sm:inline-flex sm:w-auto ${

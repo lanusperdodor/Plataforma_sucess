@@ -17,13 +17,14 @@ Legenda: ✅ implementado e testado automaticamente · 🔌 implementado, depend
 - ✅ Backup (exportar/importar JSON, com confirmação e restauração atômica), apagar conversas, textos ou tudo (com confirmação).
 - ✅ Cliente de IA: timeout, repetição controlada, teto diário local, registro de tokens, mensagens de erro claras, nada inventado em falhas.
 - ✅ Backend: autenticação por token, validação, limites por minuto/dia, logs sem conteúdo, Anthropic com fallback de recusa, alternativa compatível com "chat completions".
-- ✅ Bundle JavaScript do Android compila (Hermes) e o `expo prebuild` gera o projeto nativo com pacote, ícone, splash e permissões mínimas (microfone, internet, vibração).
+- ✅ APK de release compilado nesta sessão (`./gradlew assembleRelease`, arm64-v8a e armeabi-v7a, 58 MB): pacote `com.fluentia.pessoal`, versão 1.0.0, minSdk 24 / targetSdk 36, assinatura v2 verificada com `apksigner`. Assinado com a chave de depuração do template (serve para instalar no seu aparelho; não é para a Play Store).
 
 ## Implementado, depende de configuração externa
 
 - 🔌 Professor virtual (texto e voz), correção de redações, geração de lições com IA: precisam do backend publicado e de uma chave de IA (docs/SERVICOS.md). **Testado só com respostas simuladas** — nenhuma chamada real a um provedor foi feita nesta sessão (não havia chave).
 - 🔌 Avaliação fonética real (Azure AI Speech): código pronto, testado só com resposta simulada.
-- 🔌 `eas build`: exige sua conta Expo (login), não feito aqui.
+- 🔌 `eas build`: exige sua conta Expo (login), não feito aqui (o APK foi gerado pelo build local).
+- 🔌 Backend publicado na Cloudflare: feito por você no painel (docs/SERVICOS.md, opção 1).
 
 ## Depende do aparelho (não testado em celular real)
 

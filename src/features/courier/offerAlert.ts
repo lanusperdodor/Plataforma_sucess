@@ -66,8 +66,8 @@ export function alertNewOffers(count: number): void {
 }
 
 /**
- * Chama onNew com as corridas que apareceram desde a última lista. A primeira lista carregada não toca
- * (ao abrir a tela a pessoa já está vendo as corridas).
+ * Chama onNew com as corridas que apareceram desde a última lista. A primeira lista também avisa quando já há
+ * corridas (ex.: o entregador acabou de ficar Online ou abriu o app pela notificação).
  */
 export function useNewOffers(ids: string[] | undefined, enabled: boolean, onNew: (fresh: string[]) => void): void {
   const seen = useRef<Set<string> | null>(null)
@@ -77,7 +77,7 @@ export function useNewOffers(ids: string[] | undefined, enabled: boolean, onNew:
   useEffect(() => {
     if (!enabled) { seen.current = null; return }
     if (!ids) return
-    if (seen.current === null) { seen.current = new Set(ids); return }
+    if (seen.current === null) { seen.current = new Set(ids); if (ids.length) cb.current(ids); return }
     const fresh = ids.filter((id) => !seen.current!.has(id))
     seen.current = new Set(ids)
     if (fresh.length) cb.current(fresh)

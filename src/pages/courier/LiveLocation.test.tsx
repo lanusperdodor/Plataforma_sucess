@@ -108,10 +108,14 @@ describe('entregador: navegação dentro da Tucaí', () => {
 
   it('cliente não marcou o ponto: localiza pelo endereço digitado e grava o destino', async () => {
     h.tracking = { ...base, destination: null, route: null }
+    h.route.mockClear(); h.setPoint.mockClear()
     show()
     fireEvent.click(await screen.findByRole('button', { name: /até o cliente/ }))
     await vi.waitFor(() => expect(h.geo).toHaveBeenCalledWith('Rua das Flores, 120', { lat: -20.084, lng: -44.578 }))
     await vi.waitFor(() => expect(h.setPoint).toHaveBeenCalledWith('o1', -20.072, -44.578))
+    // a rota é traçada depois de localizar o cliente (não falha por falta do ponto)
+    await vi.waitFor(() => expect(h.route).toHaveBeenCalledWith('o1', 'entrega', null))
+    expect(h.setPoint.mock.invocationCallOrder[0]!).toBeLessThan(h.route.mock.invocationCallOrder.at(-1)!)
   })
 
   it('localização do computador (imprecisa): explica que no celular fica precisa', async () => {

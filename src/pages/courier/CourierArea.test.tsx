@@ -4,13 +4,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ decline: vi.fn(), accept: vi.fn(), withdraw: vi.fn() }))
+const h = vi.hoisted(() => ({ decline: vi.fn(), accept: vi.fn(), withdraw: vi.fn(), active: [] as unknown[] }))
 vi.mock('../../features/courier/repository.ts', async (orig) => {
   const real = await orig<typeof import('../../features/courier/repository.ts')>()
   return {
     ...real,
     getMyCourier: () => Promise.resolve({ userId: 'k1', fullName: 'Entregador Teste', vehicle: 'moto', plate: 'TST1A23', status: 'approved', isOnline: true }),
-    myDeliveries: () => Promise.resolve([]),
+    myDeliveries: (act: boolean) => Promise.resolve(act ? h.active : []),
     getEarnings: () => Promise.resolve({ todayCents: 0, weekCents: 0, totalCents: 1500, deliveries: 3, wallet: true, heldCents: 500, availableCents: 1000,
       pendingCents: 0, withdrawnCents: 0, holdDays: 7, releases: [{ dia: '2026-11-20', cents: 500 }], monthCents: 4500, deliveriesToday: 3, deliveriesMonth: 9 }),
     listWithdrawals: () => Promise.resolve([]),
@@ -21,6 +21,7 @@ vi.mock('../../features/courier/repository.ts', async (orig) => {
     acceptDelivery: (id: string) => { h.accept(id); return Promise.resolve() },
   }
 })
+vi.mock('./LiveLocation.tsx', () => ({ LiveLocation: () => null }))
 vi.mock('../../features/auth/AuthProvider.tsx', () => ({ useAuth: () => ({ session: { user: { id: 'k1' } } }) }))
 vi.mock('../../components/feedback/toast-context.ts', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 
@@ -29,6 +30,21 @@ import { CourierArea } from './CourierArea.tsx'
 afterEach(cleanup)
 
 describe('Área do entregador', () => {
+  it('com entrega em andamento continua vendo as corridas, mas só aceita depois de concluir', async () => {
+    h.active = [{ orderId: 'a1', code: 'A1', status: 'accepted', businessName: 'Loja', businessAddress: 'Rua 1', businessPhone: null, customerName: 'Ana',
+      customerPhone: null, address: 'Rua 2', reference: null, payment: 'cash', totalCents: 2000, changeForCents: null, payCents: 600, acceptedAt: null, deliveredAt: null, orderStatus: 'ready' }]
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter><CourierArea /></MemoryRouter>
+      </QueryClientProvider>,
+    )
+    try {
+      expect(await screen.findByText('Conclua a entrega atual para aceitar esta corrida.')).toBeInTheDocument()
+      expect(screen.getByText(/Coleta: \[Teste\] Lanchonete do Tuca/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Aceitar corrida' })).toBeDisabled()
+    } finally { h.active = [] }
+  })
+
   it('mostra prazo e rodada da oferta, recusa e aceita', async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>

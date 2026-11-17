@@ -25,11 +25,11 @@ export default function Talk() {
       <T v="h1">Conversar com a IA</T>
       <LangSwitcher />
       {!data.configured ? (
-        <Notice tone="warn" icon="key" text="O professor de IA ainda não está configurado. Ele precisa de um backend seu com uma chave de IA (o app não guarda chaves de provedores).">
+        <Notice tone="warn" icon="key" text="O professor de IA ainda não está configurado. O jeito mais simples é grátis: crie uma chave do Google Gemini e cole no app (1 minuto).">
           <Button small variant="secondary" title="Configurar agora" onPress={() => router.push('/configuracoes-ia')} style={s.mt} />
         </Notice>
       ) : (
-        <Notice icon="cloud-upload-outline" text="Na conversa, o texto das suas mensagens é enviado ao seu backend e ao provedor de IA configurado. A voz é transcrita pelo serviço de fala do Android; o áudio não vai para o backend." />
+        <Notice icon="cloud-upload-outline" text="Na conversa, o texto das suas mensagens é enviado ao provedor de IA configurado. A voz é transcrita pelo serviço de fala do Android; o áudio não é enviado ao provedor de IA." />
       )}
 
       <Section title="Cenários">

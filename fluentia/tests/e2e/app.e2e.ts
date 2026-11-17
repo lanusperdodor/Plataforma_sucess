@@ -14,7 +14,8 @@ import { CURRICULUM, display, type Item, type LangCode, type LessonContent } fro
 
 const URL = process.env.FLUENTIA_URL ?? 'http://localhost:8082';
 const SHOTS = process.env.FLUENTIA_SHOTS;
-const MOCK = 'https://backend-simulado.test';
+const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const KEY = 'AIza-chave-de-teste-do-robo-123';
 
 let browser: Browser;
 let page: Page;
@@ -141,16 +142,16 @@ beforeAll(async () => {
       };
     }
   });
-  // Backend de IA simulado: testa a integração do app sem chave real nem custo.
-  await ctx.route(`${MOCK}/**`, async (route) => {
+  // Gemini simulado (modo grátis): testa a integração do app sem chave real nem custo.
+  await ctx.route('https://generativelanguage.googleapis.com/**', async (route) => {
     const req = route.request();
-    const path = new globalThis.URL(req.url()).pathname;
+    const path = new globalThis.URL(req.url()).pathname.replace('/v1beta/openai', '');
     aiRequests.push({ path, body: req.postDataJSON?.() ?? null, auth: req.headers()['authorization'] ?? null });
-    if (path === '/v1/health') return route.fulfill({ json: { ok: true, provider: 'anthropic', model: 'claude-opus-5-5', llm: true, pronunciation: false } });
-    if (path === '/v1/complete') {
+    if (path === '/models') return route.fulfill({ json: { data: [{ id: 'models/gemini-3.1-flash' }, { id: 'models/text-embedding-004' }] } });
+    if (path === '/chat/completions') {
       const body = req.postDataJSON() as { messages: { role: string; content: string }[] };
       const last = body.messages.at(-1)!.content;
-      const opening = body.messages.length === 1;
+      const opening = body.messages.length === 2;
       const wrong = /I has/.test(last);
       const reply = {
         reply: opening ? 'Hello! What is your name?' : wrong ? 'Almost! Try again.' : 'Nice to meet you!',
@@ -159,9 +160,9 @@ beforeAll(async () => {
         feedback: wrong ? { ok: false, hint: 'Confira o verbo depois de "I".', corrected: '', explanation: '' } : { ok: true, hint: '', corrected: '', explanation: '' },
         suggestions: opening ? ['My name is Ana.'] : [],
       };
-      return route.fulfill({ json: { text: JSON.stringify(reply), model: 'claude-opus-5-5', usage: { input: 900, output: 60 } } });
+      return route.fulfill({ json: { model: 'gemini-3.1-flash', choices: [{ message: { content: '```json\n' + JSON.stringify(reply) + '\n```' } }], usage: { prompt_tokens: 900, completion_tokens: 60 } } });
     }
-    return route.fulfill({ status: 404, json: { error: { code: 'not_found', message: 'x' } } });
+    return route.fulfill({ status: 404, json: [{ error: { code: 404, message: 'x' } }] });
   });
   page = await ctx.newPage();
   page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -241,14 +242,13 @@ describe('Fluentia — fluxo completo', () => {
     await expect.poll(() => tid('revisoes-pendentes').innerText()).toBe(`${n - 3} itens para revisar`);
   });
 
-  it('professor de IA: sem configuração avisa; com backend responde e corrige', async () => {
+  it('professor de IA: sem configuração avisa; com a chave grátis responde e corrige', async () => {
     await page.getByRole('tab', { name: 'Conversar' }).click();
     await page.getByText('ainda não está configurado').waitFor();
     await page.getByText('Configurar agora').click();
-    await tid('url-backend').fill(MOCK);
-    await tid('token-backend').fill('token-pessoal-de-teste-1234');
+    await tid('chave-gemini').fill(KEY);
     await tid('salvar-ia').click();
-    await page.getByText('Conectado. Provedor: anthropic').waitFor();
+    await page.getByText('Conectado. Provedor: Google Gemini (gemini-3.1-flash).').waitFor();
     await tid('voltar').click();
     await tid('cenario-intro').click();
     await page.getByText('Hello! What is your name?').waitFor();
@@ -261,14 +261,16 @@ describe('Fluentia — fluxo completo', () => {
     await tid('enviar').click();
     await page.getByText('Nice to meet you!').waitFor();
     await shot('08-conversa');
-    const complete = aiRequests.filter((r) => r.path === '/v1/complete');
+    const complete = aiRequests.filter((r) => r.path === '/chat/completions');
     expect(complete).toHaveLength(3);
-    expect(complete.every((r) => r.auth === 'Bearer token-pessoal-de-teste-1234')).toBe(true);
-    const last = complete[2].body as { system: string; messages: { content: string }[]; schema: object };
-    expect(last.system).toContain('Inglês');
-    expect(last.system).toContain('Marcos');
+    expect(complete.every((r) => r.auth === `Bearer ${KEY}`)).toBe(true);
+    const last = complete[2].body as { model: string; messages: { role: string; content: string }[] };
+    expect(last.model).toBe('gemini-3.1-flash');
+    expect(last.messages[0].role).toBe('system');
+    expect(last.messages[0].content).toContain('Inglês');
+    expect(last.messages[0].content).toContain('Marcos');
+    expect(last.messages[0].content).toContain('esquema JSON');
     expect(last.messages.at(-1)!.content).toBe('My name is Marcos');
-    expect(last.schema).toBeTruthy();
     await tid('revisar-correcoes').click();
     await page.getByText('Correções desta conversa').waitFor();
     await page.getByText('I has a dog').waitFor();

@@ -20,7 +20,7 @@ npx expo start        # desenvolvimento
 ```
 
 Instalar no celular: veja **[docs/INSTALACAO.md](docs/INSTALACAO.md)**.
-Ligar o professor de IA: veja **[docs/SERVICOS.md](docs/SERVICOS.md)** (backend próprio; o APK não contém chaves).
+Ligar o professor de IA de graça: crie uma chave em aistudio.google.com/apikey e cole em Perfil → Inteligência artificial → Simples e grátis. Detalhes e o modo avançado (backend com Claude): **[docs/SERVICOS.md](docs/SERVICOS.md)**. O APK não contém chaves.
 
 ## Documentos
 

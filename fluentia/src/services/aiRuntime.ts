@@ -5,23 +5,28 @@ import { secureDelete, secureGet, secureSet } from './secure';
 
 const KEY_URL = 'fluentia.ai.url';
 const KEY_TOKEN = 'fluentia.ai.token';
+const KEY_MODE = 'fluentia.ai.mode';
+const KEY_MODEL = 'fluentia.ai.model';
 export const DEFAULT_DAILY_AI_LIMIT = 150;
 /** Endereço do backend pessoal na conta Cloudflare do dono do app (nome do Worker em backend/wrangler.jsonc). */
 export const DEFAULT_BACKEND_URL = 'https://fluentia-backend.marcossonopi.workers.dev';
 
 export async function loadAiConfig(): Promise<AiConfig | null> {
-  const [baseUrl, token] = await Promise.all([secureGet(KEY_URL), secureGet(KEY_TOKEN)]);
-  return baseUrl && token ? { baseUrl, token } : null;
+  const [baseUrl, token, mode, model] = await Promise.all([secureGet(KEY_URL), secureGet(KEY_TOKEN), secureGet(KEY_MODE), secureGet(KEY_MODEL)]);
+  if (!baseUrl || !token) return null;
+  return { baseUrl, token, mode: mode === 'direct' ? 'direct' : 'backend', model: model || undefined };
 }
 
 export async function saveAiConfig(c: AiConfig): Promise<void> {
   await secureSet(KEY_URL, c.baseUrl.trim());
   await secureSet(KEY_TOKEN, c.token.trim());
+  await secureSet(KEY_MODE, c.mode ?? 'backend');
+  if (c.model) await secureSet(KEY_MODEL, c.model);
+  else await secureDelete(KEY_MODEL);
 }
 
 export async function clearAiConfig(): Promise<void> {
-  await secureDelete(KEY_URL);
-  await secureDelete(KEY_TOKEN);
+  for (const k of [KEY_URL, KEY_TOKEN, KEY_MODE, KEY_MODEL]) await secureDelete(k);
 }
 
 export function createRuntimeAi(db: Db): AiClient {

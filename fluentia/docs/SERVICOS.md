@@ -1,8 +1,26 @@
 # Serviços externos, custos e configuração
 
-O app funciona sem nenhum serviço pago: lições, exercícios, revisões, estatísticas, síntese e reconhecimento de voz (do próprio Android) são gratuitos e locais. Só o **professor de IA** (conversa, correção de redações, geração de lições) e a **avaliação fonética** opcional dependem de serviços externos. Nada é contratado automaticamente.
+O app funciona sem nenhum serviço pago, inclusive o professor de IA no modo grátis (Gemini): lições, exercícios, revisões, estatísticas, síntese e reconhecimento de voz (do próprio Android) são gratuitos e locais. Só o **professor de IA** (conversa, correção de redações, geração de lições) e a **avaliação fonética** opcional dependem de serviços externos. Nada é contratado automaticamente.
 
-## Por que existe um backend
+## Jeito simples e grátis (recomendado): Google Gemini direto no app
+
+Sem servidor, sem Cloudflare, sem cartão:
+
+1. No celular ou computador, abra **https://aistudio.google.com/apikey** e entre com sua conta Google.
+2. Toque em **Create API key** (Criar chave de API) e copie a chave (começa com `AIza`).
+3. No Fluentia: **Perfil → Inteligência artificial → Simples e grátis** → cole a chave → **Salvar e testar**.
+   O app escolhe sozinho um modelo "Flash" disponível para a sua chave e mostra "Conectado. Provedor: Google Gemini".
+
+Como funciona e o que saber:
+- O app fala direto com a API do Gemini (formato compatível com "chat completions"). A chave é **sua**, digitada no app e guardada no Keystore do aparelho; ela **não** vem embutida no APK e **não** entra no backup.
+- O nível gratuito tem limites por minuto e por dia (folgados para uso pessoal). Se estourar, o app avisa e você tenta mais tarde. Limites atuais: ai.google.dev/gemini-api/docs/rate-limits.
+- No nível gratuito, o Google pode usar o conteúdo enviado para melhorar os produtos dele. Não escreva dados pessoais sensíveis nas conversas. Detalhes: ai.google.dev/gemini-api/terms.
+- A avaliação fonética não existe nesse modo (só no modo "meu backend" com Azure).
+- Testado com respostas simuladas; a primeira chamada real é a sua (não havia chave nesta sessão).
+
+## Modo avançado: backend próprio (Cloudflare + Claude)
+
+### Por que existe um backend
 
 Chaves de API nunca vão dentro do APK (qualquer um extrairia). O projeto inclui `backend/`, um Cloudflare Worker que:
 

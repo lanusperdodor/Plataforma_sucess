@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AiError, createAiClient, isValidBackendUrl, parseJsonReply, type AiDeps } from '../src/services/ai/client';
+import { AiError, createAiClient, isValidBackendUrl, parseJsonReply, pickDirectModel, type AiDeps } from '../src/services/ai/client';
 import { buildLessonFromAi, type LessonRequest } from '../src/services/ai/lessonGen';
 import { buildHistory, OPENING, parseTutorTurn, parseWriting, pickWritingPrompt, tutorSystemPrompt, tutorTurn } from '../src/services/ai/tutor';
 import { buildLessonExercises } from '../src/domain/exercises';
@@ -193,5 +193,58 @@ describe('correção de escrita e geração de lições', () => {
   });
   it('lição incompleta é descartada', () => {
     expect(() => buildLessonFromAi(gen(3), lr, 1)).toThrow(/incompleta/);
+  });
+});
+
+describe('modo direto (Gemini grátis, sem backend)', () => {
+  const direct = (over: Partial<AiDeps> = {}) =>
+    setup({ getConfig: async () => ({ mode: 'direct', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', token: 'AIza-chave-de-teste-123456', model: 'gemini-x-flash' }), ...over });
+
+  it('escolhe um modelo flash estável entre os da chave', async () => {
+    expect(pickDirectModel(['models/gemini-2.0-flash', 'models/gemini-3.1-flash', 'models/gemini-3.1-flash-lite', 'models/gemini-3.5-flash-preview', 'models/text-embedding-004', 'models/gemini-3.1-flash-image'])).toBe('gemini-3.1-flash');
+    expect(pickDirectModel(['models/gemini-9-pro'])).toBe('gemini-9-pro');
+    expect(pickDirectModel([])).toBeNull();
+    const { ai, fetchMock } = setup({ getConfig: async () => ({ mode: 'direct', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', token: 'AIza-chave-de-teste-123456' }) });
+    fetchMock.mockResolvedValue(ok({ data: [{ id: 'models/gemini-2.0-flash' }, { id: 'models/gemini-3.1-flash' }] }));
+    const h = await ai.health();
+    expect(h).toMatchObject({ provider: 'Google Gemini', model: 'gemini-3.1-flash', llm: true, pronunciation: false });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://generativelanguage.googleapis.com/v1beta/openai/models');
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toBe('Bearer AIza-chave-de-teste-123456');
+  });
+  it('envia chat completions com o esquema no prompt e lê a resposta', async () => {
+    const { ai, fetchMock, logUsage } = direct();
+    fetchMock.mockResolvedValue(ok({ model: 'gemini-x-flash', choices: [{ message: { content: '{"reply":"Hi"}' } }], usage: { prompt_tokens: 50, completion_tokens: 7 } }));
+    const res = await ai.complete({ ...req, schema: { type: 'object' } });
+    expect(res).toEqual({ text: '{"reply":"Hi"}', model: 'gemini-x-flash', usage: { input: 50, output: 7 } });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+    const body = JSON.parse(init.body);
+    expect(body.model).toBe('gemini-x-flash');
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[0].content).toContain('{"type":"object"}');
+    expect(body.messages[1]).toEqual({ role: 'user', content: 'oi' });
+    expect(logUsage).toHaveBeenCalledWith('tutor', 50, 7);
+  });
+  it('chave inválida, limite gratuito e falta de modelo têm mensagens claras', async () => {
+    const a = direct();
+    a.fetchMock.mockResolvedValue(new Response(JSON.stringify([{ error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } }]), { status: 400 }));
+    expect(await code(a.ai.complete(req))).toBe('unauthorized');
+    const b = direct();
+    b.fetchMock.mockResolvedValue(new Response('{}', { status: 429 }));
+    expect(await code(b.ai.complete(req))).toBe('rate_limited');
+    expect(b.fetchMock).toHaveBeenCalledTimes(1);
+    const c = setup({ getConfig: async () => ({ mode: 'direct', baseUrl: 'https://x.test', token: 'AIza-chave-de-teste-123456' }) });
+    expect(await code(c.ai.complete(req))).toBe('not_configured');
+    expect(c.fetchMock).not.toHaveBeenCalled();
+  });
+  it('erro 503 do provedor é repetido uma vez', async () => {
+    const { ai, fetchMock } = direct();
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 503 })).mockResolvedValueOnce(ok({ choices: [{ message: { content: 'ok' } }] }));
+    expect((await ai.complete(req)).text).toBe('ok');
+  });
+  it('avaliação fonética não existe no modo direto', async () => {
+    const { ai, fetchMock } = direct();
+    expect(await code(ai.pronunciation(new ArrayBuffer(2), 'en-US', 'Hi'))).toBe('unavailable');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

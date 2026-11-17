@@ -58,7 +58,7 @@ export default function Writing() {
         <Button small variant="ghost" icon="shuffle" title="Outro tema" onPress={() => { setSeed(seed + 1); setFeedback(null); }} />
       </Card>
       <TextInput testID="texto" value={text} onChangeText={setText} multiline placeholder={`Escreva em ${L.name.toLowerCase()}…`} placeholderTextColor={colors.faint} style={s.input} autoCorrect={false} spellCheck={false} />
-      <T v="small">O texto é enviado ao seu backend e ao provedor de IA para correção.</T>
+      <T v="small">O texto é enviado ao provedor de IA configurado para correção.</T>
       {error ? <Notice tone="danger" icon="alert-circle" text={error} /> : null}
       <Button testID="corrigir" title={feedback ? 'Corrigir nova versão' : 'Corrigir'} icon="checkmark-done" loading={busy} disabled={!text.trim() || !data.configured} onPress={submit} />
 

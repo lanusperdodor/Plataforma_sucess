@@ -21,7 +21,7 @@ Legenda: ✅ implementado e testado automaticamente · 🔌 implementado, depend
 
 ## Implementado, depende de configuração externa
 
-- 🔌 Professor virtual (texto e voz), correção de redações, geração de lições com IA: precisam do backend publicado e de uma chave de IA (docs/SERVICOS.md). **Testado só com respostas simuladas** — nenhuma chamada real a um provedor foi feita nesta sessão (não havia chave).
+- 🔌 Professor virtual (texto e voz), correção de redações, geração de lições com IA: precisam de uma chave de IA. Modo **grátis**: chave do Google Gemini colada no app, sem servidor. Modo avançado: backend próprio com Claude. **Testado só com respostas simuladas** (unitários e interface) — nenhuma chamada real a um provedor foi feita nesta sessão (não havia chave).
 - 🔌 Avaliação fonética real (Azure AI Speech): código pronto, testado só com resposta simulada.
 - 🔌 `eas build`: exige sua conta Expo (login), não feito aqui (o APK foi gerado pelo build local).
 - 🔌 Backend publicado na Cloudflare: feito por você no painel (docs/SERVICOS.md, opção 1).

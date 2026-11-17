@@ -14,13 +14,18 @@
       "adaptiveIcon": {
         "backgroundColor": "#0C0C11",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.SYSTEM_ALERT_WINDOW"
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -45,13 +50,18 @@
         {
           "microphonePermission": "O Fluentia usa o microfone para ouvir sua pronúncia e conversar com o professor.",
           "speechRecognitionPermission": "O Fluentia usa o reconhecimento de fala para transcrever o que você diz.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox", "com.google.android.tts"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
+          ]
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "O Fluentia usa o microfone para ouvir sua pronúncia e conversar com o professor."
+          "microphonePermission": "O Fluentia usa o microfone para ouvir sua pronúncia e conversar com o professor.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
         }
       ]
     ],

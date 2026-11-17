@@ -37,7 +37,8 @@ import { OfferCard, useApproxPosition } from './OfferCard.tsx'
 import { CourierProfilePanel } from './CourierProfilePanel.tsx'
 import { OfferAlertsCard } from './OfferAlertsCard.tsx'
 import { OwnGoOnlineCard } from './OwnGoOnlineCard.tsx'
-import { alertNewOffers, unlockSound, useNewOffers } from '../../features/courier/offerAlert.ts'
+import { OfferSoundBanner } from './OfferSoundBanner.tsx'
+import { alertNewOffers, enableOfferSound, unlockSound, useNewOffers } from '../../features/courier/offerAlert.ts'
 
 const box = 'rounded-card border border-line bg-surface p-4 md:p-6'
 const primary = 'pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-base font-semibold text-ink disabled:opacity-50'
@@ -301,6 +302,7 @@ export function CourierArea() {
       <Page>
         <PageHeader icon={Truck} title="Área do entregador" subtitle="Entregador próprio do estabelecimento" />
         <CourierTabs mode="proprio" available={0} />
+        <OfferSoundBanner />
         <OwnGoOnlineCard pending={!!c && c.status === 'pending'} />
         <Routes>
           <Route index element={<OwnDeliveriesPanel view="ativas" />} />
@@ -330,6 +332,7 @@ export function CourierArea() {
           <button type="button" onClick={() => { setFresh(0); document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} className="pressable inline-flex min-h-12 items-center rounded-full bg-surface px-5 text-base font-bold text-ink">Ver corridas</button>
         </div>
       )}
+      <OfferSoundBanner />
       {/* 1. disponibilidade: grande e fácil de ver */}
       <section aria-labelledby="disp" className={`${box} flex flex-col gap-3`}>
         <div className="flex items-center justify-between gap-3">
@@ -339,7 +342,7 @@ export function CourierArea() {
             {c.isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
-        <button type="button" disabled={toggle.isPending} onClick={() => { unlockSound(); toggle.mutate(!c.isOnline) }} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
+        <button type="button" disabled={toggle.isPending} onClick={() => { if (!c.isOnline) void enableOfferSound(); else unlockSound(); toggle.mutate(!c.isOnline) }} className={`pressable inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-6 text-lg font-semibold ${c.isOnline ? 'border-2 border-line text-ink' : 'bg-orange text-ink'}`}>
           <Power aria-hidden="true" className="size-5" />{c.isOnline ? 'Ficar offline' : 'Ficar online e receber entregas'}
         </button>
         {c.isOnline && (

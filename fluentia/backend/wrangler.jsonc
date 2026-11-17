@@ -1,0 +1,19 @@
+{
+  // Backend pessoal do Fluentia: guarda as chaves de IA fora do aplicativo.
+  "name": "fluentia-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    // "anthropic" ou "openai-compatible"
+    "PROVIDER": "anthropic",
+    "ANTHROPIC_MODEL": "claude-opus-5-5",
+    "ANTHROPIC_EFFORT": "low",
+    "DAILY_REQUEST_LIMIT": "300"
+  }
+  // Segredos (NUNCA aqui; use `npx wrangler secret put NOME`):
+  //   APP_TOKEN            senha longa que você inventa; a mesma vai no app
+  //   ANTHROPIC_API_KEY    se PROVIDER = anthropic
+  //   OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL   se PROVIDER = openai-compatible
+  //   AZURE_SPEECH_KEY, AZURE_SPEECH_REGION           opcional: avaliação fonética
+}

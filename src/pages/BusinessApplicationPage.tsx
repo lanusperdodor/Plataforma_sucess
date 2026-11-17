@@ -103,7 +103,7 @@ function ApplicationForm() {
       // endereço em campos e local no mapa já no cadastro (o Master vê; a rota e o frete usam)
       if (input.addressLine) {
         await saveBusinessAddress(id, addr).catch(() => undefined)
-        await geocodeAddress(formatAddress(addr)).then((p) => setStoreLocation(id, p.lat, p.lng)).catch(() => undefined)
+        await geocodeAddress(formatAddress(addr), null, { parts: { street: addr.street, number: addr.number, district: addr.district, city: addr.city, uf: addr.uf, cep: addr.cep } }).then((p) => setStoreLocation(id, p.lat, p.lng)).catch(() => undefined)
       }
       // assinatura com débito automático: se o pagamento online ainda não estiver ativo, o cadastro segue e avisamos
       let url: string | null = null

@@ -1,3 +1,4 @@
+import { StoreLocationCard, addressPartsForSearch } from '../gestao/StoreLocationCard.tsx'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
@@ -78,19 +79,26 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
   const [addrErrors, setAddrErrors] = useState<AddressErrors>({})
   useEffect(() => { if (addrQ.data && !addrTouched) setAddr(addrQ.data) }, [addrQ.data, addrTouched])
   const changeAddr = (a: AddressParts) => { setAddrTouched(true); setAddr(a) }
+  const [locHint, setLocHint] = useState<{ point: [number, number] | null; notice: string } | null>(null)
   const set = <K extends keyof StoreForm>(k: K, val: StoreForm[K]) => setV((p) => ({ ...p, [k]: val }))
   const save = useMutation({
     mutationFn: async () => {
       await updateStore(b.id, v)
       if (addrTouched) {
         await saveBusinessAddress(b.id, addr)
-        // endereço → local da loja no mapa (base da rota até a loja e do frete por distância); se não achar, avisa
+        // endereço → local da loja no mapa (base da rota até a loja e do frete por distância)
+        // exato: salva sozinho; aproximado ou não achado: abre o mapa logo abaixo para conferir/marcar
         try {
-          const p = await geocodeAddress(formatAddress(addr))
-          await setStoreLocation(b.id, p.lat, p.lng)
-          void qc.invalidateQueries({ queryKey: ['gestao', 'location', b.id] })
+          const p = await geocodeAddress(formatAddress(addr), null, { parts: addressPartsForSearch(addr), approx: true })
+          if (p.approx) {
+            setLocHint({ point: [p.lng, p.lat], notice: 'Achamos só o bairro/cidade da loja. Arraste o alfinete até a porta da loja e toque em Salvar local.' })
+          } else {
+            await setStoreLocation(b.id, p.lat, p.lng)
+            setLocHint(null)
+            void qc.invalidateQueries({ queryKey: ['gestao', 'location', b.id] })
+          }
         } catch {
-          toast.error('Endereço salvo, mas não achamos o local exato no mapa. Marque em Entregas → Local da loja no mapa.')
+          setLocHint({ point: null, notice: 'Não achamos este endereço no mapa. Marque o local da loja: pelo mapa, pela sua localização ou colando a coordenada.' })
         }
       }
     },
@@ -136,6 +144,7 @@ export function StoreTab({ b }: { b: MerchantBusiness }) {
         <p className="text-sm font-medium text-ink">Endereço da loja</p>
         {!addrQ.data && b.addressLine && <p className="text-xs text-ink-muted">Endereço atual: {b.addressLine}. Preencha os campos abaixo para atualizar.</p>}
         <AddressFields idPrefix="st-end" value={addr} onChange={changeAddr} errors={addrErrors} />
+        <StoreLocationCard businessId={b.id} suggestion={locHint?.point ?? null} notice={locHint?.notice ?? null} />
       </div>
       {text('phone', 'Telefone', { type: 'tel' })}
       {text('whatsapp', 'WhatsApp', { type: 'tel' })}

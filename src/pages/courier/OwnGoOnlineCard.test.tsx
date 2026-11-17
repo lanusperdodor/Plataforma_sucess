@@ -15,10 +15,16 @@ afterEach(cleanup)
 const show = (pending = false) => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><OwnGoOnlineCard pending={pending} /></MemoryRouter></QueryClientProvider>)
 
 describe('entregador próprio já logado', () => {
-  it('fica online com um clique, sem digitar nada', async () => {
+  it('abre o pop-up: marca o que aceita e fica online com um toque, sem digitar nada', async () => {
     show()
     expect(screen.queryByRole('textbox')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Ficar online e receber entregas' }))
+    const ok = await screen.findByRole('button', { name: 'Aceitar e ficar online' })
+    expect(screen.getByText('Som de corrida nova')).toBeInTheDocument()
+    expect(screen.getByText('Usar minha localização (GPS)')).toBeInTheDocument()
+    expect(ok).toBeDisabled()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Aceito os termos de parceria' }))
+    fireEvent.click(ok)
     await vi.waitFor(() => expect(h.go).toHaveBeenCalledTimes(1))
   })
   it('cadastro em análise: avisa em vez do botão', () => {

@@ -25,4 +25,34 @@ describe('endereço → coordenadas', () => {
     expect((await handleGeocode(req({ address: 'Rua das Flores, 120 - Lisboa' }), { ORS_API_KEY: 'k' }, fake(res({ features: [{ geometry: { coordinates: [-9.14, 38.72] }, properties: { layer: 'address' } }] }))))!.status).toBe(404)
     expect((await handleGeocode(req({ address: 'Rua das Flores, 120 - Centro' }), { ORS_API_KEY: 'k' }, fake(res({}, 429))))!.status).toBe(503)
   })
+  it('com as partes do endereço: tenta a busca estruturada, depois outras formas, e filtra UF errada', async () => {
+    const urls: string[] = []
+    const f = vi.fn(async (u: RequestInfo | URL) => {
+      const url = String(u); if (url.includes('/auth/v1/user')) return res({ id: 'u1' })
+      urls.push(url)
+      if (url.includes('/search/structured')) return res({ features: [] })
+      // texto completo: 1º resultado é homônimo em SP (descartado), 2º é o certo em MG
+      if (url.includes('Rua+das+Flores%2C+120')) return res({ features: [
+        { geometry: { coordinates: [-46.6, -23.5] }, properties: { layer: 'address', region_a: 'SP', locality: 'São Paulo' } },
+        { geometry: { coordinates: [-46.7512, -20.7412] }, properties: { layer: 'street', region_a: 'MG', locality: 'Itaú de Minas' } },
+      ] })
+      return res({ features: [] })
+    }) as unknown as typeof fetch
+    const r = await handleGeocode(req({ address: 'Rua das Flores, 120, Centro, Itaú de Minas - MG', parts: { street: 'Rua das Flores', number: '120', district: 'Centro', city: 'Itaú de Minas', uf: 'MG', cep: '37975-000' } }), { ORS_API_KEY: 'k' }, f)
+    expect(await r!.json()).toMatchObject({ lat: -20.7412, lng: -46.7512, aproximado: false })
+    expect(urls[0]).toContain('/geocode/search/structured?')
+    expect(urls[0]).toContain('locality=Ita')
+    expect(urls[0]).toContain('postalcode=37975000')
+  })
+  it('sem achar a rua: com aproximado=true devolve o bairro marcado como aproximado', async () => {
+    const f = vi.fn(async (u: RequestInfo | URL) => {
+      const url = String(u); if (url.includes('/auth/v1/user')) return res({ id: 'u1' })
+      if (url.includes('layers=neighbourhood')) return res({ features: [{ geometry: { coordinates: [-46.75, -20.74] }, properties: { layer: 'neighbourhood', region_a: 'MG' } }] })
+      return res({ features: [] })
+    }) as unknown as typeof fetch
+    const parts = { street: 'Rua Nova', number: '5', district: 'Centro', city: 'Itaú de Minas', uf: 'MG', cep: '' }
+    expect((await handleGeocode(req({ address: 'Rua Nova, 5, Centro, Itaú de Minas - MG', parts }), { ORS_API_KEY: 'k' }, f))!.status).toBe(404)
+    const r = await handleGeocode(req({ address: 'Rua Nova, 5, Centro, Itaú de Minas - MG', parts, aproximado: true }), { ORS_API_KEY: 'k' }, f)
+    expect(await r!.json()).toMatchObject({ aproximado: true, precisao: 'neighbourhood' })
+  })
 })

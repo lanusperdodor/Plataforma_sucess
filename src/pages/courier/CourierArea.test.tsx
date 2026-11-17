@@ -52,7 +52,7 @@ describe('Área do entregador', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByText(/Responda em [12]:\d\d · 2ª rodada/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Informar minha localização/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Avisos e permissões/ })).toBeInTheDocument()
     // card no estilo app: valor em destaque, distância pelas ruas e tempo estimado
     expect(screen.getByText('R$ 5,00')).toBeInTheDocument()
     expect(screen.getByText('2,3 km')).toBeInTheDocument()

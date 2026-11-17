@@ -55,6 +55,14 @@ export const STORAGE_ITEMS: readonly StorageItem[] = [
     clearable: true,
   },
   {
+    key: 'tucai:entregador-preferencias',
+    where: 'localStorage',
+    category: 'preferencias',
+    purpose: 'Lembrar o que o entregador escolheu ao ficar online neste aparelho: som de corrida nova, uso do GPS, tela ligada e avisos com o app fechado.',
+    lifetime: 'Até você mudar ou apagar.',
+    clearable: true,
+  },
+  {
     key: 'tucai:tipo-conta',
     where: 'localStorage',
     category: 'necessario',

@@ -102,15 +102,23 @@ export async function getRouteSteps(orderId: string): Promise<RouteStepView[]> {
 
 // ---------- ponto de entrega pelo endereço (0047) ----------
 /** Converte o endereço digitado em ponto no mapa (Worker /api/geocode). Lança erro com mensagem quando não acha com precisão. */
-export async function geocodeAddress(address: string, near?: { lat: number; lng: number } | null): Promise<{ lat: number; lng: number }> {
+export interface GeocodeResult { lat: number; lng: number; approx: boolean; label: string }
+export async function geocodeAddress(
+  address: string,
+  near?: { lat: number; lng: number } | null,
+  opts: { parts?: Record<string, string>; approx?: boolean } = {},
+): Promise<GeocodeResult> {
   if (!isSupabaseConfigured) throw backendUnavailable()
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new RepositoryError('forbidden', 'Entre na sua conta.')
-  const res = await fetch('/api/geocode', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ address, near: near ?? undefined }) })
-  const body = (await res.json().catch(() => ({}))) as { erro?: string; lat?: number; lng?: number }
+  const res = await fetch('/api/geocode', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, near: near ?? undefined, parts: opts.parts, aproximado: opts.approx || undefined }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { erro?: string; lat?: number; lng?: number; aproximado?: boolean; rotulo?: string }
   if (!res.ok || typeof body.lat !== 'number' || typeof body.lng !== 'number') throw new RepositoryError('unknown', body.erro ?? 'Endereço não encontrado no mapa.')
-  return { lat: body.lat, lng: body.lng }
+  return { lat: body.lat, lng: body.lng, approx: body.aproximado === true, label: body.rotulo ?? '' }
 }
 
 /** Entregador grava o ponto pelo endereço (só se o cliente não marcou; perto da loja; registrado no histórico). */

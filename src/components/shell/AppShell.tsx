@@ -8,6 +8,7 @@ import { CartFab } from './CartFab.tsx'
 import { LocationPicker } from './LocationPicker.tsx'
 import { SideNav } from './SideNav.tsx'
 import { TopBar } from './TopBar.tsx'
+import { AppDownloadStrip } from './AppDownload.tsx'
 import { useBreakpoint } from './useBreakpoint.ts'
 import { useCartSummary } from './useShellData.ts'
 import { useAuth } from '../../features/auth/AuthProvider.tsx'
@@ -49,6 +50,7 @@ export function AppShell({ children }: AppShellProps) {
         >
           Pular para o conteúdo
         </a>
+        {mobile && <AppDownloadStrip />}
         <TopBar layout={layout} simple={courier} location={courier ? <span /> : <LocationPicker />}
           search={courier ? <span aria-hidden="true" /> : undefined} />
         <div className="flex min-w-0">

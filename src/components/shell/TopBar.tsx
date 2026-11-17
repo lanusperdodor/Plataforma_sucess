@@ -1,5 +1,6 @@
 import { Bell, MapPin, Search, ShoppingBag } from "lucide-react";
 import { MenuSearchButton } from "./MenuSearchSheet.tsx";
+import { AppDownloadButton } from "./AppDownload.tsx";
 import { AccountMenu } from "../account/AccountMenu.tsx";
 import { ThemeToggleButton } from "../account/ThemeToggle.tsx";
 import type { ReactNode } from "react";
@@ -186,6 +187,7 @@ export function TopBar({ layout, location, search, simple = false }: TopBarProps
         </div>
         <div className="min-w-0 flex-1">{srch}</div>
         <div className="flex items-center gap-1">
+          <AppDownloadButton />
           {theme}
           {bell}
           {profile}

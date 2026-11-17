@@ -4,14 +4,14 @@ import { StyleSheet, TextInput } from 'react-native';
 import { Button, Card, Header, Loading, Notice, Row, Screen, Section, T } from '@/components/ui';
 import { aiUsageMonth, aiUsageOn, getSetting, setSetting } from '@/db/repo';
 import { AiError, isValidBackendUrl, type HealthResult } from '@/services/ai/client';
-import { clearAiConfig, DEFAULT_DAILY_AI_LIMIT, loadAiConfig, saveAiConfig } from '@/services/aiRuntime';
+import { clearAiConfig, DEFAULT_BACKEND_URL, DEFAULT_DAILY_AI_LIMIT, loadAiConfig, saveAiConfig } from '@/services/aiRuntime';
 import { useApp, useData } from '@/state/app';
 import { colors, radius, space } from '@/theme';
 
 export default function AiSettings() {
   const router = useRouter();
   const { db, ai } = useApp();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(DEFAULT_BACKEND_URL);
   const [token, setToken] = useState('');
   const [hasToken, setHasToken] = useState(false);
   const [limit, setLimit] = useState('');
@@ -65,12 +65,12 @@ export default function AiSettings() {
       <Section title="Conexão">
         <Card>
           <T v="tiny">Endereço do backend</T>
-          <TextInput testID="url-backend" value={url} onChangeText={setUrl} placeholder="https://fluentia-backend.SEU-USUARIO.workers.dev" placeholderTextColor={colors.faint} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={s.input} />
+          <TextInput testID="url-backend" value={url} onChangeText={setUrl} placeholder={DEFAULT_BACKEND_URL} placeholderTextColor={colors.faint} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={s.input} />
           <T v="tiny">Token pessoal (APP_TOKEN)</T>
           <TextInput testID="token-backend" value={token} onChangeText={setToken} placeholder={hasToken ? '•••••••• (salvo; deixe vazio para manter)' : 'Cole o token'} placeholderTextColor={colors.faint} autoCapitalize="none" autoCorrect={false} secureTextEntry style={s.input} />
           <T v="small">Guardado no armazenamento seguro do Android (Keystore). Não entra no backup.</T>
           <Button testID="salvar-ia" title="Salvar e testar" icon="flash" loading={testing} onPress={save} disabled={!url} />
-          {hasToken ? <Button variant="danger" small title="Remover configuração" onPress={async () => { await clearAiConfig(); setUrl(''); setHasToken(false); setHealth(null); setStatus(null); }} /> : null}
+          {hasToken ? <Button variant="danger" small title="Remover configuração" onPress={async () => { await clearAiConfig(); setUrl(DEFAULT_BACKEND_URL); setHasToken(false); setHealth(null); setStatus(null); }} /> : null}
         </Card>
         {status ? <Notice tone={status.tone} text={status.text} /> : null}
         {health ? (

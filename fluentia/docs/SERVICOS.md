@@ -25,10 +25,10 @@ npm install
 npx wrangler login                       # conta Cloudflare gratuita
 npx wrangler secret put APP_TOKEN        # invente uma senha longa (32+ caracteres)
 npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler deploy                      # mostra a URL https://fluentia-backend.<você>.workers.dev
+npx wrangler deploy                      # publica em https://fluentia-backend.marcossonopi.workers.dev
 ```
 
-No app: Perfil → Inteligência artificial → cole a URL e o mesmo `APP_TOKEN` → **Salvar e testar**.
+No app: Perfil → Inteligência artificial. O endereço `https://fluentia-backend.marcossonopi.workers.dev` já vem preenchido (é o nome do Worker em `backend/wrangler.jsonc` na sua conta Cloudflare `marcossonopi`); cole o mesmo `APP_TOKEN` → **Salvar e testar**. Se publicar com outro nome ou domínio, troque o endereço nessa tela (ou em `DEFAULT_BACKEND_URL`, `src/services/aiRuntime.ts`).
 
 ## Provedor de IA
 

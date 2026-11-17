@@ -6,6 +6,8 @@ import { secureDelete, secureGet, secureSet } from './secure';
 const KEY_URL = 'fluentia.ai.url';
 const KEY_TOKEN = 'fluentia.ai.token';
 export const DEFAULT_DAILY_AI_LIMIT = 150;
+/** Endereço do backend pessoal na conta Cloudflare do dono do app (nome do Worker em backend/wrangler.jsonc). */
+export const DEFAULT_BACKEND_URL = 'https://fluentia-backend.marcossonopi.workers.dev';
 
 export async function loadAiConfig(): Promise<AiConfig | null> {
   const [baseUrl, token] = await Promise.all([secureGet(KEY_URL), secureGet(KEY_TOKEN)]);

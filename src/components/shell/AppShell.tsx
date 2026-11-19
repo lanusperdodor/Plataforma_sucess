@@ -8,6 +8,7 @@ import { CartFab } from './CartFab.tsx'
 import { LocationPicker } from './LocationPicker.tsx'
 import { SideNav } from './SideNav.tsx'
 import { TopBar } from './TopBar.tsx'
+import { LEGAL } from '../../config/legal.ts'
 import { AppDownloadStrip } from './AppDownload.tsx'
 import { useBreakpoint } from './useBreakpoint.ts'
 import { useCartSummary } from './useShellData.ts'
@@ -75,6 +76,7 @@ export function AppShell({ children }: AppShellProps) {
               <Link to="/termos" className="underline">Termos de uso</Link>
               <Link to="/armazenamento" className="underline">Armazenamento local</Link>
               <Link to="/app" className="font-semibold underline">Baixe o app</Link>
+              {LEGAL.supportContact && <a href={`mailto:${LEGAL.supportContact}`} className="underline">Suporte: {LEGAL.supportContact}</a>}
             </footer>
           </main>
         </div>

@@ -31,6 +31,7 @@ function Controller() {
       <div><dt className="inline font-semibold">Endereço: </dt><dd className="inline">{legalValue(LEGAL.address)}</dd></div>
       <div><dt className="inline font-semibold">Encarregado (DPO): </dt><dd className="inline">{legalValue(LEGAL.dpoName)}</dd></div>
       <div><dt className="inline font-semibold">Contato de privacidade: </dt><dd className="inline">{legalValue(LEGAL.privacyContactEmail)}</dd></div>
+      <div><dt className="inline font-semibold">Suporte: </dt><dd className="inline">{LEGAL.supportContact ? <a href={`mailto:${LEGAL.supportContact}`} className="underline">{LEGAL.supportContact}</a> : legalValue(null)}</dd></div>
     </dl>
   )
 }
@@ -120,6 +121,7 @@ export function TermsPage() {
         <p>Situações elegíveis (pedido não entregue, item errado ou faltante, cobrança indevida, cancelamento permitido), procedimento, responsável pelo atendimento e prazos serão detalhados quando os pagamentos online forem ativados. Toda solicitação terá histórico consultável. Seus direitos legais como consumidor sempre prevalecem.</p>
       </section>
       <section aria-labelledby="t-ia"><h2 id="t-ia">Inteligência artificial</h2><p>Hoje a Tucaí não usa atendimento automatizado, moderação automática, recomendações personalizadas nem decisões automatizadas por IA. Se passar a usar, isso será informado, com as limitações e um canal de revisão humana. Atendimento automatizado nunca será apresentado como humano.</p></section>
+      <section aria-labelledby="t-sup"><h2 id="t-sup">Atendimento</h2><p>Dúvidas, problemas com pedidos ou com a sua conta: {LEGAL.supportContact ? <a href={`mailto:${LEGAL.supportContact}`} className="underline">{LEGAL.supportContact}</a> : legalValue(null)}.</p></section>
       <section aria-labelledby="t-lic"><h2 id="t-lic">Propriedade intelectual</h2><p>A marca Tucaí e o mascote Tuca pertencem à Tucaí. Estabelecimentos declaram ter direito sobre as imagens e textos que publicam.</p></section>
     </Doc>
   )

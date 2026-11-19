@@ -1,5 +1,10 @@
 # Publicação nas lojas (Google Play e App Store)
 
+> **Decisão (2026-11-19): por enquanto a Tucaí é distribuída SÓ pelo navegador** (instalação pela página `/app`, sem lojas).
+> O app nativo (`mobile/`) e os prints (`store-screenshots/`) ficam guardados para quando decidirmos publicar nas lojas.
+> Antes de publicar nas lojas será preciso: login com Google pelo navegador do sistema, "Entrar com Apple", notificação
+> nativa e esconder a compra de planos no iPhone. Suporte: suportetucai@gmail.com.
+
 Há três formas de ter a Tucaí no celular:
 1. **Pelo site, hoje, sem loja:** página `/app` ("Baixe o app"). No Android tem o botão Instalar; no iPhone, Compartilhar → Adicionar à Tela de Início.
 2. **App nativo (React Native + Expo):** projeto em `mobile/`. Veja `mobile/README.md` (QR Code, builds e envio).
@@ -40,7 +45,7 @@ Há três formas de ter a Tucaí no celular:
 **Links obrigatórios:**
 - Política de privacidade: https://plataforma-sucess.marcossonopi.workers.dev/privacidade
 - Termos de uso: https://plataforma-sucess.marcossonopi.workers.dev/termos
-- Suporte: crie um e-mail de suporte (ex.: suporte@seudominio) antes do envio.
+- Suporte: suportetucai@gmail.com
 
 **Privacidade nas lojas ("Segurança dos dados" / "App Privacy"):** dados coletados = nome, e-mail, telefone, endereço de entrega, localização precisa (só entregador, durante a entrega), fotos enviadas pela pessoa e histórico de pedidos. Nenhum dado é vendido. A pessoa pode pedir a exclusão da conta em Perfil → Privacidade.
 

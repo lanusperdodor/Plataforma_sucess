@@ -9,7 +9,7 @@ export const LEGAL = {
   address: null as string | null,
   privacyContactEmail: null as string | null, // canal do encarregado (DPO) / privacidade
   dpoName: null as string | null,
-  supportContact: null as string | null,
+  supportContact: 'suportetucai@gmail.com' as string | null, // atendimento (informado pela Tucaí em 2026-11-19)
   /** Versão das minutas; mude a cada alteração relevante. */
   documentsVersion: '2026-11-11',
 } as const

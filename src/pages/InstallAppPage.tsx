@@ -2,6 +2,7 @@ import { BellRing, CheckCircle2, Download, MapPin, MoreVertical, PlusSquare, Ref
 import { useEffect, useState } from 'react'
 import { Page } from '../components/nav/PageHeader.tsx'
 import { runningAsApp } from '../features/app/installed.ts'
+import { LEGAL } from '../config/legal.ts'
 
 /** Evento do Chrome/Android que permite mostrar o "Instalar app" no momento certo. */
 interface InstallPromptEvent extends Event { prompt(): Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> }
@@ -154,7 +155,10 @@ export function InstallAppPage() {
           </div>
         ))}
       </section>
-      <p className="text-center text-sm text-ink-muted">Em breve também na Google Play e na App Store.</p>
+      <p className="text-center text-sm text-ink-muted">
+        A Tucaí é instalada direto pelo navegador: não precisa de loja de aplicativos e não ocupa espaço como um app comum.
+        {LEGAL.supportContact && <> Dúvidas? <a href={`mailto:${LEGAL.supportContact}`} className="font-semibold underline">{LEGAL.supportContact}</a></>}
+      </p>
     </Page>
   )
 }

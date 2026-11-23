@@ -72,6 +72,15 @@ export async function handleDiagnostics(req: Request, env: DiagnosticsEnv, fetch
     if (r.ok) pricing = (await r.json()) as Pricing
   } catch { /* sem banco */ }
 
+  // cota (0058): no máximo 24 diagnósticos novos por dia (cada um calcula 4 rotas reais); o resto sai do cache
+  try {
+    const q = await fetcher(`${base}/rest/v1/rpc/diagnostic_allow`, { method: 'POST', headers: { apikey, Authorization: `Bearer ${apikey}`, 'Content-Type': 'application/json' }, body: '{}' })
+    if (!q.ok && q.status !== 404) {
+      const e = (await q.json().catch(() => ({}))) as { code?: string }
+      if (e.code === 'PT429') return json({ integracao_rotas: 'nao_verificado', motivo: 'Limite diário de diagnósticos atingido. Tente amanhã.' }, 429)
+    }
+  } catch { /* sem banco: segue (o diagnóstico já tolera banco indisponível) */ }
+
   const provider = (env.ROUTING_PROVIDER || 'ors').toLowerCase()
   const calculadas: unknown[] = []
   const semRua: unknown[] = []

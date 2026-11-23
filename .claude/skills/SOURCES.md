@@ -14,6 +14,9 @@ Atualizar = copiar de novo da mesma origem, revisar o diff e registrar o commit 
 | `sharp-edges` | trailofbits/skills `plugins/sharp-edges` (149d7b2) | CC-BY-SA-4.0 | markdown (agents/openai.yaml removido) | APIs e configurações perigosas (auth, JS, config) |
 | `ui-ux-pro-max` | nextlevelbuilder/ui-ux-pro-max-skill `.claude/skills/ui-ux-pro-max` (6ae86f6, v2.15.0) | MIT | SKILL.md + dados CSV + 4 scripts Python (só biblioteca padrão, sem rede; testes do autor não copiados) | acessibilidade, toque, formulários e navegação dos painéis; identidade da Tucaí preservada (nota no SKILL.md) |
 | `app-store-screenshots` | ParthJadhav/app-store-screenshots `skills/app-store-screenshots` (e889033) | MIT | SKILL.md + template Next.js do editor de prints (sem `scripts/`, `e2e-army/`, `tests/` e `.github/` do autor) | prints da App Store e da Google Play (projeto em `store-screenshots/`) |
+| `security-audit` | cloudflare/security-audit-skill `skills/security-audit` (c1c8a8c) | MIT | SKILL.md + 13 guias + `report-schema.json` + 2 validadores Node (só leem arquivos locais; testes do autor não copiados) | auditoria de segurança (guia ou completa) |
+| `ai-sdk` | vercel/ai `skills/ai-sdk` (fac1d6a) | MIT | 1 SKILL.md | só se uma função com IA for aprovada (hoje a Tucaí não usa IA) |
+| `better-auth-*` (6) | better-auth/skills (20c9e88): best-practices, create-auth, emailAndPassword, twoFactor, organization, security | sem arquivo de licença no repositório de skills (a biblioteca better-auth/better-auth é MIT) | markdown | referência de boas práticas de autenticação; a Tucaí usa Supabase Auth (não migrar) |
 | `tucai-release-audit` | própria | — | SKILL.md + 2 scripts próprios | auditoria de lançamento (12 áreas) |
 
 Avaliadas e NÃO instaladas (ver motivo):

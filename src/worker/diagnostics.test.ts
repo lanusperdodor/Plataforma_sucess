@@ -9,6 +9,7 @@ function fake() {
   let i = 0
   return vi.fn(async (u: RequestInfo | URL) => {
     if (String(u).includes('delivery_pricing_current')) return res(PRICING)
+    if (String(u).includes('diagnostic_allow')) return res(null)
     const d = distances[i++ % 4]!
     return res({ features: [{ geometry: { coordinates: [[0, 0], [1, 1]] }, properties: { summary: { distance: d, duration: 60 } } }] })
   }) as unknown as typeof fetch
@@ -40,12 +41,13 @@ describe('diagnóstico do frete (somente leitura)', () => {
     expect(b.chave_integracao_configurada).toBe(true)
     const again = await handleDiagnostics(get(), { ORS_API_KEY: 'segredo-123' }, f, 60_000)
     expect((await again!.json()).em_cache).toBe(true)
-    expect(f).toHaveBeenCalledTimes(5)
+    expect(f).toHaveBeenCalledTimes(6) // preços + licença (0058) + 4 rotas; a 2ª chamada sai do cache
   })
   it('um destino sem rua (404/2010) não derruba a integração', async () => {
     let i = 0
     const f = vi.fn(async (u: RequestInfo | URL) => {
       if (String(u).includes('delivery_pricing_current')) return res(PRICING)
+    if (String(u).includes('diagnostic_allow')) return res(null)
       if (++i === 4) return res({ error: { code: 2010, message: 'Could not find routable point within a radius of 350.0 meters' } }, 404)
       return res({ features: [{ geometry: { coordinates: [[0, 0], [1, 1]] }, properties: { summary: { distance: [973, 2862, 4245][i - 1], duration: 60 } } }] })
     }) as unknown as typeof fetch
@@ -55,12 +57,13 @@ describe('diagnóstico do frete (somente leitura)', () => {
     expect(b).toMatchObject({ integracao_rotas: 'funcionando', rotas_pelas_ruas: 'ok', resumo: { rotas_calculadas: 3, pontos_sem_rua_acessivel: 1, falhas_da_api: 0 } })
     expect(b.rotas_calculadas[2]).toMatchObject({ faixa: 3, entregador: 700, cliente: 500, loja: 200, subsidio: 100 })
     expect(b.pontos_sem_rua_acessivel[0].motivo).toMatch(/sem rua acessível/)
-    expect(f).toHaveBeenCalledTimes(5) // sem a consulta reserva por GET no ponto sem rua
+    expect(f).toHaveBeenCalledTimes(6) // preços + licença + 4 rotas, sem a consulta reserva por GET no ponto sem rua
   })
   it('separa falha real da API (limite) de ponto sem rua', async () => {
     let i = 0
     const f = vi.fn(async (u: RequestInfo | URL) => {
       if (String(u).includes('delivery_pricing_current')) return res(PRICING)
+    if (String(u).includes('diagnostic_allow')) return res(null)
       i++
       if (i <= 2) return res({ features: [{ geometry: { coordinates: [[0, 0], [1, 1]] }, properties: { summary: { distance: 900, duration: 60 } } }] })
       return res({ error: 'Rate limit exceeded' }, 429)
@@ -90,5 +93,17 @@ describe('diagnóstico: motivo da recusa', () => {
     expect(b.falhas_da_api[0].resposta_do_provedor.status).toBe(403)
     expect(b.formato_chave_rotas).toEqual({ tamanho: 38, tem_espaco_ou_quebra_de_linha: false, tem_aspas: false, comeca_com_bearer: false })
     expect(b.falhas_da_api[0].motivo).toMatch(/chave recusada/)
+  })
+  it('cota (0058): passou de 24 diagnósticos no dia, não calcula rotas', async () => {
+    const calls: string[] = []
+    const f = vi.fn(async (u: RequestInfo | URL) => {
+      const url = String(u); calls.push(url)
+      if (url.includes('delivery_pricing_current')) return res(PRICING)
+      if (url.includes('diagnostic_allow')) return res({ code: 'PT429' }, 400)
+      return res({ features: [] })
+    }) as unknown as typeof fetch
+    const r = await handleDiagnostics(get(), { ORS_API_KEY: 'k' }, f, 5_000)
+    expect(r!.status).toBe(429)
+    expect(calls.some((c) => c.includes('openrouteservice'))).toBe(false)
   })
 })

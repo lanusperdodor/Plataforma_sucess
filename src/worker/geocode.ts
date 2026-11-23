@@ -35,6 +35,15 @@ export async function handleGeocode(req: Request, env: GeocodeEnv, fetcher: type
     const u = await fetcher(`${base}/auth/v1/user`, { headers: { apikey, Authorization: `Bearer ${token}` } })
     if (!u.ok) return json({ erro: 'Entre na sua conta.' }, 401)
   } catch { return json({ erro: 'Sem conexão com o servidor.' }, 503) }
+  // cota (0058): 30 buscas/hora por pessoa e teto diário geral, para ninguém esgotar o serviço gratuito de todos
+  try {
+    const q = await fetcher(`${base}/rest/v1/rpc/geocode_allow`, { method: 'POST', headers: { apikey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' })
+    if (!q.ok && q.status !== 404) {
+      const e = (await q.json().catch(() => ({}))) as { code?: string; message?: string }
+      if (e.code === 'PT429') return json({ erro: e.message || 'Muitas buscas em pouco tempo. Aguarde e tente de novo, ou marque no mapa.' }, 429)
+      return json({ erro: 'Sem conexão com o servidor.' }, 503)
+    }
+  } catch { return json({ erro: 'Sem conexão com o servidor.' }, 503) }
 
   const parts = cleanParts(body.parts)
   const allowApprox = body.aproximado === true

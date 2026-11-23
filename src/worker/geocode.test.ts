@@ -3,7 +3,7 @@ import { handleGeocode } from './geocode'
 
 const req = (b: unknown, auth = 'Bearer a.b.c') => new Request('https://t/api/geocode', { method: 'POST', headers: { Authorization: auth }, body: JSON.stringify(b) })
 const res = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s })
-const fake = (geo: Response) => vi.fn(async (u: RequestInfo | URL) => (String(u).includes('/auth/v1/user') ? res({ id: 'u1' }) : geo)) as unknown as typeof fetch
+const fake = (geo: Response) => vi.fn(async (u: RequestInfo | URL) => (String(u).includes('/auth/v1/user') ? res({ id: 'u1' }) : String(u).includes('geocode_allow') ? res(null) : geo)) as unknown as typeof fetch
 
 describe('endereço → coordenadas', () => {
   it('valida login, entrada e chave', async () => {
@@ -16,7 +16,7 @@ describe('endereço → coordenadas', () => {
     const f = fake(res({ features: [{ geometry: { coordinates: [-46.7512345, -20.7412345] }, properties: { layer: 'address', confidence: 0.9, label: 'Rua das Flores, 120, Itaú de Minas' } }] }))
     const r = await handleGeocode(req({ address: 'Rua das Flores, 120 - Centro - Itaú de Minas/MG, CEP 37975-000', near: { lat: -20.74, lng: -46.75 } }), { ORS_API_KEY: 'k' }, f)
     expect(await r!.json()).toMatchObject({ lat: -20.74123, lng: -46.75123, precisao: 'address' })
-    const url = String((f as unknown as { mock: { calls: [string][] } }).mock.calls[1]![0])
+    const url = (f as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0])).find((x) => x.includes('openrouteservice'))!
     expect(url).toContain('boundary.country=BR')
     expect(url).toContain('focus.point.lat=-20.74')
   })
@@ -29,6 +29,7 @@ describe('endereço → coordenadas', () => {
     const urls: string[] = []
     const f = vi.fn(async (u: RequestInfo | URL) => {
       const url = String(u); if (url.includes('/auth/v1/user')) return res({ id: 'u1' })
+      if (url.includes('geocode_allow')) return res(null)
       urls.push(url)
       if (url.includes('/search/structured')) return res({ features: [] })
       // texto completo: 1º resultado é homônimo em SP (descartado), 2º é o certo em MG
@@ -54,5 +55,17 @@ describe('endereço → coordenadas', () => {
     expect((await handleGeocode(req({ address: 'Rua Nova, 5, Centro, Itaú de Minas - MG', parts }), { ORS_API_KEY: 'k' }, f))!.status).toBe(404)
     const r = await handleGeocode(req({ address: 'Rua Nova, 5, Centro, Itaú de Minas - MG', parts, aproximado: true }), { ORS_API_KEY: 'k' }, f)
     expect(await r!.json()).toMatchObject({ aproximado: true, precisao: 'neighbourhood' })
+  })
+  it('cota (0058): passou do limite por pessoa, responde 429 sem consultar o serviço de mapas', async () => {
+    const calls: string[] = []
+    const f = vi.fn(async (u: RequestInfo | URL) => {
+      const url = String(u); calls.push(url)
+      if (url.includes('/auth/v1/user')) return res({ id: 'u1' })
+      if (url.includes('geocode_allow')) return res({ code: 'PT429', message: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.' }, 400)
+      return res({ features: [] })
+    }) as unknown as typeof fetch
+    const r = await handleGeocode(req({ address: 'Rua das Flores, 120 - Centro' }), { ORS_API_KEY: 'k' }, f)
+    expect(r!.status).toBe(429)
+    expect(calls.some((c) => c.includes('openrouteservice'))).toBe(false)
   })
 })
